@@ -142,7 +142,28 @@ const Editor = forwardRef(({
           height: '100% !important',
           width: '100% !important',
           fontSize: '16px',
-          lineHeight: '1.6'
+          lineHeight: '1.6',
+          ...(focusMode && {
+            maxWidth: '750px',
+            margin: '0 auto',
+            fontFamily: '"Rubik", sans-serif',
+            padding: '0 20px',
+            '& .CodeMirror-lines': {
+              paddingTop: '100px',
+              paddingBottom: '100px'
+            },
+            '& .CodeMirror-line': {
+              maxWidth: '650px',
+              margin: '0 auto',
+              padding: '0 !important'
+            },
+            '& .CodeMirror-cursors': {
+              marginLeft: 'calc((100% - 650px) / 2)'
+            },
+            '& .CodeMirror-cursor': {
+              marginLeft: '0'
+            }
+          })
         },
         '& .cm-s-material': {
           background: darkMode ? '#263238' : '#fff',
@@ -243,7 +264,7 @@ const Editor = forwardRef(({
         options={{
           mode: mode,
           theme: darkMode ? 'material' : 'default',
-          lineNumbers: showLineNumbers,
+          lineNumbers: !focusMode && showLineNumbers,
           lineWrapping: wordWrap,
           autofocus: true,
           scrollbarStyle: 'native',
