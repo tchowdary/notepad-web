@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
@@ -19,15 +19,24 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500&display=swap" rel="stylesheet">
     <title>Notepad</title>
-    <script>
-      // Handle status bar color for iOS PWA
-      if (window.matchMedia) {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-          document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
-            .setAttribute('content', e.matches ? 'black' : 'default');
-        });
+    <style>
+      :root {
+        --status-bar-height: env(safe-area-inset-top);
       }
-    </script>
+      @media (prefers-color-scheme: light) {
+        body {
+          background-color: #ffffff;
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #000000;
+        }
+      }
+      #root {
+        padding-top: var(--status-bar-height);
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
