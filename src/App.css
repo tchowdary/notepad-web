@@ -38,11 +38,21 @@ body {
   background-color: #fdfdf7;
 }
 
+.cm-s-default .CodeMirror-gutters {
+  background-color: #fdfdf7;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.cm-s-default .CodeMirror-linenumber {
+  color: #666;
+}
+
 /* Markdown Preview styles */
 .markdown-body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
   font-size: 16px !important;
   line-height: 1.6 !important;
+  background-color: #fdfdf7;
 }
 
 .markdown-dark {
@@ -92,6 +102,18 @@ body {
 .MuiToolbar-root {
   min-height: 48px !important;
   padding: 0 8px !important;
+}
+
+/* Toolbar light mode */
+@media (prefers-color-scheme: light) {
+  .MuiAppBar-root {
+    background-color: #fdfdf7 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  .MuiToolbar-root {
+    color: #213547;
+  }
 }
 
 /* Switch styles */
