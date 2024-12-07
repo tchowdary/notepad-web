@@ -3,11 +3,18 @@ import { Controlled as CodeMirror } from 'react-codemirror2';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/material.css';
 import 'codemirror/mode/markdown/markdown';
+import 'codemirror/mode/javascript/javascript';
+import 'codemirror/mode/xml/xml';
+import 'codemirror/mode/css/css';
+import 'codemirror/mode/python/python';
+import 'codemirror/mode/sql/sql';
+import 'codemirror/mode/yaml/yaml';
 import { Box } from '@mui/material';
 import MarkdownPreview from './MarkdownPreview';
 
 const Editor = ({ content, onChange, wordWrap, darkMode, showPreview }) => {
   const [editorInstance, setEditorInstance] = useState(null);
+  const [mode, setMode] = useState('markdown');
 
   useEffect(() => {
     if (editorInstance) {
@@ -15,6 +22,36 @@ const Editor = ({ content, onChange, wordWrap, darkMode, showPreview }) => {
       editorInstance.refresh();
     }
   }, [wordWrap, editorInstance]);
+
+  useEffect(() => {
+    // Detect file type based on content
+    try {
+      JSON.parse(content);
+      setMode({ name: 'javascript', json: true });
+      // Format JSON if it's valid
+      const formattedJson = JSON.stringify(JSON.parse(content), null, 2);
+      if (formattedJson !== content) {
+        onChange(formattedJson);
+      }
+    } catch {
+      // Check for other file types
+      if (content.trim().startsWith('<?xml') || content.includes('</')) {
+        setMode('xml');
+      } else if (content.includes('{') && content.includes('}') && content.includes(':')) {
+        setMode({ name: 'javascript', json: true });
+      } else if (content.includes('def ') || content.includes('import ') || content.includes('class ')) {
+        setMode('python');
+      } else if (content.includes('@media') || content.includes('{') || content.includes(':')) {
+        setMode('css');
+      } else if (content.includes('SELECT ') || content.includes('FROM ') || content.includes('WHERE ')) {
+        setMode('sql');
+      } else if (content.includes('---') || content.includes(':') && !content.includes('{')) {
+        setMode('yaml');
+      } else {
+        setMode('markdown');
+      }
+    }
+  }, [content]);
 
   const handleChange = (editor, data, value) => {
     onChange(value);
@@ -30,18 +67,59 @@ const Editor = ({ content, onChange, wordWrap, darkMode, showPreview }) => {
         width: '100% !important',
         fontSize: '16px',
         lineHeight: '1.6'
+      },
+      '& .cm-s-material': {
+        background: darkMode ? '#263238' : '#fff',
+        color: darkMode ? '#eeffff' : '#000'
+      },
+      '& .cm-s-material .CodeMirror-gutters': {
+        background: darkMode ? '#263238' : '#fff',
+        border: 'none'
+      },
+      '& .cm-s-material .CodeMirror-linenumber': {
+        color: darkMode ? '#546e7a' : '#999'
+      },
+      '& .cm-s-material .CodeMirror-line': {
+        color: darkMode ? '#eeffff' : 'inherit'
+      },
+      '& .cm-s-material .cm-string': {
+        color: darkMode ? '#C3E88D' : '#183691'
+      },
+      '& .cm-s-material .cm-property': {
+        color: darkMode ? '#82AAFF' : '#0086b3'
+      },
+      '& .cm-s-material .cm-keyword': {
+        color: darkMode ? '#c792ea' : '#a71d5d'
+      },
+      '& .cm-s-material .cm-variable': {
+        color: darkMode ? '#eeffff' : '#000'
+      },
+      '& .cm-s-material .cm-url': {
+        color: darkMode ? '#89DDFF' : '#0086b3'
+      },
+      '& .cm-s-material .cm-link': {
+        color: darkMode ? '#89DDFF' : '#0086b3'
+      },
+      '& .cm-s-material .cm-comment': {
+        color: darkMode ? '#546e7a' : '#969896'
+      },
+      '& .cm-s-material .cm-header': {
+        color: darkMode ? '#eeffff' : '#000'
       }
     }}>
       <CodeMirror
         value={content}
         options={{
-          mode: 'markdown',
+          mode: mode,
           theme: darkMode ? 'material' : 'default',
           lineNumbers: true,
           lineWrapping: wordWrap,
           autofocus: true,
           scrollbarStyle: 'native',
           lineHeight: '1.6',
+          matchBrackets: true,
+          autoCloseBrackets: true,
+          tabSize: 2
         }}
         onBeforeChange={handleChange}
         editorDidMount={editor => {
