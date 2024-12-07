@@ -49,7 +49,16 @@ const Toolbar = ({
         bgcolor: theme.palette.background.paper,
       }}
     >
-      <MuiToolbar variant="dense">
+      <MuiToolbar 
+        variant="dense"
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 0.5,
+          minHeight: '48px !important',
+          padding: '0 8px !important',
+        }}
+      >
         <Tooltip title="New File (Ctrl+N)">
           <IconButton onClick={onNewTab} size="small">
             <AddIcon />
