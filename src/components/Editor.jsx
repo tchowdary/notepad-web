@@ -199,7 +199,7 @@ const Editor = forwardRef(({
           color: darkMode ? '#eeffff' : '#000'
         },
         '& .cm-s-material .CodeMirror-gutters': {
-          background: darkMode ? '#263238' : '#fff',
+          background: darkMode ? '#263238' : '#fdfdf7',
           border: 'none'
         },
         '& .cm-s-material .CodeMirror-linenumber': {

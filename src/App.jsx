@@ -28,8 +28,8 @@ function App() {
     palette: {
       mode: darkMode ? 'dark' : 'light',
       background: {
-        default: darkMode ? '#1e1e1e' : '#ffffff',
-        paper: darkMode ? '#252526' : '#f5f5f5',
+        default: darkMode ? '#1e1e1e' : '#fdfdf7',
+        paper: darkMode ? '#252526' : '#fdfdf7',
       },
       divider: darkMode ? '#333333' : '#e0e0e0',
     },
