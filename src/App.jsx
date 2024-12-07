@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
 import Editor from './components/Editor';
 import TabList from './components/TabList';
@@ -6,9 +6,10 @@ import Toolbar from './components/Toolbar';
 import './App.css';
 
 function App() {
+  const fileInputRef = useRef(null);
   const [tabs, setTabs] = useState(() => {
     const savedTabs = localStorage.getItem('tabs');
-    return savedTabs ? JSON.parse(savedTabs) : [{ id: 1, name: 'Untitled', content: '' }];
+    return savedTabs ? JSON.parse(savedTabs) : [{ id: 1, name: 'untitled.md', content: '' }];
   });
   const [activeTab, setActiveTab] = useState(() => {
     const savedTabs = localStorage.getItem('tabs');
@@ -65,7 +66,7 @@ function App() {
 
   const handleNewTab = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    setTabs([...tabs, { id: newId, name: 'Untitled', content: '' }]);
+    setTabs([...tabs, { id: newId, name: 'untitled.md', content: '' }]);
     setActiveTab(newId);
   };
 
@@ -97,11 +98,30 @@ function App() {
     ));
   };
 
-  const handleFileOpen = (fileName, content) => {
-    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    const newTab = { id: newId, name: fileName, content: content };
-    setTabs([...tabs, newTab]);
-    setActiveTab(newId);
+  const handleTabAreaDoubleClick = (event) => {
+    // Only create new tab if clicking on the tab area, not on existing tabs
+    if (event.target.closest('.MuiTab-root') === null) {
+      handleNewTab();
+    }
+  };
+
+  const handleFileOpen = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileInputChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+        setTabs([...tabs, { id: newId, name: file.name, content: e.target.result }]);
+        setActiveTab(newId);
+      };
+      reader.readAsText(file);
+    }
+    // Reset input value to allow opening the same file again
+    event.target.value = null;
   };
 
   const handleFileDownload = () => {
@@ -137,21 +157,31 @@ function App() {
         color: 'text.primary',
         overflow: 'hidden'
       }}>
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleFileInputChange}
+          accept=".txt,.md,.json,.js,.jsx,.ts,.tsx,.css,.html"
+        />
         <Toolbar
-          onNewTab={handleNewTab}
+          onNewFile={handleNewTab}
+          onOpenFile={handleFileOpen}
           wordWrap={wordWrap}
-          onWordWrapToggle={() => setWordWrap(!wordWrap)}
+          onWordWrapChange={() => setWordWrap(!wordWrap)}
           darkMode={darkMode}
-          onDarkModeToggle={() => setDarkMode(!darkMode)}
-          onFocusMode={() => setFocusMode(!focusMode)}
-          showPreview={showPreview}
-          onPreviewToggle={() => setShowPreview(!showPreview)}
+          onDarkModeChange={() => setDarkMode(!darkMode)}
           focusMode={focusMode}
-          onFileOpen={handleFileOpen}
+          onFocusModeChange={() => setFocusMode(!focusMode)}
+          showPreview={showPreview}
+          onShowPreviewChange={() => setShowPreview(!showPreview)}
           onFileDownload={handleFileDownload}
           className={focusMode ? 'focus-mode-toolbar' : ''}
         />
-        {!focusMode && (
+        <Box 
+          sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+          onDoubleClick={handleTabAreaDoubleClick}
+        >
           <TabList
             tabs={tabs}
             activeTab={activeTab}
@@ -159,49 +189,49 @@ function App() {
             onTabSelect={handleTabSelect}
             onTabRename={handleTabRename}
           />
-        )}
-        <Box sx={{ 
-          flexGrow: 1, 
-          position: 'relative',
-          overflow: 'hidden',
-          minHeight: 0,
-          ...(focusMode && {
-            maxWidth: '750px',
-            margin: '0 auto',
-            padding: '2rem',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            '& .CodeMirror': {
-              flex: 1,
-              fontSize: '18px',
-              lineHeight: '1.8',
-              padding: '20px 0',
-              backgroundColor: 'transparent',
-              height: 'auto !important'
-            },
-            '& .CodeMirror-lines': {
-              padding: '0',
-            },
-            '& .CodeMirror-line': {
-              padding: '0',
-            },
-            '& .CodeMirror-linenumbers': {
-              display: 'none',
-            },
-            '& .CodeMirror-scroll': {
-              minHeight: '100%',
-            }
-          })
-        }}>
-          <Editor
-            content={currentTab.content}
-            onChange={handleContentChange}
-            wordWrap={wordWrap}
-            darkMode={darkMode}
-            showPreview={showPreview}
-            focusMode={focusMode}
-          />
+          <Box sx={{ 
+            flexGrow: 1, 
+            position: 'relative',
+            overflow: 'hidden',
+            minHeight: 0,
+            ...(focusMode && {
+              maxWidth: '750px',
+              margin: '0 auto',
+              padding: '2rem',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              '& .CodeMirror': {
+                flex: 1,
+                fontSize: '18px',
+                lineHeight: '1.8',
+                padding: '20px 0',
+                backgroundColor: 'transparent',
+                height: 'auto !important'
+              },
+              '& .CodeMirror-lines': {
+                padding: '0',
+              },
+              '& .CodeMirror-line': {
+                padding: '0',
+              },
+              '& .CodeMirror-linenumbers': {
+                display: 'none',
+              },
+              '& .CodeMirror-scroll': {
+                minHeight: '100%',
+              }
+            })
+          }}>
+            <Editor
+              content={currentTab.content}
+              onChange={handleContentChange}
+              wordWrap={wordWrap}
+              darkMode={darkMode}
+              showPreview={showPreview}
+              focusMode={focusMode}
+            />
+          </Box>
         </Box>
       </Box>
     </ThemeProvider>
