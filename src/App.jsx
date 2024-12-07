@@ -220,23 +220,42 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <Toolbar
-          onNewTab={handleNewTab}
-          onOpenFile={handleOpenFile}
-          onSaveFile={handleSaveFile}
-          wordWrap={wordWrap}
-          onWordWrapChange={() => setWordWrap(!wordWrap)}
-          darkMode={darkMode}
-          onDarkModeChange={() => setDarkMode(!darkMode)}
-          focusMode={focusMode}
-          onFocusModeChange={() => setFocusMode(!focusMode)}
-          showPreview={showPreview}
-          onShowPreviewChange={() => setShowPreview(!showPreview)}
-          onNewDrawing={handleNewDrawing}
-          onConvert={handleConvert}
-        />
-        <Box sx={{ display: 'flex', flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
-          <Box className="main-content">
+        {!focusMode && (
+          <Toolbar
+            onNewTab={handleNewTab}
+            onOpenFile={handleOpenFile}
+            onSaveFile={handleSaveFile}
+            wordWrap={wordWrap}
+            onWordWrapChange={() => setWordWrap(!wordWrap)}
+            darkMode={darkMode}
+            onDarkModeChange={() => setDarkMode(!darkMode)}
+            focusMode={focusMode}
+            onFocusModeChange={() => setFocusMode(!focusMode)}
+            showPreview={showPreview}
+            onShowPreviewChange={() => setShowPreview(!showPreview)}
+            onNewDrawing={handleNewDrawing}
+            onConvert={handleConvert}
+          />
+        )}
+        <Box sx={{ 
+          display: 'flex', 
+          flexGrow: 1, 
+          position: 'relative', 
+          overflow: 'hidden',
+          ...(focusMode && {
+            backgroundColor: theme.palette.background.default,
+            padding: '2rem'
+          })
+        }}>
+          <Box className="main-content" sx={{ 
+            flexGrow: 1,
+            display: 'flex',
+            ...(focusMode && {
+              maxWidth: '900px',
+              margin: '0 auto',
+              width: '100%'
+            })
+          }}>
             {!showDrawing && (
               <Editor
                 ref={editorRef}
@@ -249,14 +268,16 @@ function App() {
               />
             )}
           </Box>
-          <TabList
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabSelect={handleTabSelect}
-            onTabClose={handleTabClose}
-            onTabRename={handleTabRename}
-            onTabAreaDoubleClick={handleTabAreaDoubleClick}
-          />
+          {!focusMode && (
+            <TabList
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabSelect={handleTabSelect}
+              onTabClose={handleTabClose}
+              onTabRename={handleTabRename}
+              onTabAreaDoubleClick={handleTabAreaDoubleClick}
+            />
+          )}
         </Box>
         <ExcalidrawEditor
           open={showDrawing}
