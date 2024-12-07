@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AppBar,
   Toolbar as MuiToolbar,
@@ -20,7 +20,10 @@ import {
   FormatAlignLeft as WrapOffIcon,
   Draw as DrawIcon,
   Transform as TransformIcon,
+  GitHub as GitHubIcon,
 } from '@mui/icons-material';
+import GitHubSettingsModal from './GitHubSettingsModal';
+import githubService from '../services/githubService';
 
 const Toolbar = ({
   onNewTab,
@@ -37,8 +40,25 @@ const Toolbar = ({
   onNewDrawing,
   onConvert,
   className,
+  currentFile,
 }) => {
   const theme = useTheme();
+  const [showGitHubSettings, setShowGitHubSettings] = useState(false);
+
+  const handleGitHubSync = async () => {
+    if (!githubService.isConfigured()) {
+      setShowGitHubSettings(true);
+      return;
+    }
+    
+    if (currentFile) {
+      try {
+        await githubService.uploadFile(currentFile.name, currentFile.content);
+      } catch (error) {
+        console.error('Failed to sync with GitHub:', error);
+      }
+    }
+  };
 
   return (
     <AppBar 
@@ -121,6 +141,17 @@ const Toolbar = ({
             <TransformIcon />
           </IconButton>
         </Tooltip>
+
+        <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
+          <IconButton onClick={handleGitHubSync} size="small">
+            <GitHubIcon />
+          </IconButton>
+        </Tooltip>
+
+        <GitHubSettingsModal
+          open={showGitHubSettings}
+          onClose={() => setShowGitHubSettings(false)}
+        />
       </MuiToolbar>
     </AppBar>
   );
