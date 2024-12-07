@@ -24,7 +24,8 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
         borderColor: 'divider',
         height: '100%',
         width: '250px',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        bgcolor: 'background.paper',
       }}
     >
       <Tabs
@@ -35,7 +36,12 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
         sx={{ 
           height: '100%',
           '& .MuiTabs-flexContainer': {
-            height: '100%'
+            height: '100%',
+            bgcolor: 'background.paper'
+          },
+          '& .MuiTabs-indicator': {
+            left: 0,
+            width: '2px'
           }
         }}
         onDoubleClick={handleDoubleClick}
