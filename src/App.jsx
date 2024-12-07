@@ -286,6 +286,12 @@ function App() {
     setActiveTab(newId);
   };
 
+  const handleConvert = (event) => {
+    if (editorRef.current) {
+      editorRef.current.setConverterMenuAnchor(event.currentTarget);
+    }
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -326,7 +332,7 @@ function App() {
         color: 'text.primary'
       }}>
         {!focusMode && (
-          <Toolbar
+          <Toolbar 
             onNewTab={handleNewTab}
             onOpenFile={() => fileInputRef.current?.click()}
             onSaveFile={handleSaveFile}
@@ -339,7 +345,7 @@ function App() {
             showPreview={showPreview}
             onShowPreviewChange={() => setShowPreview(!showPreview)}
             onNewDrawing={handleNewDrawing}
-            onConvert={() => {}}
+            onConvert={handleConvert}
             currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
           />
         )}
