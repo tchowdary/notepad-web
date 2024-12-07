@@ -21,8 +21,9 @@ import {
 } from '@mui/icons-material';
 
 const Toolbar = ({
-  onNewFile,
+  onNewTab,
   onOpenFile,
+  onSaveFile,
   wordWrap,
   onWordWrapChange,
   darkMode,
@@ -31,7 +32,6 @@ const Toolbar = ({
   onFocusModeChange,
   showPreview,
   onShowPreviewChange,
-  onFileDownload,
   className,
 }) => {
   const theme = useTheme();
@@ -49,7 +49,7 @@ const Toolbar = ({
     >
       <MuiToolbar variant="dense">
         <Tooltip title="New File (Ctrl+N)">
-          <IconButton onClick={onNewFile} size="small">
+          <IconButton onClick={onNewTab} size="small">
             <AddIcon />
           </IconButton>
         </Tooltip>
@@ -60,8 +60,8 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Download File (Ctrl+S)">
-          <IconButton onClick={onFileDownload} size="small">
+        <Tooltip title="Save File (Ctrl+S)">
+          <IconButton onClick={onSaveFile} size="small">
             <DownloadIcon />
           </IconButton>
         </Tooltip>

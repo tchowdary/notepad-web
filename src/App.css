@@ -76,16 +76,12 @@ body {
   border-right: 1px solid rgba(128, 128, 128, 0.2);
 }
 
-/* Tab styles */
-.MuiTabs-root {
-  min-height: 40px !important;
-  background-color: inherit !important;
-}
-
-.MuiTab-root {
-  min-height: 40px !important;
-  padding: 0 16px !important;
-  color: inherit !important;
+/* Main content area */
+.main-content {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Toolbar styles */

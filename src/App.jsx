@@ -109,23 +109,8 @@ function App() {
     fileInputRef.current.click();
   };
 
-  const handleFileInputChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-        setTabs([...tabs, { id: newId, name: file.name, content: e.target.result }]);
-        setActiveTab(newId);
-      };
-      reader.readAsText(file);
-    }
-    // Reset input value to allow opening the same file again
-    event.target.value = null;
-  };
-
-  const handleFileDownload = () => {
-    const currentTab = tabs.find(tab => tab.id === activeTab);
+  const handleSaveFile = (id) => {
+    const currentTab = tabs.find(tab => tab.id === id);
     if (!currentTab) return;
 
     const fileName = currentTab.name.endsWith('.md') 
@@ -143,30 +128,29 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  // Find the current tab, fallback to the first tab if active tab is not found
-  const currentTab = tabs.find(tab => tab.id === activeTab) || tabs[0];
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+        setTabs([...tabs, { id: newId, name: file.name, content: e.target.result }]);
+        setActiveTab(newId);
+      };
+      reader.readAsText(file);
+    }
+    // Reset input value to allow opening the same file again
+    event.target.value = null;
+  };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ 
-        height: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column',
-        bgcolor: 'background.default',
-        color: 'text.primary',
-        overflow: 'hidden'
-      }}>
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-          onChange={handleFileInputChange}
-          accept=".txt,.md,.json,.js,.jsx,.ts,.tsx,.css,.html"
-        />
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Toolbar
-          onNewFile={handleNewTab}
-          onOpenFile={handleFileOpen}
+          onNewTab={handleNewTab}
+          onOpenFile={() => fileInputRef.current.click()}
+          onSaveFile={() => handleSaveFile(activeTab)}
           wordWrap={wordWrap}
           onWordWrapChange={() => setWordWrap(!wordWrap)}
           darkMode={darkMode}
@@ -175,65 +159,35 @@ function App() {
           onFocusModeChange={() => setFocusMode(!focusMode)}
           showPreview={showPreview}
           onShowPreviewChange={() => setShowPreview(!showPreview)}
-          onFileDownload={handleFileDownload}
-          className={focusMode ? 'focus-mode-toolbar' : ''}
         />
-        <Box 
-          sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-          onDoubleClick={handleTabAreaDoubleClick}
-        >
-          <TabList
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabClose={handleTabClose}
-            onTabSelect={handleTabSelect}
-            onTabRename={handleTabRename}
-          />
-          <Box sx={{ 
-            flexGrow: 1, 
-            position: 'relative',
-            overflow: 'hidden',
-            minHeight: 0,
-            ...(focusMode && {
-              maxWidth: '750px',
-              margin: '0 auto',
-              padding: '2rem',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              '& .CodeMirror': {
-                flex: 1,
-                fontSize: '18px',
-                lineHeight: '1.8',
-                padding: '20px 0',
-                backgroundColor: 'transparent',
-                height: 'auto !important'
-              },
-              '& .CodeMirror-lines': {
-                padding: '0',
-              },
-              '& .CodeMirror-line': {
-                padding: '0',
-              },
-              '& .CodeMirror-linenumbers': {
-                display: 'none',
-              },
-              '& .CodeMirror-scroll': {
-                minHeight: '100%',
-              }
-            })
-          }}>
+        <Box sx={{ display: 'flex', flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
+          <Box className="main-content">
             <Editor
-              content={currentTab.content}
+              content={tabs.find(tab => tab.id === activeTab)?.content || ''}
               onChange={handleContentChange}
               wordWrap={wordWrap}
               darkMode={darkMode}
-              showPreview={showPreview}
               focusMode={focusMode}
+              showPreview={showPreview}
             />
           </Box>
+          <TabList
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabSelect={handleTabSelect}
+            onTabClose={handleTabClose}
+            onTabRename={handleTabRename}
+            onTabAreaDoubleClick={handleTabAreaDoubleClick}
+          />
         </Box>
       </Box>
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileSelect}
+        accept=".txt,.md,.json,.js,.jsx,.ts,.tsx,.css,.html"
+      />
     </ThemeProvider>
   );
 }

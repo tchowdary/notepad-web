@@ -2,17 +2,32 @@ import React from 'react';
 import { Box, Tabs } from '@mui/material';
 import Tab from './Tab';
 
-const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename }) => {
+const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabAreaDoubleClick }) => {
   // Find the index of the active tab
   const activeIndex = tabs.findIndex(tab => tab.id === activeTab);
 
   return (
-    <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+    <Box 
+      sx={{ 
+        borderLeft: 1, 
+        borderColor: 'divider',
+        height: '100%',
+        width: '250px',
+        overflow: 'hidden'
+      }}
+      onDoubleClick={onTabAreaDoubleClick}
+    >
       <Tabs
         value={activeIndex}
         variant="scrollable"
-        scrollButtons="auto"
-        sx={{ minHeight: 'auto' }}
+        orientation="vertical"
+        scrollButtons={false}
+        sx={{ 
+          height: '100%',
+          '& .MuiTabs-flexContainer': {
+            height: '100%'
+          }
+        }}
       >
         {tabs.map((tab, index) => (
           <Tab
