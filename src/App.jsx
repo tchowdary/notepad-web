@@ -4,22 +4,14 @@ import Editor from './components/Editor';
 import TabList from './components/TabList';
 import Toolbar from './components/Toolbar';
 import ExcalidrawEditor from './components/ExcalidrawEditor';
+import { saveTabs, loadTabs } from './utils/db';
 import './App.css';
 
 function App() {
   const fileInputRef = useRef(null);
-  const [tabs, setTabs] = useState(() => {
-    const savedTabs = localStorage.getItem('tabs');
-    return savedTabs ? JSON.parse(savedTabs) : [{ id: 1, name: 'untitled.md', content: '' }];
-  });
-  const [activeTab, setActiveTab] = useState(() => {
-    const savedTabs = localStorage.getItem('tabs');
-    if (savedTabs) {
-      const parsedTabs = JSON.parse(savedTabs);
-      return parsedTabs.length > 0 ? parsedTabs[0].id : 1;
-    }
-    return 1;
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [tabs, setTabs] = useState([{ id: 1, name: 'untitled.md', content: '' }]);
+  const [activeTab, setActiveTab] = useState(1);
   const [wordWrap, setWordWrap] = useState(() => {
     const saved = localStorage.getItem('wordWrap');
     return saved !== null ? saved === 'true' : true;
@@ -40,9 +32,32 @@ function App() {
     },
   });
 
+  // Load tabs from IndexedDB on mount
   useEffect(() => {
-    localStorage.setItem('tabs', JSON.stringify(tabs));
-  }, [tabs]);
+    const initTabs = async () => {
+      try {
+        setIsLoading(true);
+        const savedTabs = await loadTabs();
+        if (savedTabs && savedTabs.length > 0) {
+          setTabs(savedTabs);
+          setActiveTab(savedTabs[0].id);
+        }
+      } catch (error) {
+        console.error('Error loading tabs:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initTabs();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading) {  // Don't save during initial load
+      saveTabs(tabs).catch(error => {
+        console.error('Error saving tabs:', error);
+      });
+    }
+  }, [tabs, isLoading]);
 
   useEffect(() => {
     localStorage.setItem('wordWrap', wordWrap);
@@ -170,14 +185,18 @@ function App() {
         />
         <Box sx={{ display: 'flex', flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
           <Box className="main-content">
-            <Editor
-              content={tabs.find(tab => tab.id === activeTab)?.content || ''}
-              onChange={handleContentChange}
-              wordWrap={wordWrap}
-              darkMode={darkMode}
-              focusMode={focusMode}
-              showPreview={showPreview}
-            />
+            {isLoading ? (
+              <div>Loading...</div>
+            ) : (
+              <Editor
+                content={tabs.find(tab => tab.id === activeTab)?.content || ''}
+                onChange={handleContentChange}
+                wordWrap={wordWrap}
+                darkMode={darkMode}
+                focusMode={focusMode}
+                showPreview={showPreview}
+              />
+            )}
           </Box>
           <TabList
             tabs={tabs}
