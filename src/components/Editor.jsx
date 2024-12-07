@@ -16,7 +16,15 @@ import ApiKeyInput from './ApiKeyInput';
 import { improveText } from '../utils/textImprovement';
 import { converters } from '../utils/converters';
 
-const Editor = forwardRef(({ content, onChange, wordWrap, darkMode, showPreview, focusMode }, ref) => {
+const Editor = forwardRef(({ 
+  content, 
+  onChange, 
+  wordWrap = false, 
+  darkMode = false,
+  showLineNumbers = true,
+  showPreview,
+  focusMode
+}, ref) => {
   const [editorInstance, setEditorInstance] = useState(null);
   const [mode, setMode] = useState('markdown');
   const [improving, setImproving] = useState(false);
@@ -235,7 +243,7 @@ const Editor = forwardRef(({ content, onChange, wordWrap, darkMode, showPreview,
         options={{
           mode: mode,
           theme: darkMode ? 'material' : 'default',
-          lineNumbers: !focusMode,
+          lineNumbers: showLineNumbers,
           lineWrapping: wordWrap,
           autofocus: true,
           scrollbarStyle: 'native',

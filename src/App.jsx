@@ -5,6 +5,7 @@ import TabList from './components/TabList';
 import Toolbar from './components/Toolbar';
 import ExcalidrawEditor from './components/ExcalidrawEditor';
 import { saveTabs, loadTabs } from './utils/db';
+import { isPWA } from './utils/pwaUtils';
 import './App.css';
 
 function App() {
@@ -21,7 +22,9 @@ function App() {
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem('showPreview') === 'true');
   const [showDrawing, setShowDrawing] = useState(false);
   const [currentDrawingId, setCurrentDrawingId] = useState(null);
+  const [showSidebar, setShowSidebar] = useState(true);
   const editorRef = useRef(null);
+  const sidebarTimeoutRef = useRef(null);
 
   const theme = createTheme({
     palette: {
@@ -69,6 +72,42 @@ function App() {
       },
     },
   });
+
+  useEffect(() => {
+    // Auto-hide sidebar in PWA mode
+    if (isPWA()) {
+      setShowSidebar(false);
+    }
+  }, []);
+
+  // Handle mouse movement to show/hide sidebar in PWA mode
+  useEffect(() => {
+    if (!isPWA()) return;
+
+    const handleMouseMove = (e) => {
+      if (e.clientX <= 20) { // Show sidebar when mouse is near the left edge
+        setShowSidebar(true);
+        if (sidebarTimeoutRef.current) {
+          clearTimeout(sidebarTimeoutRef.current);
+        }
+      } else if (e.clientX > 250) { // Hide sidebar when mouse moves away
+        if (sidebarTimeoutRef.current) {
+          clearTimeout(sidebarTimeoutRef.current);
+        }
+        sidebarTimeoutRef.current = setTimeout(() => {
+          setShowSidebar(false);
+        }, 1000);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (sidebarTimeoutRef.current) {
+        clearTimeout(sidebarTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Load tabs from IndexedDB on mount
   useEffect(() => {
@@ -240,43 +279,86 @@ function App() {
         <Box sx={{ 
           display: 'flex', 
           flexGrow: 1, 
-          position: 'relative', 
           overflow: 'hidden',
+          position: 'relative',
           ...(focusMode && {
-            backgroundColor: theme.palette.background.default,
-            padding: '2rem'
+            backgroundColor: theme => theme.palette.background.paper,
           })
         }}>
-          <Box className="main-content" sx={{ 
-            flexGrow: 1,
+          <Box sx={{ 
+            flexGrow: 1, 
             display: 'flex',
+            overflow: 'hidden',
             ...(focusMode && {
               maxWidth: '900px',
               margin: '0 auto',
               width: '100%'
             })
           }}>
-            {!showDrawing && (
+            {showPreview ? (
+              <>
+                <Box sx={{ width: '50%', overflow: 'auto' }}>
+                  <Editor
+                    ref={editorRef}
+                    content={activeTabContent?.content || ''}
+                    onChange={handleContentChange}
+                    wordWrap={wordWrap}
+                    darkMode={darkMode}
+                    showLineNumbers={!focusMode}
+                  />
+                </Box>
+                <Box sx={{ width: '50%', overflow: 'auto', borderLeft: 1, borderColor: 'divider' }}>
+                  <div dangerouslySetInnerHTML={{ __html: '' }} />
+                </Box>
+              </>
+            ) : (
               <Editor
                 ref={editorRef}
                 content={activeTabContent?.content || ''}
                 onChange={handleContentChange}
                 wordWrap={wordWrap}
                 darkMode={darkMode}
-                focusMode={focusMode}
-                showPreview={showPreview}
+                showLineNumbers={!focusMode}
               />
             )}
           </Box>
           {!focusMode && (
-            <TabList
-              tabs={tabs}
-              activeTab={activeTab}
-              onTabSelect={handleTabSelect}
-              onTabClose={handleTabClose}
-              onTabRename={handleTabRename}
-              onTabAreaDoubleClick={handleTabAreaDoubleClick}
-            />
+            <Box
+              sx={{
+                width: 250,
+                flexShrink: 0,
+                display: isPWA() && !showSidebar ? 'none' : 'block',
+                transition: 'all 0.3s ease',
+                borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
+                backgroundColor: (theme) => theme.palette.background.paper,
+                position: 'relative',
+                zIndex: 1
+              }}
+              onMouseEnter={() => {
+                if (isPWA()) {
+                  setShowSidebar(true);
+                  if (sidebarTimeoutRef.current) {
+                    clearTimeout(sidebarTimeoutRef.current);
+                  }
+                }
+              }}
+              onMouseLeave={() => {
+                if (isPWA()) {
+                  sidebarTimeoutRef.current = setTimeout(() => {
+                    setShowSidebar(false);
+                  }, 1000);
+                }
+              }}
+            >
+              <TabList
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabSelect={handleTabSelect}
+                onTabClose={handleTabClose}
+                onTabRename={handleTabRename}
+                onTabAreaDoubleClick={handleTabAreaDoubleClick}
+              />
+            </Box>
           )}
         </Box>
         <ExcalidrawEditor
@@ -285,14 +367,14 @@ function App() {
           darkMode={darkMode}
           id={currentDrawingId}
         />
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleFileSelect}
+          accept=".txt,.md,.json,.js,.jsx,.ts,.tsx,.css,.html"
+        />
       </Box>
-      <input
-        type="file"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        onChange={handleFileSelect}
-        accept=".txt,.md,.json,.js,.jsx,.ts,.tsx,.css,.html"
-      />
     </ThemeProvider>
   );
 }
