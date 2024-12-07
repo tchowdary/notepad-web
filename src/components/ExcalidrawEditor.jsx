@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Excalidraw, exportToBlob } from '@excalidraw/excalidraw';
-import { Dialog, DialogContent, AppBar, Toolbar, IconButton, Typography, Button } from '@mui/material';
-import { Close as CloseIcon, Save as SaveIcon } from '@mui/icons-material';
+import { Box, IconButton, Tooltip } from '@mui/material';
+import { Download as DownloadIcon } from '@mui/icons-material';
 import { env } from '../env';
+import { saveDrawing, loadDrawing } from '../utils/db';
 
 // Define environment variables
 const BACKEND_V2_GET_URL = env.BACKEND_V2_GET_URL;
@@ -10,21 +11,14 @@ const BACKEND_V2_POST_URL = env.BACKEND_V2_POST_URL;
 const LIBRARY_URL = env.LIBRARY_URL;
 const LIBRARY_BACKEND = env.LIBRARY_BACKEND;
 
-const ExcalidrawEditor = ({ open, onClose, darkMode, id }) => {
+// Separate component for the actual Excalidraw instance
+const ExcalidrawInstance = ({ darkMode, id, initialData, onSave }) => {
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
-  const [excalidrawData, setExcalidrawData] = useState(null);
 
-  useEffect(() => {
-    const savedData = localStorage.getItem(`excalidraw-${id}`);
-    if (savedData) {
-      setExcalidrawData(JSON.parse(savedData));
-    }
-  }, [id]);
-
-  const handleChange = (elements, appState, files) => {
-    const data = { elements, appState, files };
-    localStorage.setItem(`excalidraw-${id}`, JSON.stringify(data));
-  };
+  const handleChange = useCallback(async (elements, appState, files) => {
+    if (!elements || !appState) return;
+    onSave(elements, appState, files);
+  }, [onSave]);
 
   const handleExport = async () => {
     if (!excalidrawAPI) return;
@@ -50,52 +44,113 @@ const ExcalidrawEditor = ({ open, onClose, darkMode, id }) => {
   };
 
   return (
-    <Dialog
-      fullScreen
-      open={open}
-      onClose={onClose}
-    >
-      <AppBar sx={{ position: 'relative' }}>
-        <Toolbar variant="dense">
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={onClose}
-            aria-label="close"
-          >
-            <CloseIcon />
+    <>
+      <Box sx={{ 
+        position: 'absolute', 
+        top: 8, 
+        right: 8, 
+        zIndex: 1,
+        bgcolor: 'background.paper',
+        borderRadius: 1,
+        boxShadow: 1
+      }}>
+        <Tooltip title="Export as PNG">
+          <IconButton onClick={handleExport} size="small">
+            <DownloadIcon />
           </IconButton>
-          <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-            Drawing
-          </Typography>
-          <Button 
-            color="inherit" 
-            startIcon={<SaveIcon />}
-            onClick={handleExport}
-          >
-            Export
-          </Button>
-        </Toolbar>
-      </AppBar>
-      <DialogContent sx={{ padding: 0 }}>
-        <div style={{ height: '100%', width: '100%' }}>
-          <Excalidraw
-            ref={(api) => setExcalidrawAPI(api)}
-            theme={darkMode ? "dark" : "light"}
-            initialData={excalidrawData}
-            onChange={handleChange}
-            UIOptions={{
-              canvasActions: {
-                export: false,
-                loadScene: false,
-                saveAsImage: false,
-                saveToActiveFile: false,
-              },
-            }}
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
+        </Tooltip>
+      </Box>
+      <Excalidraw
+        onChange={handleChange}
+        initialData={initialData}
+        onPointerUpdate={(payload) => setExcalidrawAPI(payload.excalidrawAPI)}
+        UIOptions={{
+          canvasActions: {
+            export: false,
+            loadScene: false,
+            saveAsImage: false,
+            saveToActiveFile: false,
+          },
+        }}
+      />
+    </>
+  );
+};
+
+// Main container component
+const ExcalidrawEditor = ({ darkMode, id }) => {
+  const [initialData, setInitialData] = useState(null);
+
+  useEffect(() => {
+    const loadExcalidrawData = async () => {
+      setInitialData(null); // Reset data before loading new drawing
+      try {
+        const data = await loadDrawing(id);
+        const newData = {
+          elements: (data?.elements || []),
+          appState: {
+            ...(data?.appState || {}),
+            theme: darkMode ? "dark" : "light",
+            viewBackgroundColor: darkMode ? "#121212" : "#ffffff"
+          },
+          files: data?.files || {}
+        };
+        setInitialData(newData);
+      } catch (error) {
+        console.error('Error loading drawing:', error);
+        // Set empty drawing data on error
+        setInitialData({
+          elements: [],
+          appState: {
+            theme: darkMode ? "dark" : "light",
+            viewBackgroundColor: darkMode ? "#121212" : "#ffffff"
+          },
+          files: {}
+        });
+      }
+    };
+
+    loadExcalidrawData();
+  }, [id, darkMode]);
+
+  const handleSave = useCallback(async (elements, appState, files) => {
+    
+
+    const data = {
+      id,
+      elements,
+      appState: {
+        ...appState,
+        theme: darkMode ? "dark" : "light",
+        viewBackgroundColor: darkMode ? "#121212" : "#ffffff"
+      },
+      files
+    };
+
+    try {
+      await saveDrawing(data);
+    } catch (error) {
+      console.error('Error saving drawing:', error);
+    }
+  }, [id, darkMode]);
+
+  return (
+    <Box sx={{ 
+      height: '100%', 
+      width: '100%', 
+      position: 'relative',
+      bgcolor: darkMode ? '#121212' : '#ffffff'
+    }}>
+      {initialData && (
+        <ExcalidrawInstance
+          key={id} // Force new instance for each drawing
+          darkMode={darkMode}
+          id={id}
+          initialData={initialData}
+          onSave={handleSave}
+        />
+      )}
+    </Box>
   );
 };
 

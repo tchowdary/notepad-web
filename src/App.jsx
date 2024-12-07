@@ -4,14 +4,14 @@ import Editor from './components/Editor';
 import TabList from './components/TabList';
 import Toolbar from './components/Toolbar';
 import ExcalidrawEditor from './components/ExcalidrawEditor';
-import { saveTabs, loadTabs } from './utils/db';
+import { saveTabs, loadTabs, deleteDrawing, saveDrawing } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import './App.css';
 
 function App() {
   const fileInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [tabs, setTabs] = useState([{ id: 1, name: 'untitled.md', content: '' }]);
+  const [tabs, setTabs] = useState([{ id: 1, name: 'untitled.md', content: '', type: 'markdown' }]);
   const [activeTab, setActiveTab] = useState(1);
   const [wordWrap, setWordWrap] = useState(() => {
     const saved = localStorage.getItem('wordWrap');
@@ -20,8 +20,6 @@ function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true');
   const [focusMode, setFocusMode] = useState(false);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem('showPreview') === 'true');
-  const [showDrawing, setShowDrawing] = useState(false);
-  const [currentDrawingId, setCurrentDrawingId] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const editorRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
@@ -161,35 +159,56 @@ function App() {
 
   const handleNewTab = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    setTabs([...tabs, { id: newId, name: 'untitled.md', content: '' }]);
+    setTabs([...tabs, { id: newId, name: 'untitled.md', content: '', type: 'markdown' }]);
     setActiveTab(newId);
   };
 
-  const handleTabClose = (id) => {
-    if (tabs.length === 1) return;
-    const newTabs = tabs.filter(tab => tab.id !== id);
-    setTabs(newTabs);
-    if (activeTab === id) {
-      // Find the nearest tab to switch to
-      const closedTabIndex = tabs.findIndex(tab => tab.id === id);
-      const newActiveTab = newTabs[Math.min(closedTabIndex, newTabs.length - 1)];
-      setActiveTab(newActiveTab.id);
+  const handleTabClose = async (id) => {
+    const tab = tabs.find(t => t.id === id);
+    if (tab?.type === 'excalidraw') {
+      try {
+        await deleteDrawing(id);
+      } catch (error) {
+        console.error('Error deleting drawing:', error);
+      }
     }
+    
+    const newTabs = tabs.filter(tab => tab.id !== id);
+    if (newTabs.length === 0) {
+      // Create a new empty tab if we're closing the last one
+      setTabs([{ id: 1, name: 'untitled.md', content: '', type: 'markdown' }]);
+      setActiveTab(1);
+    } else {
+      setTabs(newTabs);
+      if (activeTab === id) {
+        // Set active tab to the previous tab, or the first one if we're at the beginning
+        const index = tabs.findIndex(tab => tab.id === id);
+        const newActiveTab = tabs[index === 0 ? 1 : index - 1].id;
+        setActiveTab(newActiveTab);
+      }
+    }
+  };
+
+  const handleTabRename = (id, newName) => {
+    setTabs(tabs.map(tab => {
+      if (tab.id === id) {
+        // Ensure Excalidraw files keep their extension
+        if (tab.type === 'excalidraw' && !newName.endsWith('.excalidraw')) {
+          newName = `${newName}.excalidraw`;
+        }
+        return { ...tab, name: newName };
+      }
+      return tab;
+    }));
   };
 
   const handleTabSelect = (id) => {
     setActiveTab(id);
   };
 
-  const handleTabRename = (id, newName) => {
-    setTabs(tabs.map(tab => 
-      tab.id === id ? { ...tab, name: newName } : tab
-    ));
-  };
-
-  const handleContentChange = (newContent) => {
+  const handleContentChange = (id, newContent) => {
     setTabs(tabs.map(tab =>
-      tab.id === activeTab ? { ...tab, content: newContent } : tab
+      tab.id === id ? { ...tab, content: newContent } : tab
     ));
   };
 
@@ -204,65 +223,112 @@ function App() {
     fileInputRef.current.click();
   };
 
-  const handleSaveFile = (id) => {
-    const currentTab = tabs.find(tab => tab.id === id);
-    if (!currentTab) return;
+  const handleSaveFile = () => {
+    const tab = tabs.find(tab => tab.id === activeTab);
+    if (!tab) return;
 
-    const fileName = currentTab.name.endsWith('.md') 
-      ? currentTab.name 
-      : `${currentTab.name}.md`;
-    
-    const blob = new Blob([currentTab.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const blob = new Blob(
+      [tab.type === 'excalidraw' ? JSON.stringify(tab.content) : tab.content],
+      { type: 'text/plain;charset=utf-8' }
+    );
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = tab.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-        setTabs([...tabs, { id: newId, name: file.name, content: e.target.result }]);
-        setActiveTab(newId);
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+      const isExcalidraw = file.name.endsWith('.excalidraw');
+      const newTab = {
+        id: newId,
+        name: file.name,
+        type: isExcalidraw ? 'excalidraw' : 'markdown',
+        content: isExcalidraw ? '' : e.target.result
       };
-      reader.readAsText(file);
-    }
-    // Reset input value to allow opening the same file again
-    event.target.value = null;
+
+      if (isExcalidraw) {
+        // Save Excalidraw content to IndexedDB
+        try {
+          const content = JSON.parse(e.target.result);
+          saveDrawing({ id: newId, ...content });
+        } catch (error) {
+          console.error('Error saving drawing:', error);
+          return;
+        }
+      }
+
+      setTabs([...tabs, newTab]);
+      setActiveTab(newId);
+    };
+    reader.readAsText(file);
+    event.target.value = '';
   };
 
   const handleNewDrawing = () => {
-    setShowDrawing(true);
+    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const newTab = { 
+      id: newId, 
+      name: `Drawing ${newId}.excalidraw`,
+      type: 'excalidraw',
+      content: '' // Content will be stored in drawings store
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTab(newId);
   };
 
-  const handleConvert = (event) => {// Debug log
-    if (editorRef.current) {
-      const buttonElement = event.currentTarget;
-      editorRef.current.setConverterMenuAnchor(buttonElement);
+  const renderTab = (tab) => {
+    if (tab.type === 'excalidraw') {
+      return (
+        <ExcalidrawEditor
+          open={true}
+          onClose={() => {}} // No-op since we're using tabs
+          darkMode={darkMode}
+          id={tab.id}
+        />
+      );
     }
+
+    return (
+      <Editor
+        content={tab.content}
+        onChange={(newContent) => handleContentChange(tab.id, newContent)}
+        wordWrap={wordWrap}
+        darkMode={darkMode}
+        showPreview={showPreview}
+        focusMode={focusMode}
+        ref={editorRef}
+      />
+    );
   };
 
   if (isLoading) {
     return null;
   }
 
-  const activeTabContent = tabs.find(tab => tab.id === activeTab);
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        height: '100vh',
+        bgcolor: 'background.default',
+        color: 'text.primary'
+      }}>
         {!focusMode && (
           <Toolbar
             onNewTab={handleNewTab}
-            onOpenFile={handleOpenFile}
+            onOpenFile={() => fileInputRef.current?.click()}
             onSaveFile={handleSaveFile}
             wordWrap={wordWrap}
             onWordWrapChange={() => setWordWrap(!wordWrap)}
@@ -273,54 +339,24 @@ function App() {
             showPreview={showPreview}
             onShowPreviewChange={() => setShowPreview(!showPreview)}
             onNewDrawing={handleNewDrawing}
-            onConvert={handleConvert}
+            onConvert={() => {}}
+            currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
           />
         )}
         <Box sx={{ 
           display: 'flex', 
-          flexGrow: 1, 
+          flex: 1,
           overflow: 'hidden',
-          position: 'relative',
-          ...(focusMode && {
-            backgroundColor: theme => theme.palette.background.paper,
-          })
+          position: 'relative'
         }}>
           <Box sx={{ 
-            flexGrow: 1, 
+            flex: 1,
             display: 'flex',
-            overflow: 'hidden',
-            ...(focusMode && {
-              maxWidth: '900px',
-              margin: '0 auto',
-              width: '100%'
-            })
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden'
           }}>
-            {showPreview ? (
-              <>
-                <Box sx={{ width: '50%', overflow: 'auto' }}>
-                  <Editor
-                    ref={editorRef}
-                    content={activeTabContent?.content || ''}
-                    onChange={handleContentChange}
-                    wordWrap={wordWrap}
-                    darkMode={darkMode}
-                    showLineNumbers={!focusMode}
-                  />
-                </Box>
-                <Box sx={{ width: '50%', overflow: 'auto', borderLeft: 1, borderColor: 'divider' }}>
-                  <div dangerouslySetInnerHTML={{ __html: '' }} />
-                </Box>
-              </>
-            ) : (
-              <Editor
-                ref={editorRef}
-                content={activeTabContent?.content || ''}
-                onChange={handleContentChange}
-                wordWrap={wordWrap}
-                darkMode={darkMode}
-                showLineNumbers={!focusMode}
-              />
-            )}
+            {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
           </Box>
           {!focusMode && (
             <Box
@@ -356,25 +392,19 @@ function App() {
                 onTabSelect={handleTabSelect}
                 onTabClose={handleTabClose}
                 onTabRename={handleTabRename}
-                onTabAreaDoubleClick={handleTabAreaDoubleClick}
+                onTabAreaDoubleClick={handleNewTab}
               />
             </Box>
           )}
         </Box>
-        <ExcalidrawEditor
-          open={showDrawing}
-          onClose={() => setShowDrawing(false)}
-          darkMode={darkMode}
-          id={currentDrawingId}
-        />
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-          onChange={handleFileSelect}
-          accept=".txt,.md,.json,.js,.jsx,.ts,.tsx,.css,.html"
-        />
       </Box>
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileSelect}
+        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw"
+      />
     </ThemeProvider>
   );
 }
