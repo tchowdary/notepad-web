@@ -116,6 +116,44 @@ body {
   color: inherit !important;
 }
 
+/* Focus mode styles */
+.focus-mode-toolbar {
+  background: transparent !important;
+  box-shadow: none !important;
+  position: fixed !important;
+  top: 0;
+  right: 0;
+  width: auto !important;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.focus-mode-toolbar:hover {
+  opacity: 1;
+}
+
+.focus-mode-toolbar .MuiToolbar-root {
+  justify-content: flex-end;
+  padding-right: 1rem !important;
+}
+
+.focus-mode-toolbar .MuiIconButton-root {
+  color: rgba(128, 128, 128, 0.6) !important;
+}
+
+.focus-mode-toolbar .MuiIconButton-root:hover {
+  color: rgba(128, 128, 128, 1) !important;
+}
+
+/* Dark mode focus toolbar */
+.focus-mode-toolbar[data-dark="true"] .MuiIconButton-root {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.focus-mode-toolbar[data-dark="true"] .MuiIconButton-root:hover {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;

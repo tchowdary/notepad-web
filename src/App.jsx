@@ -18,7 +18,10 @@ function App() {
     }
     return 1;
   });
-  const [wordWrap, setWordWrap] = useState(() => localStorage.getItem('wordWrap') === 'true');
+  const [wordWrap, setWordWrap] = useState(() => {
+    const saved = localStorage.getItem('wordWrap');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true');
   const [focusMode, setFocusMode] = useState(false);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem('showPreview') === 'true');
@@ -48,6 +51,17 @@ function App() {
   useEffect(() => {
     localStorage.setItem('showPreview', showPreview);
   }, [showPreview]);
+
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape' && focusMode) {
+        setFocusMode(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscKey);
+    return () => window.removeEventListener('keydown', handleEscKey);
+  }, [focusMode]);
 
   const handleNewTab = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
@@ -83,6 +97,32 @@ function App() {
     ));
   };
 
+  const handleFileOpen = (fileName, content) => {
+    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const newTab = { id: newId, name: fileName, content: content };
+    setTabs([...tabs, newTab]);
+    setActiveTab(newId);
+  };
+
+  const handleFileDownload = () => {
+    const currentTab = tabs.find(tab => tab.id === activeTab);
+    if (!currentTab) return;
+
+    const fileName = currentTab.name.endsWith('.md') 
+      ? currentTab.name 
+      : `${currentTab.name}.md`;
+    
+    const blob = new Blob([currentTab.content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Find the current tab, fallback to the first tab if active tab is not found
   const currentTab = tabs.find(tab => tab.id === activeTab) || tabs[0];
 
@@ -97,18 +137,20 @@ function App() {
         color: 'text.primary',
         overflow: 'hidden'
       }}>
-        {!focusMode && (
-          <Toolbar
-            onNewTab={handleNewTab}
-            wordWrap={wordWrap}
-            onWordWrapToggle={() => setWordWrap(!wordWrap)}
-            darkMode={darkMode}
-            onDarkModeToggle={() => setDarkMode(!darkMode)}
-            onFocusMode={() => setFocusMode(!focusMode)}
-            showPreview={showPreview}
-            onPreviewToggle={() => setShowPreview(!showPreview)}
-          />
-        )}
+        <Toolbar
+          onNewTab={handleNewTab}
+          wordWrap={wordWrap}
+          onWordWrapToggle={() => setWordWrap(!wordWrap)}
+          darkMode={darkMode}
+          onDarkModeToggle={() => setDarkMode(!darkMode)}
+          onFocusMode={() => setFocusMode(!focusMode)}
+          showPreview={showPreview}
+          onPreviewToggle={() => setShowPreview(!showPreview)}
+          focusMode={focusMode}
+          onFileOpen={handleFileOpen}
+          onFileDownload={handleFileDownload}
+          className={focusMode ? 'focus-mode-toolbar' : ''}
+        />
         {!focusMode && (
           <TabList
             tabs={tabs}
@@ -122,7 +164,35 @@ function App() {
           flexGrow: 1, 
           position: 'relative',
           overflow: 'hidden',
-          minHeight: 0
+          minHeight: 0,
+          ...(focusMode && {
+            maxWidth: '750px',
+            margin: '0 auto',
+            padding: '2rem',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            '& .CodeMirror': {
+              flex: 1,
+              fontSize: '18px',
+              lineHeight: '1.8',
+              padding: '20px 0',
+              backgroundColor: 'transparent',
+              height: 'auto !important'
+            },
+            '& .CodeMirror-lines': {
+              padding: '0',
+            },
+            '& .CodeMirror-line': {
+              padding: '0',
+            },
+            '& .CodeMirror-linenumbers': {
+              display: 'none',
+            },
+            '& .CodeMirror-scroll': {
+              minHeight: '100%',
+            }
+          })
         }}>
           <Editor
             content={currentTab.content}
@@ -130,6 +200,7 @@ function App() {
             wordWrap={wordWrap}
             darkMode={darkMode}
             showPreview={showPreview}
+            focusMode={focusMode}
           />
         </Box>
       </Box>

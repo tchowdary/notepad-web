@@ -26,14 +26,10 @@ const Editor = ({ content, onChange, wordWrap, darkMode, showPreview }) => {
       width: '100%',
       position: 'relative',
       '& .CodeMirror': { 
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
         height: '100% !important',
         width: '100% !important',
-        fontSize: '16px'
+        fontSize: '16px',
+        lineHeight: '1.6'
       }
     }}>
       <CodeMirror
