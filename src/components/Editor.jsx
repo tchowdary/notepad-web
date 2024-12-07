@@ -9,6 +9,7 @@ import 'codemirror/mode/css/css';
 import 'codemirror/mode/python/python';
 import 'codemirror/mode/sql/sql';
 import 'codemirror/mode/yaml/yaml';
+import 'codemirror/addon/edit/continuelist';
 import { Box, IconButton, Tooltip, Menu, MenuItem } from '@mui/material';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import MarkdownPreview from './MarkdownPreview';
@@ -130,6 +131,33 @@ const Editor = forwardRef(({
     } finally {
       setImproving(false);
     }
+  };
+
+  const options = {
+    mode: mode,
+    theme: darkMode ? 'material' : 'default',
+    lineNumbers: showLineNumbers,
+    lineWrapping: wordWrap,
+    indentUnit: 2,
+    smartIndent: true,
+    extraKeys: {
+      'Enter': 'newlineAndIndentContinueMarkdownList',
+      'Tab': (cm) => {
+        if (cm.somethingSelected()) {
+          cm.indentSelection('add');
+        } else {
+          const pos = cm.getCursor();
+          const line = cm.getLine(pos.line);
+          const isListItem = /^(\s*)([-*+]|\d+\.)\s/.test(line);
+          if (isListItem) {
+            cm.execCommand('indentMore');
+          } else {
+            cm.replaceSelection('  ');
+          }
+        }
+      },
+      'Shift-Tab': 'indentLess',
+    },
   };
 
   const editorComponent = (
@@ -261,18 +289,7 @@ const Editor = forwardRef(({
       </Menu>
       <CodeMirror
         value={content}
-        options={{
-          mode: mode,
-          theme: darkMode ? 'material' : 'default',
-          lineNumbers: !focusMode && showLineNumbers,
-          lineWrapping: wordWrap,
-          autofocus: true,
-          scrollbarStyle: 'native',
-          lineHeight: '1.6',
-          matchBrackets: true,
-          autoCloseBrackets: true,
-          tabSize: 2
-        }}
+        options={options}
         onBeforeChange={handleChange}
         editorDidMount={editor => {
           setEditorInstance(editor);
