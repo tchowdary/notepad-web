@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { Controlled as CodeMirror } from 'react-codemirror2';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/material.css';
@@ -14,13 +14,30 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import MarkdownPreview from './MarkdownPreview';
 import ApiKeyInput from './ApiKeyInput';
 import { improveText } from '../utils/textImprovement';
+import { converters } from '../utils/converters';
 
-const Editor = ({ content, onChange, wordWrap, darkMode, showPreview }) => {
+const Editor = forwardRef(({ content, onChange, wordWrap, darkMode, showPreview }, ref) => {
   const [editorInstance, setEditorInstance] = useState(null);
   const [mode, setMode] = useState('markdown');
   const [improving, setImproving] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedText, setSelectedText] = useState('');
+  const [converterAnchor, setConverterAnchor] = useState(null);
+
+  useImperativeHandle(ref, () => ({
+    setConverterMenuAnchor: (anchor) => {
+      const selection = editorInstance?.getSelection();
+      setSelectedText(selection || content);
+      setConverterAnchor(anchor);
+    },
+    getSelectedText: () => {
+      return editorInstance?.getSelection() || content;
+    }
+  }));
+
+  const handleConverterClose = () => {
+    setConverterAnchor(null);
+  };
 
   useEffect(() => {
     if (editorInstance) {
@@ -69,6 +86,19 @@ const Editor = ({ content, onChange, wordWrap, darkMode, showPreview }) => {
     if (selection) {
       setSelectedText(selection);
       setContextMenu({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleConvert = async (converter) => {
+    try {
+      const result = converter.convert(selectedText);
+      const newContent = content + '\n\n---\n' + result + '\n---\n';
+      onChange(newContent);
+    } catch (error) {
+      console.error('Conversion failed:', error);
+      alert(error.message);
+    } finally {
+      handleConverterClose();
     }
   };
 
@@ -150,6 +180,32 @@ const Editor = ({ content, onChange, wordWrap, darkMode, showPreview }) => {
       <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}>
         <ApiKeyInput />
       </Box>
+
+      <Menu
+        anchorEl={converterAnchor}
+        open={Boolean(converterAnchor)}
+        onClose={handleConverterClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        MenuListProps={{
+          'aria-labelledby': 'convert-button',
+        }}
+      >
+        {Object.entries(converters).map(([key, converter]) => (
+          <MenuItem 
+            key={key} 
+            onClick={() => handleConvert(converter)}
+          >
+            {converter.name}
+          </MenuItem>
+        ))}
+      </Menu>
       <Menu
         open={Boolean(contextMenu)}
         onClose={() => setContextMenu(null)}
@@ -209,6 +265,6 @@ const Editor = ({ content, onChange, wordWrap, darkMode, showPreview }) => {
       </div>
     </div>
   );
-};
+});
 
 export default Editor;

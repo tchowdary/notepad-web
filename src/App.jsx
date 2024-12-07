@@ -21,6 +21,7 @@ function App() {
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem('showPreview') === 'true');
   const [showDrawing, setShowDrawing] = useState(false);
   const [currentDrawingId, setCurrentDrawingId] = useState(null);
+  const editorRef = useRef(null);
 
   const theme = createTheme({
     palette: {
@@ -198,6 +199,23 @@ function App() {
     event.target.value = null;
   };
 
+  const handleNewDrawing = () => {
+    setShowDrawing(true);
+  };
+
+  const handleConvert = (event) => {// Debug log
+    if (editorRef.current) {
+      const buttonElement = event.currentTarget;
+      editorRef.current.setConverterMenuAnchor(buttonElement);
+    }
+  };
+
+  if (isLoading) {
+    return null;
+  }
+
+  const activeTabContent = tabs.find(tab => tab.id === activeTab);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -214,19 +232,15 @@ function App() {
           onFocusModeChange={() => setFocusMode(!focusMode)}
           showPreview={showPreview}
           onShowPreviewChange={() => setShowPreview(!showPreview)}
-          onNewDrawing={() => {
-            const id = Date.now().toString();
-            setCurrentDrawingId(id);
-            setShowDrawing(true);
-          }}
+          onNewDrawing={handleNewDrawing}
+          onConvert={handleConvert}
         />
         <Box sx={{ display: 'flex', flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
           <Box className="main-content">
-            {isLoading ? (
-              <div>Loading...</div>
-            ) : (
+            {!showDrawing && (
               <Editor
-                content={tabs.find(tab => tab.id === activeTab)?.content || ''}
+                ref={editorRef}
+                content={activeTabContent?.content || ''}
                 onChange={handleContentChange}
                 wordWrap={wordWrap}
                 darkMode={darkMode}

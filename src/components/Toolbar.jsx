@@ -19,6 +19,7 @@ import {
   FormatAlignJustify as WrapOnIcon,
   FormatAlignLeft as WrapOffIcon,
   Draw as DrawIcon,
+  Transform as TransformIcon,
 } from '@mui/icons-material';
 
 const Toolbar = ({
@@ -34,6 +35,7 @@ const Toolbar = ({
   showPreview,
   onShowPreviewChange,
   onNewDrawing,
+  onConvert,
   className,
 }) => {
   const theme = useTheme();
@@ -104,6 +106,19 @@ const Toolbar = ({
         <Tooltip title="New Drawing">
           <IconButton onClick={onNewDrawing} size="small">
             <DrawIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Convert Text">
+          <IconButton 
+            onClick={onConvert}
+            size="small"
+            id="convert-button"
+            aria-controls={Boolean(onConvert) ? 'convert-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={Boolean(onConvert) ? 'true' : undefined}
+          >
+            <TransformIcon />
           </IconButton>
         </Tooltip>
       </MuiToolbar>
