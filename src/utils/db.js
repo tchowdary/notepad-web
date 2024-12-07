@@ -56,7 +56,7 @@ export const loadTabs = async () => {
 };
 
 export const saveDrawing = async (drawing) => {
-  console.log('Saving drawing to IndexedDB:', drawing); // Debug log
+  //console.log('Saving drawing to IndexedDB:', drawing); // Debug log
   const db = await openDB();
   const tx = db.transaction(DRAWINGS_STORE, 'readwrite');
   const store = tx.objectStore(DRAWINGS_STORE);
@@ -64,7 +64,7 @@ export const saveDrawing = async (drawing) => {
   return new Promise((resolve, reject) => {
     const request = store.put(drawing);
     request.onsuccess = () => {
-      console.log('Drawing saved successfully:', drawing.id); // Debug log
+      //console.log('Drawing saved successfully:', drawing.id); // Debug log
       resolve(request.result);
     };
     request.onerror = (error) => {
@@ -75,7 +75,7 @@ export const saveDrawing = async (drawing) => {
 };
 
 export const loadDrawing = async (id) => {
-  console.log('Loading drawing from IndexedDB:', id); // Debug log
+  //console.log('Loading drawing from IndexedDB:', id); // Debug log
   const db = await openDB();
   const tx = db.transaction(DRAWINGS_STORE, 'readonly');
   const store = tx.objectStore(DRAWINGS_STORE);
@@ -83,7 +83,7 @@ export const loadDrawing = async (id) => {
   return new Promise((resolve, reject) => {
     const request = store.get(id);
     request.onsuccess = () => {
-      console.log('Drawing loaded:', request.result); // Debug log
+      //console.log('Drawing loaded:', request.result); // Debug log
       resolve(request.result);
     };
     request.onerror = (error) => {
@@ -94,7 +94,7 @@ export const loadDrawing = async (id) => {
 };
 
 export const deleteDrawing = async (id) => {
-  console.log('Deleting drawing:', id); // Debug log
+  //console.log('Deleting drawing:', id); // Debug log
   const db = await openDB();
   const tx = db.transaction(DRAWINGS_STORE, 'readwrite');
   const store = tx.objectStore(DRAWINGS_STORE);
@@ -102,11 +102,11 @@ export const deleteDrawing = async (id) => {
   return new Promise((resolve, reject) => {
     const request = store.delete(id);
     request.onsuccess = () => {
-      console.log('Drawing deleted successfully:', id); // Debug log
+      //console.log('Drawing deleted successfully:', id); // Debug log
       resolve();
     };
     request.onerror = (error) => {
-      console.error('Error deleting drawing:', error); // Debug log
+      //console.error('Error deleting drawing:', error); // Debug log
       reject(request.error);
     };
   });
