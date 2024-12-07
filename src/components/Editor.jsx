@@ -136,10 +136,11 @@ const Editor = forwardRef(({
   const options = {
     mode: mode,
     theme: darkMode ? 'material' : 'default',
-    lineNumbers: showLineNumbers,
+    lineNumbers: !focusMode && showLineNumbers,
     lineWrapping: wordWrap,
     indentUnit: 2,
     smartIndent: true,
+    gutters: !focusMode ? ["CodeMirror-linenumbers"] : [], 
     extraKeys: {
       'Enter': 'newlineAndIndentContinueMarkdownList',
       'Tab': (cm) => {
