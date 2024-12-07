@@ -21,6 +21,7 @@ const Tab = ({ id, label, active, onClose, onSelect, onRename }) => {
   return (
     <Box
       onClick={handleClick}
+      className="tab-item"
       sx={{
         display: 'flex',
         alignItems: 'center',

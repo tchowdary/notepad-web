@@ -18,6 +18,7 @@ import {
   FullscreenExit as FullscreenExitIcon,
   FormatAlignJustify as WrapOnIcon,
   FormatAlignLeft as WrapOffIcon,
+  Draw as DrawIcon,
 } from '@mui/icons-material';
 
 const Toolbar = ({
@@ -32,6 +33,7 @@ const Toolbar = ({
   onFocusModeChange,
   showPreview,
   onShowPreviewChange,
+  onNewDrawing,
   className,
 }) => {
   const theme = useTheme();
@@ -87,6 +89,12 @@ const Toolbar = ({
         <Tooltip title={showPreview ? "Hide Preview" : "Show Preview"}>
           <IconButton onClick={onShowPreviewChange} size="small">
             <PreviewIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="New Drawing">
+          <IconButton onClick={onNewDrawing} size="small">
+            <DrawIcon />
           </IconButton>
         </Tooltip>
       </MuiToolbar>

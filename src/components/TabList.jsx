@@ -6,6 +6,17 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
   // Find the index of the active tab
   const activeIndex = tabs.findIndex(tab => tab.id === activeTab);
 
+  const handleDoubleClick = (event) => {
+    // Get the closest tab parent if any
+    const tabElement = event.target.closest('.tab-item');
+    const tabsContainer = event.target.closest('.MuiTabs-flexContainer');
+    
+    // Only create new tab if clicking in the tabs container but not on a tab
+    if (!tabElement && tabsContainer) {
+      onTabAreaDoubleClick(event);
+    }
+  };
+
   return (
     <Box 
       sx={{ 
@@ -15,7 +26,6 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
         width: '250px',
         overflow: 'hidden'
       }}
-      onDoubleClick={onTabAreaDoubleClick}
     >
       <Tabs
         value={activeIndex}
@@ -28,6 +38,7 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
             height: '100%'
           }
         }}
+        onDoubleClick={handleDoubleClick}
       >
         {tabs.map((tab, index) => (
           <Tab

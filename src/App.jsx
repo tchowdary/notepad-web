@@ -3,6 +3,7 @@ import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
 import Editor from './components/Editor';
 import TabList from './components/TabList';
 import Toolbar from './components/Toolbar';
+import ExcalidrawEditor from './components/ExcalidrawEditor';
 import './App.css';
 
 function App() {
@@ -26,6 +27,8 @@ function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true');
   const [focusMode, setFocusMode] = useState(false);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem('showPreview') === 'true');
+  const [showDrawing, setShowDrawing] = useState(false);
+  const [currentDrawingId, setCurrentDrawingId] = useState(null);
 
   const theme = createTheme({
     palette: {
@@ -105,7 +108,7 @@ function App() {
     }
   };
 
-  const handleFileOpen = () => {
+  const handleOpenFile = () => {
     fileInputRef.current.click();
   };
 
@@ -149,8 +152,8 @@ function App() {
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Toolbar
           onNewTab={handleNewTab}
-          onOpenFile={() => fileInputRef.current.click()}
-          onSaveFile={() => handleSaveFile(activeTab)}
+          onOpenFile={handleOpenFile}
+          onSaveFile={handleSaveFile}
           wordWrap={wordWrap}
           onWordWrapChange={() => setWordWrap(!wordWrap)}
           darkMode={darkMode}
@@ -159,6 +162,11 @@ function App() {
           onFocusModeChange={() => setFocusMode(!focusMode)}
           showPreview={showPreview}
           onShowPreviewChange={() => setShowPreview(!showPreview)}
+          onNewDrawing={() => {
+            const id = Date.now().toString();
+            setCurrentDrawingId(id);
+            setShowDrawing(true);
+          }}
         />
         <Box sx={{ display: 'flex', flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
           <Box className="main-content">
@@ -180,6 +188,12 @@ function App() {
             onTabAreaDoubleClick={handleTabAreaDoubleClick}
           />
         </Box>
+        <ExcalidrawEditor
+          open={showDrawing}
+          onClose={() => setShowDrawing(false)}
+          darkMode={darkMode}
+          id={currentDrawingId}
+        />
       </Box>
       <input
         type="file"
