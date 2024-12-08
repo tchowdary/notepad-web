@@ -285,6 +285,32 @@ body {
 }
 
 /* Focus mode styles */
+.focus-mode {
+  max-width: 950px !important;
+  margin: 0 auto !important;
+  height: 100% !important;
+  padding: 0 20px !important;
+}
+
+.focus-mode .CodeMirror {
+  max-width: 100% !important;
+  height: 100% !important;
+  padding-top: 80px !important;
+}
+
+.focus-mode .CodeMirror-scroll {
+  padding: 0 !important;
+}
+
+.focus-mode .CodeMirror-lines {
+  padding-top: 80px !important;
+}
+
+.focus-mode .markdown-body {
+  max-width: 100% !important;
+  padding-top: 80px !important;
+}
+
 .focus-mode-toolbar {
   background: transparent !important;
   box-shadow: none !important;

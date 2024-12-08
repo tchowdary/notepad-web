@@ -135,6 +135,7 @@ const Editor = forwardRef(({
   const editorComponent = (
     <Box
       onContextMenu={handleContextMenu}
+      className={focusMode ? 'focus-mode' : ''}
       sx={{
         height: '100%',
         position: 'relative',
