@@ -63,6 +63,7 @@ const ExcalidrawInstance = ({ darkMode, id, initialData, onSave }) => {
       <Excalidraw
         onChange={handleChange}
         initialData={initialData}
+        theme={darkMode ? "dark" : "light"}
         onPointerUpdate={(payload) => setExcalidrawAPI(payload.excalidrawAPI)}
         UIOptions={{
           canvasActions: {
@@ -71,7 +72,9 @@ const ExcalidrawInstance = ({ darkMode, id, initialData, onSave }) => {
             saveAsImage: false,
             saveToActiveFile: false,
           },
+          theme: darkMode ? "dark" : "light",
         }}
+        renderTopRightUI={null}
       />
     </>
   );
@@ -91,7 +94,9 @@ const ExcalidrawEditor = ({ darkMode, id }) => {
           appState: {
             ...(data?.appState || {}),
             theme: darkMode ? "dark" : "light",
-            viewBackgroundColor: darkMode ? "#121212" : "#ffffff"
+            viewBackgroundColor: darkMode ? "#121212" : "#ffffff",
+            gridColor: darkMode ? "#2a2a2a" : "#cccccc",
+            exportWithDarkMode: darkMode,
           },
           files: data?.files || {}
         };
@@ -103,7 +108,9 @@ const ExcalidrawEditor = ({ darkMode, id }) => {
           elements: [],
           appState: {
             theme: darkMode ? "dark" : "light",
-            viewBackgroundColor: darkMode ? "#121212" : "#ffffff"
+            viewBackgroundColor: darkMode ? "#121212" : "#ffffff",
+            gridColor: darkMode ? "#2a2a2a" : "#cccccc",
+            exportWithDarkMode: darkMode,
           },
           files: {}
         });
@@ -122,7 +129,9 @@ const ExcalidrawEditor = ({ darkMode, id }) => {
       appState: {
         ...appState,
         theme: darkMode ? "dark" : "light",
-        viewBackgroundColor: darkMode ? "#121212" : "#ffffff"
+        viewBackgroundColor: darkMode ? "#121212" : "#ffffff",
+        gridColor: darkMode ? "#2a2a2a" : "#cccccc",
+        exportWithDarkMode: darkMode,
       },
       files
     };

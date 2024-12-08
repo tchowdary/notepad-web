@@ -33,6 +33,11 @@ body {
   background-color: #1e1e1e;
 }
 
+.cm-s-material .CodeMirror-gutters {
+  background-color: #1e1e1e;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 /* Light theme overrides */
 .CodeMirror.cm-s-default {
   background-color: #fdfdf7;
