@@ -30,15 +30,12 @@ const Editor = forwardRef(({
 }, ref) => {
   const [editorInstance, setEditorInstance] = useState(null);
   const [improving, setImproving] = useState(false);
-  const [contextMenu, setContextMenu] = useState(null);
-  const [selectedText, setSelectedText] = useState('');
   const [converterAnchor, setConverterAnchor] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useImperativeHandle(ref, () => ({
     setConverterMenuAnchor: (anchor) => {
       const selection = editorInstance?.getSelection();
-      setSelectedText(selection || content);
       setConverterAnchor(anchor);
     },
     getSelectedText: () => {
@@ -60,29 +57,16 @@ const Editor = forwardRef(({
     onChange(value);
   };
 
-  const handleContextMenu = (e) => {
-    e.preventDefault();
-    setContextMenu(
-      contextMenu === null
-        ? { mouseX: e.clientX - 2, mouseY: e.clientY - 4 }
-        : null,
-    );
-  };
-
   const handleConvert = async (converter) => {
-    const text = selectedText || content;
+    const text = editorInstance?.getSelection() || content;
     try {
       const result = await converter.convert(text);
-      if (editorInstance?.somethingSelected()) {
-        editorInstance.replaceSelection(result);
-      } else {
-        onChange(result);
-      }
+      const newContent = content + '\n\n' + result;
+      onChange(newContent);
     } catch (error) {
       console.error('Error converting text:', error);
     }
     handleConverterClose();
-    setContextMenu(null);
   };
 
   const handleImproveText = async () => {
@@ -134,7 +118,6 @@ const Editor = forwardRef(({
 
   const editorComponent = (
     <Box
-      onContextMenu={handleContextMenu}
       className={focusMode ? 'focus-mode' : ''}
       sx={{
         height: '100%',
@@ -148,32 +131,25 @@ const Editor = forwardRef(({
       <CodeMirror
         value={content}
         options={options}
-        onBeforeChange={(editor, data, value) => {
-          handleChange(editor, data, value);
-        }}
+        onBeforeChange={handleChange}
         editorDidMount={editor => {
           setEditorInstance(editor);
         }}
       />
+      
+      {/* Conversion Menu */}
       <Menu
-        open={contextMenu !== null}
-        onClose={() => setContextMenu(null)}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null
-            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-            : undefined
-        }
+        anchorEl={converterAnchor}
+        open={Boolean(converterAnchor)}
+        onClose={handleConverterClose}
       >
         {Object.entries(converters).map(([key, converter]) => (
-          <MenuItem
-            key={key}
-            onClick={() => handleConvert(converter)}
-          >
+          <MenuItem key={key} onClick={() => handleConvert(converter)}>
             {converter.name}
           </MenuItem>
         ))}
       </Menu>
+      
       {improving && (
         <Box
           sx={{
