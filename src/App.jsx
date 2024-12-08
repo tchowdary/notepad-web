@@ -334,7 +334,7 @@ function App() {
         {!focusMode && (
           <Toolbar 
             onNewTab={handleNewTab}
-            onOpenFile={() => fileInputRef.current?.click()}
+            onOpenFile={handleOpenFile}
             onSaveFile={handleSaveFile}
             wordWrap={wordWrap}
             onWordWrapChange={() => setWordWrap(!wordWrap)}
@@ -345,7 +345,8 @@ function App() {
             showPreview={showPreview}
             onShowPreviewChange={() => setShowPreview(!showPreview)}
             onNewDrawing={handleNewDrawing}
-            onConvert={handleConvert}
+            onConvert={(event) => editorRef.current?.setConverterMenuAnchor(event.currentTarget)}
+            onFormatJson={() => editorRef.current?.formatJson()}
             currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
           />
         )}

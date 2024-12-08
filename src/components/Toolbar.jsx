@@ -21,6 +21,7 @@ import {
   Draw as DrawIcon,
   Transform as TransformIcon,
   GitHub as GitHubIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import githubService from '../services/githubService';
@@ -39,6 +40,7 @@ const Toolbar = ({
   onShowPreviewChange,
   onNewDrawing,
   onConvert,
+  onFormatJson,
   className,
   currentFile,
 }) => {
@@ -139,6 +141,12 @@ const Toolbar = ({
             aria-expanded={Boolean(onConvert) ? 'true' : undefined}
           >
             <TransformIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Format JSON">
+          <IconButton onClick={onFormatJson} size="small">
+            <CodeIcon />
           </IconButton>
         </Tooltip>
 

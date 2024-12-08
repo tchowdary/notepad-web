@@ -12,8 +12,15 @@ import 'codemirror/mode/yaml/yaml';
 import 'codemirror/addon/edit/continuelist';
 import 'codemirror/addon/edit/closebrackets';
 import 'codemirror/addon/selection/active-line';
+import 'codemirror/addon/fold/foldcode';
+import 'codemirror/addon/fold/foldgutter';
+import 'codemirror/addon/fold/brace-fold';
+import 'codemirror/addon/fold/indent-fold';
+import 'codemirror/addon/fold/comment-fold';
+import 'codemirror/addon/fold/foldgutter.css';
 import { Box, IconButton, Tooltip, Menu, MenuItem } from '@mui/material';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import FormatAlignJustifyIcon from '@mui/icons-material/FormatAlignJustify';
 import MarkdownPreview from './MarkdownPreview';
 import ApiKeyInput from './ApiKeyInput';
 import { improveText } from '../utils/textImprovement';
@@ -32,6 +39,7 @@ const Editor = forwardRef(({
   const [improving, setImproving] = useState(false);
   const [converterAnchor, setConverterAnchor] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isJsonMode, setIsJsonMode] = useState(false);
 
   useImperativeHandle(ref, () => ({
     setConverterMenuAnchor: (anchor) => {
@@ -40,12 +48,42 @@ const Editor = forwardRef(({
     },
     getSelectedText: () => {
       return editorInstance?.getSelection() || content;
+    },
+    formatJson: () => {
+      if (!editorInstance) return;
+      try {
+        const currentValue = editorInstance.getValue();
+        const parsedJson = JSON.parse(currentValue);
+        const formattedJson = JSON.stringify(parsedJson, null, 2);
+        editorInstance.setValue(formattedJson);
+        setIsJsonMode(true);
+        editorInstance.setOption('mode', { name: 'javascript', json: true });
+      } catch (e) {
+        console.error('Invalid JSON');
+      }
     }
   }));
 
   const handleConverterClose = () => {
     setConverterAnchor(null);
   };
+
+  useEffect(() => {
+    if (editorInstance) {
+      try {
+        JSON.parse(content);
+        if (!isJsonMode) {
+          setIsJsonMode(true);
+          editorInstance.setOption('mode', { name: 'javascript', json: true });
+        }
+      } catch (e) {
+        if (isJsonMode) {
+          setIsJsonMode(false);
+          editorInstance.setOption('mode', 'markdown');
+        }
+      }
+    }
+  }, [content, editorInstance]);
 
   useEffect(() => {
     if (editorInstance) {
@@ -93,7 +131,7 @@ const Editor = forwardRef(({
   };
 
   const options = {
-    mode: 'markdown',
+    mode: isJsonMode ? { name: 'javascript', json: true } : 'markdown',
     theme: darkMode ? 'material' : 'default',
     lineNumbers: !focusMode && showLineNumbers,
     lineWrapping: wordWrap,
@@ -101,7 +139,12 @@ const Editor = forwardRef(({
     matchBrackets: true,
     autoCloseBrackets: true,
     styleActiveLine: true,
+    foldGutter: true,
+    gutters:  !focusMode && ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
     extraKeys: {
+      "Ctrl-Q": function(cm) {
+        cm.foldCode(cm.getCursor());
+      },
       'Enter': 'newlineAndIndentContinueMarkdownList',
       'Tab': (cm) => {
         if (cm.somethingSelected()) {
@@ -110,6 +153,9 @@ const Editor = forwardRef(({
           cm.replaceSelection('  ');
         }
       }
+    },
+    foldOptions: {
+      widget: '...'
     },
     indentUnit: 2,
     tabSize: 2,
@@ -132,7 +178,7 @@ const Editor = forwardRef(({
         value={content}
         options={options}
         onBeforeChange={handleChange}
-        editorDidMount={editor => {
+        editorDidMount={(editor) => {
           setEditorInstance(editor);
         }}
       />
@@ -166,23 +212,18 @@ const Editor = forwardRef(({
           Improving text...
         </Box>
       )}
-      <Tooltip title="Improve text with AI">
-        <IconButton
-          onClick={handleImproveText}
-          disabled={improving}
-          sx={{
-            position: 'absolute',
-            bottom: '20px',
-            right: '20px',
-            backgroundColor: 'background.paper',
-            '&:hover': {
-              backgroundColor: 'action.hover',
-            },
-          }}
-        >
-          <AutoFixHighIcon />
-        </IconButton>
-      </Tooltip>
+      {!showPreview && (
+        <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1 }}>
+          <Tooltip title="Improve Text">
+            <IconButton 
+              onClick={handleImproveText}
+              disabled={improving}
+            >
+              <AutoFixHighIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
     </Box>
   );
 
