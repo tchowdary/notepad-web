@@ -20,10 +20,12 @@
     "@mui/material": "^6.1.10",
     "codemirror": "^5.65.18",
     "github-markdown-css": "^5.8.1",
+    "prismjs": "^1.29.0",
     "react": "^18.3.1",
     "react-codemirror2": "^8.0.0",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
+    "react-syntax-highlighter": "^15.6.1",
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
