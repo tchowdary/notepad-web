@@ -22,6 +22,8 @@ import {
   Transform as TransformIcon,
   GitHub as GitHubIcon,
   Code as CodeIcon,
+  Brush as BrushIcon,
+  Palette as PaletteIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import githubService from '../services/githubService';
@@ -125,11 +127,21 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="New Drawing">
+        <Tooltip title="New TLDraw">
           <IconButton
             onClick={() => {
-              const drawingType = window.confirm('Would you like to use TLDraw? (Click Cancel for Excalidraw)') ? 'tldraw' : 'excalidraw';
-              onNewDrawing(drawingType);
+              onNewDrawing('tldraw');
+            }}
+            size="small"
+          >
+            <PaletteIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="New Excalidraw">
+          <IconButton
+            onClick={() => {
+              onNewDrawing('excalidraw');
             }}
             size="small"
           >
