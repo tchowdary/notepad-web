@@ -18,7 +18,7 @@ body {
 
 .CodeMirror {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 17px !important;
+  font-size: 16px !important;
   height: 98% !important;
   width: 97% !important;
   position: absolute;
@@ -57,7 +57,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
   line-height: 1.6;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 18px !important;
+  font-size: 16px !important;
   word-wrap: break-word;
   padding: 20px;
 }
