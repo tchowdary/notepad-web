@@ -4,6 +4,7 @@ import Editor from './components/Editor';
 import TabList from './components/TabList';
 import Toolbar from './components/Toolbar';
 import ExcalidrawEditor from './components/ExcalidrawEditor';
+import TLDrawEditor from './components/TLDrawEditor';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import './App.css';
@@ -228,7 +229,7 @@ function App() {
     if (!tab) return;
 
     const blob = new Blob(
-      [tab.type === 'excalidraw' ? JSON.stringify(tab.content) : tab.content],
+      [tab.type === 'excalidraw' || tab.type === 'tldraw' ? JSON.stringify(tab.content) : tab.content],
       { type: 'text/plain;charset=utf-8' }
     );
     const url = window.URL.createObjectURL(blob);
@@ -247,13 +248,15 @@ function App() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
+      const content = e.target.result;
       const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
       const isExcalidraw = file.name.endsWith('.excalidraw');
+      const isTLDraw = file.name.endsWith('.tldr');
       const newTab = {
         id: newId,
         name: file.name,
-        type: isExcalidraw ? 'excalidraw' : 'markdown',
-        content: isExcalidraw ? '' : e.target.result
+        content: isExcalidraw || isTLDraw ? JSON.parse(content) : content,
+        type: isExcalidraw ? 'excalidraw' : isTLDraw ? 'tldraw' : 'markdown'
       };
 
       if (isExcalidraw) {
@@ -274,15 +277,15 @@ function App() {
     event.target.value = '';
   };
 
-  const handleNewDrawing = () => {
+  const handleNewDrawing = (type = 'excalidraw') => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    const newTab = { 
+    const extension = type === 'excalidraw' ? '.excalidraw' : '.tldr';
+    setTabs([...tabs, { 
       id: newId, 
-      name: `Drawing ${newId}.excalidraw`,
-      type: 'excalidraw',
-      content: '' // Content will be stored in drawings store
-    };
-    setTabs([...tabs, newTab]);
+      name: `drawing-${newId}${extension}`, 
+      content: {}, 
+      type 
+    }]);
     setActiveTab(newId);
   };
 
@@ -298,6 +301,13 @@ function App() {
         <ExcalidrawEditor
           open={true}
           onClose={() => {}} // No-op since we're using tabs
+          darkMode={darkMode}
+          id={tab.id}
+        />
+      );
+    } else if (tab.type === 'tldraw') {
+      return (
+        <TLDrawEditor
           darkMode={darkMode}
           id={tab.id}
         />
@@ -410,7 +420,7 @@ function App() {
         ref={fileInputRef}
         style={{ display: 'none' }}
         onChange={handleFileSelect}
-        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw"
+        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldr"
       />
     </ThemeProvider>
   );

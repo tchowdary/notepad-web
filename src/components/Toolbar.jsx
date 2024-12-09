@@ -126,7 +126,13 @@ const Toolbar = ({
         </Tooltip>
 
         <Tooltip title="New Drawing">
-          <IconButton onClick={onNewDrawing} size="small">
+          <IconButton
+            onClick={() => {
+              const drawingType = window.confirm('Would you like to use TLDraw? (Click Cancel for Excalidraw)') ? 'tldraw' : 'excalidraw';
+              onNewDrawing(drawingType);
+            }}
+            size="small"
+          >
             <DrawIcon />
           </IconButton>
         </Tooltip>
