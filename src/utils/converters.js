@@ -1,3 +1,7 @@
+import CryptoJS from 'crypto-js';
+import * as asn1js from 'asn1js';
+import { Certificate } from 'pkijs';
+
 export const converters = {
   timestamp: {
     name: 'Timestamp to Date',
@@ -162,6 +166,76 @@ export const converters = {
         return `JWT Header:\n${JSON.stringify(header, null, 2)}\n\nJWT Payload:\n${JSON.stringify(payload, null, 2)}`;
       } catch (e) {
         throw new Error('Invalid JWT format: ' + e.message);
+      }
+    }
+  },
+  certDecoder: {
+    name: 'Certificate Decoder',
+    convert: function(input) {
+      try {
+        // Handle /n in the input
+        let pemContent = input
+          .replace(/\\n/g, '\n')  // Replace \n string with actual newlines
+          .trim();
+
+        // Check if it's a PEM certificate
+        if (!pemContent.includes('-----BEGIN CERTIFICATE-----') || !pemContent.includes('-----END CERTIFICATE-----')) {
+          throw new Error('Invalid certificate format. Must be a PEM encoded certificate.');
+        }
+
+        // Extract the base64 content between the BEGIN and END markers
+        const base64Content = pemContent
+          .replace('-----BEGIN CERTIFICATE-----', '')
+          .replace('-----END CERTIFICATE-----', '')
+          .replace(/[\r\n\s]/g, '');
+
+        // Decode the base64 content
+        const binaryString = CryptoJS.enc.Base64.parse(base64Content);
+        const binaryData = new Uint8Array(binaryString.words.length * 4);
+        for (let i = 0; i < binaryString.words.length; i++) {
+          const word = binaryString.words[i];
+          binaryData[i * 4] = (word >> 24) & 0xFF;
+          binaryData[i * 4 + 1] = (word >> 16) & 0xFF;
+          binaryData[i * 4 + 2] = (word >> 8) & 0xFF;
+          binaryData[i * 4 + 3] = word & 0xFF;
+        }
+
+        // Parse the ASN.1 structure
+        const asn1 = asn1js.fromBER(binaryData.buffer);
+        if (asn1.offset === -1) {
+          throw new Error('Invalid ASN.1 structure');
+        }
+
+        // Parse the certificate
+        const certificate = new Certificate({ schema: asn1.result });
+
+        // Format the certificate with proper line breaks
+        const formattedCert = '-----BEGIN CERTIFICATE-----\n' +
+          base64Content.match(/.{1,64}/g).join('\n') +
+          '\n-----END CERTIFICATE-----';
+
+        // Extract certificate information
+        const info = {
+          subject: certificate.subject.typesAndValues.map(tv => `${tv.type}=${tv.value.valueBlock.value}`).join(', '),
+          issuer: certificate.issuer.typesAndValues.map(tv => `${tv.type}=${tv.value.valueBlock.value}`).join(', '),
+          validFrom: certificate.notBefore.value.toUTCString(),
+          validTo: certificate.notAfter.value.toUTCString(),
+          serialNumber: certificate.serialNumber.valueBlock.toString(),
+          signatureAlgorithm: certificate.signatureAlgorithm.algorithmId
+        };
+
+        return `# Certificate Information:
+Subject: ${info.subject}
+Issuer: ${info.issuer}
+Valid From: ${info.validFrom}
+Valid To: ${info.validTo}
+Serial Number: ${info.serialNumber}
+Signature Algorithm: ${info.signatureAlgorithm}
+
+# Formatted Certificate:
+${formattedCert}`;
+      } catch (error) {
+        throw new Error(`Certificate decoding failed: ${error.message}`);
       }
     }
   }
