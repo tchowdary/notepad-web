@@ -214,26 +214,71 @@ export const converters = {
           base64Content.match(/.{1,64}/g).join('\n') +
           '\n-----END CERTIFICATE-----';
 
-        // Extract certificate information
-        const info = {
-          subject: certificate.subject.typesAndValues.map(tv => `${tv.type}=${tv.value.valueBlock.value}`).join(', '),
-          issuer: certificate.issuer.typesAndValues.map(tv => `${tv.type}=${tv.value.valueBlock.value}`).join(', '),
-          validFrom: certificate.notBefore.value.toUTCString(),
-          validTo: certificate.notAfter.value.toUTCString(),
-          serialNumber: certificate.serialNumber.valueBlock.toString(),
-          signatureAlgorithm: certificate.signatureAlgorithm.algorithmId
+        // Map OIDs to readable names
+        const oidMap = {
+          '2.5.4.3': 'Common Name',
+          '2.5.4.6': 'Country',
+          '2.5.4.7': 'Locality',
+          '2.5.4.8': 'State',
+          '2.5.4.10': 'Organization',
+          '2.5.4.11': 'Organization Unit',
+          '2.5.29.17': 'Subject Alternative Names'
         };
 
-        return `# Certificate Information:
-Subject: ${info.subject}
-Issuer: ${info.issuer}
-Valid From: ${info.validFrom}
-Valid To: ${info.validTo}
-Serial Number: ${info.serialNumber}
-Signature Algorithm: ${info.signatureAlgorithm}
+        // Extract subject information
+        const subjectInfo = {};
+        certificate.subject.typesAndValues.forEach(tv => {
+          const fieldName = oidMap[tv.type] || tv.type;
+          subjectInfo[fieldName] = tv.value.valueBlock.value;
+        });
 
-# Formatted Certificate:
-${formattedCert}`;
+        // Extract issuer information
+        const issuerInfo = {};
+        certificate.issuer.typesAndValues.forEach(tv => {
+          const fieldName = oidMap[tv.type] || tv.type;
+          issuerInfo[fieldName] = tv.value.valueBlock.value;
+        });
+
+        // Format dates
+        const formatDate = (date) => {
+          return date.toLocaleDateString('en-US', { 
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+          });
+        };
+
+        // Calculate key size (in bits)
+        const keySize = certificate.subjectPublicKeyInfo.subjectPublicKey.valueBlock.valueHex.byteLength * 8;
+
+        // Build the formatted output
+        let output = '# Certificate Information:\n';
+        
+        // Add subject information
+        if (subjectInfo['Common Name']) output += `Common Name: ${subjectInfo['Common Name']}\n`;
+        if (subjectInfo['Subject Alternative Names']) output += `Subject Alternative Names: ${subjectInfo['Subject Alternative Names']}\n`;
+        if (subjectInfo['Organization']) output += `Organization: ${subjectInfo['Organization']}\n`;
+        if (subjectInfo['Organization Unit']) output += `Organization Unit: ${subjectInfo['Organization Unit']}\n`;
+        if (subjectInfo['Locality']) output += `Locality: ${subjectInfo['Locality']}\n`;
+        if (subjectInfo['State']) output += `State: ${subjectInfo['State']}\n`;
+        if (subjectInfo['Country']) output += `Country: ${subjectInfo['Country']}\n`;
+        
+        // Add validity period
+        output += `Valid From: ${formatDate(certificate.notBefore.value)}\n`;
+        output += `Valid To: ${formatDate(certificate.notAfter.value)}\n`;
+        
+        // Add issuer
+        const issuerName = issuerInfo['Common Name'] || Object.values(issuerInfo)[0];
+        output += `Issuer: ${issuerName}\n`;
+        
+        // Add key size and serial number
+        output += `Key Size: ${keySize} bit\n`;
+        output += `Serial Number: ${certificate.serialNumber.valueBlock.toString()}\n`;
+
+        output += '\n# Formatted Certificate:\n';
+        output += formattedCert;
+
+        return output;
       } catch (error) {
         throw new Error(`Certificate decoding failed: ${error.message}`);
       }
