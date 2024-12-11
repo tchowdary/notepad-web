@@ -225,46 +225,74 @@ export const converters = {
     name: 'Certificate Decoder',
     convert: function(input) {
       try {
-        // Handle /n in the input
-        let pemContent = input
-          .replace(/\\n/g, '\n')  // Replace \n string with actual newlines
-          .trim();
+        // Helper function to check if string is base64
+        const isBase64 = str => {
+          try {
+            const cleaned = str.trim().replace(/[\r\n\s]/g, '');
+            return /^[A-Za-z0-9+/]*={0,2}$/.test(cleaned);
+          } catch {
+            return false;
+          }
+        };
 
-        // Check if it's a PEM certificate
-        if (!pemContent.includes('-----BEGIN CERTIFICATE-----') || !pemContent.includes('-----END CERTIFICATE-----')) {
-          throw new Error('Invalid certificate format. Must be a PEM encoded certificate.');
+        // Helper function to convert WordArray to Uint8Array
+        const wordArrayToUint8Array = (wordArray) => {
+          const words = wordArray.words;
+          const sigBytes = wordArray.sigBytes;
+          const u8 = new Uint8Array(sigBytes);
+          for (let i = 0; i < sigBytes; i++) {
+            const byte = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+            u8[i] = byte;
+          }
+          return u8;
+        };
+
+        // Handle /n in the input and clean it
+        let cleanInput = input.replace(/\\n/g, '\n').trim();
+        let pemContent;
+        let base64Content;
+
+        // Check if input is base64 encoded certificate
+        if (isBase64(cleanInput)) {
+          // First decode the base64 to get the PEM certificate
+          const decoded = atob(cleanInput);
+          
+          // Now we have the PEM certificate
+          if (!decoded.includes('-----BEGIN CERTIFICATE-----') || !decoded.includes('-----END CERTIFICATE-----')) {
+            throw new Error('Invalid certificate format after base64 decode. Must contain PEM markers.');
+          }
+          
+          pemContent = decoded;
+          base64Content = cleanInput;
+        } else {
+          // Check if it's a PEM certificate
+          if (!cleanInput.includes('-----BEGIN CERTIFICATE-----') || !cleanInput.includes('-----END CERTIFICATE-----')) {
+            throw new Error('Invalid certificate format. Must be a PEM or base64 encoded certificate.');
+          }
+          
+          pemContent = cleanInput;
+          // Extract the base64 content between the BEGIN and END markers and encode the whole PEM
+          base64Content = btoa(cleanInput);
         }
 
-        // Extract the base64 content between the BEGIN and END markers
-        const base64Content = pemContent
+        // Extract the pure base64 content for parsing
+        const parseContent = pemContent
           .replace('-----BEGIN CERTIFICATE-----', '')
           .replace('-----END CERTIFICATE-----', '')
           .replace(/[\r\n\s]/g, '');
 
         // Decode the base64 content
-        const binaryString = CryptoJS.enc.Base64.parse(base64Content);
-        const binaryData = new Uint8Array(binaryString.words.length * 4);
-        for (let i = 0; i < binaryString.words.length; i++) {
-          const word = binaryString.words[i];
-          binaryData[i * 4] = (word >> 24) & 0xFF;
-          binaryData[i * 4 + 1] = (word >> 16) & 0xFF;
-          binaryData[i * 4 + 2] = (word >> 8) & 0xFF;
-          binaryData[i * 4 + 3] = word & 0xFF;
-        }
+        const binaryString = CryptoJS.enc.Base64.parse(parseContent);
+        const binaryData = wordArrayToUint8Array(binaryString);
 
         // Parse the ASN.1 structure
         const asn1 = asn1js.fromBER(binaryData.buffer);
         if (asn1.offset === -1) {
-          throw new Error('Invalid ASN.1 structure');
+          throw new Error('Invalid ASN.1 structure. The input may not be a valid certificate.');
         }
 
         // Parse the certificate
         const certificate = new Certificate({ schema: asn1.result });
-
-        // Format the certificate with proper line breaks
-        const formattedCert = '-----BEGIN CERTIFICATE-----\n' +
-          base64Content.match(/.{1,64}/g).join('\n') +
-          '\n-----END CERTIFICATE-----';
 
         // Map OIDs to readable names
         const oidMap = {
@@ -328,7 +356,10 @@ export const converters = {
         output += `Serial Number: ${certificate.serialNumber.valueBlock.toString()}\n`;
 
         output += '\n# Formatted Certificate:\n';
-        output += formattedCert;
+        output += pemContent;
+
+        output += '\n\n# Base64 Encoded Certificate:\n';
+        output += base64Content;
 
         return output;
       } catch (error) {
