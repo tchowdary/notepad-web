@@ -5,6 +5,8 @@ import {
   IconButton,
   Tooltip,
   useTheme,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -27,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import githubService from '../services/githubService';
+import { converters } from '../utils/converters';
 
 const Toolbar = ({
   onNewTab,
@@ -48,6 +51,7 @@ const Toolbar = ({
 }) => {
   const theme = useTheme();
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
+  const [convertAnchorEl, setConvertAnchorEl] = useState(null);
 
   const handleGitHubSync = async () => {
     if (!githubService.isConfigured()) {
@@ -62,6 +66,19 @@ const Toolbar = ({
         console.error('Failed to sync with GitHub:', error);
       }
     }
+  };
+
+  const handleConvertClick = (event) => {
+    setConvertAnchorEl(event.currentTarget);
+  };
+
+  const handleConvertClose = () => {
+    setConvertAnchorEl(null);
+  };
+
+  const handleConvertSelect = (converterId) => {
+    onConvert(converterId);
+    handleConvertClose();
   };
 
   return (
@@ -151,16 +168,25 @@ const Toolbar = ({
 
         <Tooltip title="Convert Text">
           <IconButton 
-            onClick={onConvert}
+            onClick={handleConvertClick}
             size="small"
             id="convert-button"
-            aria-controls={Boolean(onConvert) ? 'convert-menu' : undefined}
-            aria-haspopup="true"
-            aria-expanded={Boolean(onConvert) ? 'true' : undefined}
           >
             <TransformIcon />
           </IconButton>
         </Tooltip>
+        <Menu
+          id="convert-menu"
+          anchorEl={convertAnchorEl}
+          open={Boolean(convertAnchorEl)}
+          onClose={handleConvertClose}
+        >
+          {Object.entries(converters).map(([id, converter]) => (
+            <MenuItem key={id} onClick={() => handleConvertSelect(id)}>
+              {converter.name}
+            </MenuItem>
+          ))}
+        </Menu>
 
         <Tooltip title="Format JSON">
           <IconButton onClick={onFormatJson} size="small">

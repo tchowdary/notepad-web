@@ -3,10 +3,14 @@ import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
 import Editor from './components/Editor';
 import TabList from './components/TabList';
 import Toolbar from './components/Toolbar';
+import CommandBar from './components/CommandBar';
 import ExcalidrawEditor from './components/ExcalidrawEditor';
 import TLDrawEditor from './components/TLDrawEditor';
+import GitHubSettingsModal from './components/GitHubSettingsModal';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
+import { createCommandList } from './utils/commands';
+import { converters } from './utils/converters';
 import './App.css';
 
 function App() {
@@ -22,6 +26,8 @@ function App() {
   const [focusMode, setFocusMode] = useState(false);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem('showPreview') === 'true');
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showCommandBar, setShowCommandBar] = useState(false);
+  const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const editorRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
 
@@ -158,6 +164,22 @@ function App() {
     return () => window.removeEventListener('keydown', handleEscKey);
   }, [focusMode]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Handle Ctrl+K before any other key combinations
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowCommandBar(true);
+        return;
+      }
+    };
+
+    // Use capture phase to handle the event before React's event system
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
+
   const handleNewTab = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     setTabs([...tabs, { id: newId, name: 'untitled.md', content: '', type: 'markdown' }]);
@@ -278,20 +300,69 @@ function App() {
   };
 
   const handleNewDrawing = (type = 'excalidraw') => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    const extension = type === 'excalidraw' ? '.excalidraw' : '.tldr';
     setTabs([...tabs, { 
       id: newId, 
-      name: `drawing-${newId}${extension}`, 
-      content: {}, 
+      name: `Drawing-${timestamp}.${type}`, 
+      content: '', 
       type 
     }]);
     setActiveTab(newId);
   };
 
-  const handleConvert = (event) => {
-    if (editorRef.current) {
-      editorRef.current.setConverterMenuAnchor(event.currentTarget);
+  const handleNewTLDraw = () => {
+    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    setTabs([...tabs, { id: newId, name: 'drawing.tldr', content: '', type: 'tldraw' }]);
+    setActiveTab(newId);
+  };
+
+  const handleConvert = (converterId) => {
+    if (!activeTab || !converterId || !converters[converterId]) {
+      console.error('Invalid converter ID or no active tab');
+      return;
+    }
+    
+    try {
+      const currentTab = tabs.find(t => t.id === activeTab);
+      if (!currentTab || !currentTab.content) {
+        console.error('No content to convert');
+        return;
+      }
+
+      const selectedText = window.getSelection()?.toString();
+      const textToConvert = selectedText || currentTab.content;
+      const result = converters[converterId].convert(textToConvert);
+
+
+      // Update the current tab by appending the result
+      const updatedContent = currentTab.content + '\n\n' + result;
+      const updatedTabs = tabs.map(tab => 
+        tab.id === activeTab 
+          ? { ...tab, content: updatedContent }
+          : tab
+      );
+      setTabs(updatedTabs);
+    } catch (error) {
+      console.error('Conversion failed:', error);
+    }
+  };
+
+  const handleFormatJson = () => {
+    if (!activeTab) return;
+    
+    try {
+      const currentTab = tabs.find(t => t.id === activeTab);
+      const parsed = JSON.parse(currentTab.content);
+      const formatted = JSON.stringify(parsed, null, 2);
+      setTabs(tabs.map(tab => 
+        tab.id === activeTab 
+          ? { ...tab, content: formatted }
+          : tab
+      ));
+    } catch (error) {
+      console.error('JSON formatting failed:', error);
+      // You might want to show an error message to the user here
     }
   };
 
@@ -334,13 +405,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        height: '100vh',
-        bgcolor: 'background.default',
-        color: 'text.primary'
-      }}>
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         {!focusMode && (
           <Toolbar 
             onNewTab={handleNewTab}
@@ -355,11 +420,39 @@ function App() {
             showPreview={showPreview}
             onShowPreviewChange={() => setShowPreview(!showPreview)}
             onNewDrawing={handleNewDrawing}
-            onConvert={(event) => editorRef.current?.setConverterMenuAnchor(event.currentTarget)}
+            onConvert={(converterId) => handleConvert(converterId)}
             onFormatJson={() => editorRef.current?.formatJson()}
             currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
+            setShowGitHubSettings={setShowGitHubSettings}
           />
         )}
+        <CommandBar
+          open={showCommandBar}
+          onClose={() => setShowCommandBar(false)}
+          commands={createCommandList({
+            onNewTab: handleNewTab,
+            onOpenFile: handleOpenFile,
+            onSaveFile: handleSaveFile,
+            onWordWrapChange: setWordWrap,
+            onDarkModeChange: setDarkMode,
+            onShowPreviewChange: setShowPreview,
+            onNewDrawing: handleNewDrawing,
+            onFocusModeChange: setFocusMode,
+            onNewTLDraw: handleNewTLDraw,
+            onConvert: handleConvert,
+            onFormatJson: () => editorRef.current?.formatJson(),
+            wordWrap,
+            darkMode,
+            showPreview,
+            focusMode,
+            setShowGitHubSettings,
+            currentFile: activeTab ? tabs.find(tab => tab.id === activeTab) : null
+          })}
+        />
+        <GitHubSettingsModal
+          open={showGitHubSettings}
+          onClose={() => setShowGitHubSettings(false)}
+        />
         <Box sx={{ 
           display: 'flex', 
           flex: 1,
