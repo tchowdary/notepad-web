@@ -54,38 +54,90 @@ export const converters = {
       return results.join('\n');
     }
   },
-  hexToBase64: {
-    name: 'Hex to Base64',
-    convert: function(hexString) {
+  textFormatConverter: {
+    name: 'Text Format Converter',
+    convert: function(input) {
       try {
-        const cleanHex = hexString.replace(/0x/g, '').replace(/\s/g, '');
-        if (!/^[0-9A-Fa-f]+$/.test(cleanHex)) {
-          throw new Error("Invalid hex string");
+        // Helper functions to detect format
+        const isHex = str => {
+          const cleanStr = str.trim();
+          const parts = cleanStr.split(/\s+/);
+          return parts.every(part => /^0x[0-9A-Fa-f]{2}$/.test(part));
+        };
+        const isBase64 = str => {
+          try {
+            return btoa(atob(str)) === str;
+          } catch {
+            return false;
+          }
+        };
+
+        // Helper functions for conversion
+        const hexToBytes = hex => {
+          const cleanHex = hex.replace(/0x/g, '').replace(/\s/g, '');
+          const bytes = new Uint8Array(cleanHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+          return bytes;
+        };
+
+        const bytesToHex = bytes => 
+          Array.from(bytes).map(b => '0x' + b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+
+        const bytesToBase64 = bytes => {
+          let binary = '';
+          bytes.forEach(byte => {
+            binary += String.fromCharCode(byte);
+          });
+          return btoa(binary);
+        };
+
+        const base64ToBytes = b64 => {
+          const binary = atob(b64);
+          return new Uint8Array(Array.from(binary).map(char => char.charCodeAt(0)));
+        };
+
+        // Detect input format
+        const cleanInput = input.trim();
+        let inputFormat = 'text';
+        let bytes;
+
+        if (isHex(cleanInput)) {
+          inputFormat = 'hex';
+          bytes = hexToBytes(cleanInput);
+          return [
+            '# Input Format: Hex',
+            cleanInput,
+            '',
+            '# Base64 Output:',
+            bytesToBase64(bytes)
+          ].join('\n');
+        } else if (isBase64(cleanInput)) {
+          inputFormat = 'base64';
+          bytes = base64ToBytes(cleanInput);
+          return [
+            '# Input Format: Base64',
+            cleanInput,
+            '',
+            '# Hex Output:',
+            bytesToHex(bytes),
+            '',
+            '# Text Output:',
+            new TextDecoder().decode(bytes)
+          ].join('\n');
+        } else {
+          bytes = new TextEncoder().encode(cleanInput);
+          return [
+            '# Input Format: Text',
+            cleanInput,
+            '',
+            '# Hex Output:',
+            bytesToHex(bytes),
+            '',
+            '# Base64 Output:',
+            bytesToBase64(bytes)
+          ].join('\n');
         }
-        
-        const bytes = cleanHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16));
-        const byteArray = new Uint8Array(bytes);
-        const base64 = btoa(String.fromCharCode.apply(null, byteArray));
-        
-        return `Hex Input:\n${hexString}\n\nBase64 Output:\n${base64}`;
       } catch (error) {
-        throw new Error(`Hex to Base64 conversion failed: ${error.message}`);
-      }
-    }
-  },
-  base64ToHex: {
-    name: 'Base64 to Hex',
-    convert: function(encodedString) {
-      try {
-        const binaryString = atob(encodedString);
-        const hexArray = Array.from(binaryString).map(char => {
-          const hex = char.charCodeAt(0).toString(16).padStart(2, '0');
-          return '0x' + hex.toUpperCase();
-        });
-        
-        return `Base64 Input:\n${encodedString}\n\nHex Output:\n${hexArray.join(' ')}`;
-      } catch (error) {
-        throw new Error(`Base64 to Hex conversion failed: ${error.message}`);
+        throw new Error(`Conversion failed: ${error.message}`);
       }
     }
   },
