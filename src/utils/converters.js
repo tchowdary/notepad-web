@@ -366,5 +366,23 @@ export const converters = {
         throw new Error(`Certificate decoding failed: ${error.message}`);
       }
     }
+  },
+  upperCaseConverter: {
+    name: 'Convert to Uppercase',
+    convert: function(input) {
+      if (!input || typeof input !== 'string') {
+        throw new Error('Please provide text to convert');
+      }
+      return input.toUpperCase();
+    }
+  },
+  lowerCaseConverter: {
+    name: 'Convert to Lowercase',
+    convert: function(input) {
+      if (!input || typeof input !== 'string') {
+        throw new Error('Please provide text to convert');
+      }
+      return input.toLowerCase();
+    }
   }
 };

@@ -161,6 +161,10 @@ export const createCommandList = ({
       case 'certDecoder':
         IconComponent = SecurityIcon;
         break;
+      case 'upperCaseConverter':
+      case 'lowerCaseConverter':
+        IconComponent = TextFormatIcon;
+        break;
       default:
         IconComponent = TransformIcon;
     }
