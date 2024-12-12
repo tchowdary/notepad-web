@@ -1,9 +1,9 @@
-const DB_NAME = 'notepadDB';
-const DB_VERSION = 2;
-const TABS_STORE = 'tabs';
-const DRAWINGS_STORE = 'drawings';
+export const DB_NAME = 'notepadDB';
+export const DB_VERSION = 2;
+export const TABS_STORE = 'tabs';
+export const DRAWINGS_STORE = 'drawings';
 
-const openDB = () => {
+export const openDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 

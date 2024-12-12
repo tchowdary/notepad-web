@@ -59,12 +59,12 @@ const Toolbar = ({
       return;
     }
     
-    if (currentFile) {
-      try {
-        await githubService.uploadFile(currentFile.name, currentFile.content);
-      } catch (error) {
-        console.error('Failed to sync with GitHub:', error);
-      }
+    try {
+      console.log('Starting GitHub sync...');
+      await githubService.syncAllFiles();
+      console.log('GitHub sync completed successfully');
+    } catch (error) {
+      console.error('Failed to sync with GitHub:', error);
     }
   };
 
