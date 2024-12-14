@@ -183,6 +183,11 @@ const Editor = forwardRef(({
           onBeforeChange={handleChange}
           editorDidMount={(editor) => {
             setEditorInstance(editor);
+            const timeoutId = setTimeout(() => {
+              editor.focus();
+              editor.setCursor(editor.lineCount(), 0);
+            }, 100);
+            return () => clearTimeout(timeoutId);
           }}
         />
       ) : (

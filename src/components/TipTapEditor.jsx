@@ -4,9 +4,8 @@ import StarterKit from '@tiptap/starter-kit';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
-import { Box, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
+import { Box, IconButton, Menu, Stack, Tooltip, Typography } from '@mui/material';
 import {
-  Title,
   FormatQuote,
   Code,
   HorizontalRule as HorizontalRuleIcon,
@@ -16,7 +15,7 @@ import { marked } from 'marked';
 
 const TipTapEditor = ({ content, onChange, darkMode }) => {
   const [contextMenu, setContextMenu] = React.useState(null);
-  const [selectedText, setSelectedText] = React.useState('');
+  const editorRef = React.useRef(null);
 
   const editor = useEditor({
     extensions: [
@@ -50,6 +49,19 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     autofocus: true,
   });
 
+  // Focus editor when mounted or when tab becomes active
+  useEffect(() => {
+    if (editor) {
+      const focusEditor = () => {
+        editor.commands.focus('end');
+      };
+      focusEditor();
+      // Also focus when the window regains focus
+      window.addEventListener('focus', focusEditor);
+      return () => window.removeEventListener('focus', focusEditor);
+    }
+  }, [editor]);
+
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
       try {
@@ -69,14 +81,9 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     event.preventDefault();
     if (editor?.view.state.selection.empty) return;
     
-    setSelectedText(editor?.state.doc.textBetween(
-      editor.state.selection.from,
-      editor.state.selection.to,
-    ));
-    
     setContextMenu({
-      mouseX: event.clientX + 2,
-      mouseY: event.clientY - 6,
+      mouseX: event.clientX,
+      mouseY: event.clientY,
     });
   };
 
@@ -86,18 +93,18 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
 
   const formatOptions = [
     {
-      title: 'Heading 2',
-      icon: <Title sx={{ fontSize: '1.2rem' }} />,
+      title: 'H2',
+      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>H2</Typography>,
       action: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(),
     },
     {
-      title: 'Heading 3',
-      icon: <Title sx={{ fontSize: '1rem' }} />,
+      title: 'H3',
+      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>H3</Typography>,
       action: () => editor?.chain().focus().toggleHeading({ level: 3 }).run(),
     },
     {
-      title: 'Heading 4',
-      icon: <Title sx={{ fontSize: '0.9rem' }} />,
+      title: 'H4',
+      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}>H4</Typography>,
       action: () => editor?.chain().focus().toggleHeading({ level: 4 }).run(),
     },
     {
@@ -124,6 +131,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
 
   return (
     <Box
+      ref={editorRef}
       onContextMenu={handleContextMenu}
       sx={{
         height: '100%',
@@ -132,8 +140,8 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
         overflow: 'auto',
         '& .ProseMirror': {
           minHeight: '100%',
-          maxWidth: '50em', // Good readable line length
-          margin: '0 auto', // Center the content
+          maxWidth: '50em',
+          margin: '0 auto',
           padding: '16px',
           outline: 'none',
           backgroundColor: darkMode ? '#1e1e1e' : '#fdfdf7',
@@ -196,26 +204,42 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
             ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
             : undefined
         }
+        PaperProps={{
+          sx: {
+            minWidth: 'auto',
+            padding: '4px',
+            backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
+          },
+        }}
       >
-        {formatOptions.map((option, index) => (
-          <MenuItem
-            key={index}
-            onClick={() => {
-              option.action();
-              handleClose();
-            }}
-            sx={{
-              minHeight: 'auto',
-              padding: '4px 8px',
-            }}
-          >
-            <Tooltip title={option.title}>
-              <IconButton size="small" sx={{ mr: 1 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            padding: '4px',
+          }}
+        >
+          {formatOptions.map((option, index) => (
+            <Tooltip key={index} title={option.title}>
+              <IconButton
+                size="small"
+                onClick={() => {
+                  option.action();
+                  handleClose();
+                }}
+                sx={{
+                  padding: '4px',
+                  borderRadius: '4px',
+                  '&:hover': {
+                    backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
                 {option.icon}
               </IconButton>
             </Tooltip>
-          </MenuItem>
-        ))}
+          ))}
+        </Stack>
       </Menu>
     </Box>
   );

@@ -190,7 +190,10 @@ function App() {
       editorType: 'codemirror'
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
-    setTimeout(() => setActiveTab(newId), 0);
+    // Use requestAnimationFrame for smoother focus handling
+    requestAnimationFrame(() => {
+      setActiveTab(newId);
+    });
   };
 
   const handleDoubleClickSidebar = () => {
@@ -203,7 +206,10 @@ function App() {
       editorType: 'tiptap'
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
-    setTimeout(() => setActiveTab(newId), 0);
+    // Use requestAnimationFrame for smoother focus handling
+    requestAnimationFrame(() => {
+      setActiveTab(newId);
+    });
   };
 
   const handleTabClose = async (id) => {
