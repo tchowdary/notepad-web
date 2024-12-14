@@ -35,8 +35,8 @@ function App() {
     palette: {
       mode: darkMode ? 'dark' : 'light',
       background: {
-        default: darkMode ? '#1e1e1e' : '#fdfdf7',
-        paper: darkMode ? '#252526' : '#fdfdf7',
+        default: darkMode ? '#1e1e1e' : '#FFFCF0',
+        paper: darkMode ? '#252526' : '#FFFCF0',
       },
       divider: darkMode ? '#333333' : '#e0e0e0',
     },

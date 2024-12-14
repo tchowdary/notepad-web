@@ -18,6 +18,60 @@ import {
 } from '@mui/icons-material';
 import { marked } from 'marked';
 
+const getTableStyles = (darkMode) => ({
+  '& table': {
+    borderCollapse: 'collapse',
+    tableLayout: 'fixed',
+    width: '100%',
+    margin: '0',
+    overflow: 'hidden',
+    backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
+    borderRadius: '6px',
+    border: `1px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
+  },
+  '& td, & th': {
+    minWidth: '1em',
+    border: `1px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
+    padding: '8px 12px',
+    verticalAlign: 'top',
+    boxSizing: 'border-box',
+    position: 'relative',
+    backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
+  },
+  '& th': {
+    fontWeight: '600',
+    textAlign: 'left',
+    backgroundColor: darkMode ? '#252526' : '#FFFCF0',
+    borderBottom: `2px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
+    fontSize: '0.95em',
+    color: darkMode ? '#e6edf3' : '#24292f',
+  },
+  '& tr:hover td': {
+    backgroundColor: darkMode ? '#1f2428' : '#FFFDF5',
+  },
+  '& .selectedCell:after': {
+    zIndex: '2',
+    position: 'absolute',
+    content: '""',
+    left: '0',
+    right: '0',
+    top: '0',
+    bottom: '0',
+    background: 'rgba(200, 200, 255, 0.4)',
+    pointerEvents: 'none',
+  },
+  '& .column-resize-handle': {
+    position: 'absolute',
+    right: '-2px',
+    top: '0',
+    bottom: '0',
+    width: '4px',
+    background: darkMode ? '#30363d' : '#e0e0e0',
+    cursor: 'col-resize',
+    zIndex: '20',
+  },
+});
+
 const TipTapEditor = ({ content, onChange, darkMode }) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const editorRef = React.useRef(null);
@@ -266,24 +320,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
             backgroundColor: darkMode ? '#30363d' : '#dfe2e5',
             margin: '1.5em 0',
           },
-          '& table': {
-            borderCollapse: 'collapse',
-            margin: '0 0 1em 0',
-            overflow: 'hidden',
-            width: '100%',
-            tableLayout: 'fixed',
-          },
-          '& table td, & table th': {
-            border: `1px solid ${darkMode ? '#30363d' : '#dfe2e5'}`,
-            padding: '0.5em',
-            backgroundColor: darkMode ? '#161b22' : '#fff',
-            wordBreak: 'break-word',
-          },
-          '& table th': {
-            fontWeight: 'bold',
-            textAlign: 'left',
-            backgroundColor: darkMode ? '#21262d' : '#f6f8fa',
-          },
+          ...getTableStyles(darkMode),
         },
       }}
     >
