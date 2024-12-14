@@ -15,8 +15,10 @@ import {
   HorizontalRule as HorizontalRuleIcon,
   FormatColorText,
   TableChart,
+  AutoFixHigh,
 } from '@mui/icons-material';
 import { marked } from 'marked';
+import { improveText } from '../utils/textImprovement';
 
 const getTableStyles = (darkMode) => ({
   '& table': {
@@ -74,7 +76,43 @@ const getTableStyles = (darkMode) => ({
 
 const TipTapEditor = ({ content, onChange, darkMode }) => {
   const [contextMenu, setContextMenu] = React.useState(null);
+  const [improving, setImproving] = React.useState(false);
   const editorRef = React.useRef(null);
+
+  const handleImproveText = async () => {
+    if (improving) return;
+    
+    const text = editor?.state.selection.empty ? 
+      editor?.getHTML() : 
+      editor?.state.doc.textBetween(
+        editor.state.selection.from,
+        editor.state.selection.to,
+        ' '
+      );
+
+    if (!text?.trim()) return;
+
+    setImproving(true);
+    try {
+      const improvedText = await improveText(text);
+      if (improvedText) {
+        if (!editor?.state.selection.empty) {
+          editor?.chain()
+            .focus()
+            .deleteSelection()
+            .insertContent(improvedText)
+            .run();
+        } else {
+          editor?.commands.setContent(improvedText);
+          onChange(improvedText);
+        }
+      }
+    } catch (error) {
+      console.error('Error improving text:', error);
+    } finally {
+      setImproving(false);
+    }
+  };
 
   const editor = useEditor({
     extensions: [
@@ -195,7 +233,8 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
       title: 'Insert Table',
       icon: <TableChart />,
       action: () => {
-        editor?.chain().focus()
+        editor?.chain()
+          .focus()
           .insertTable({
             rows: 3,
             cols: 3,
@@ -204,6 +243,11 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
           .run();
         handleClose();
       },
+    },
+    {
+      title: 'Improve Text',
+      icon: <AutoFixHigh />,
+      action: handleImproveText,
     },
   ];
 
@@ -268,8 +312,10 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
         width: '100%',
         position: 'relative',
         overflow: 'auto',
-        '& .ProseMirror': {
-          minHeight: '100%',
+      }}
+    >
+      <Box
+        sx={{
           maxWidth: '50em',
           margin: '0 auto',
           padding: '16px',
@@ -278,54 +324,100 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
           color: darkMode ? '#e6edf3' : '#24292f',
           fontFamily: '"JetBrains Mono", monospace',
           fontSize: '16px',
-          '& p': {
-            margin: '0 0 1em 0',
-            lineHeight: '1.6',
-          },
-          '& h1, & h2, & h3, & h4, & h5, & h6': {
-            margin: '1em 0 0.5em',
-            lineHeight: '1.2',
-          },
-          '& ul, & ol': {
-            paddingLeft: '1.2em',
-            margin: '0 0 1em 0',
-          },
-          '& code': {
-            backgroundColor: darkMode ? 'rgba(110, 118, 129, 0.4)' : 'rgba(175, 184, 193, 0.2)',
-            padding: '0.2em 0.4em',
-            borderRadius: '6px',
-            fontSize: '85%',
-          },
-          '& pre': {
-            backgroundColor: darkMode ? '#161b22' : '#f6f8fa',
-            padding: '16px',
-            borderRadius: '6px',
-            overflow: 'auto',
-            border: `1px solid ${darkMode ? '#30363d' : '#d0d7de'}`,
-            margin: '0 0 1em 0',
-            '& code': {
-              backgroundColor: 'transparent',
-              padding: '0',
+          lineHeight: '1.6',
+          position: 'relative',
+          height: '100%',
+          '& .ProseMirror': {
+            minHeight: '100%',
+            outline: 'none',
+            '& > * + *': {
+              marginTop: '0.75em',
             },
+            '& p': {
+              margin: 0,
+            },
+            '& h1': {
+              fontSize: '2em',
+              fontWeight: '600',
+              lineHeight: '1.25',
+              margin: '1em 0 0.5em',
+            },
+            '& h2': {
+              fontSize: '1.5em',
+              fontWeight: '600',
+              lineHeight: '1.25',
+              margin: '1em 0 0.5em',
+            },
+            '& h3': {
+              fontSize: '1.25em',
+              fontWeight: '600',
+              lineHeight: '1.25',
+              margin: '1em 0 0.5em',
+            },
+            '& h4': {
+              fontSize: '1em',
+              fontWeight: '600',
+              lineHeight: '1.25',
+              margin: '1em 0 0.5em',
+            },
+            '& ul, & ol': {
+              padding: '0 1rem',
+            },
+            '& blockquote': {
+              borderLeft: `3px solid ${darkMode ? '#30363d' : '#dfe2e5'}`,
+              color: darkMode ? '#8b949e' : '#6a737d',
+              marginLeft: 0,
+              marginRight: 0,
+              paddingLeft: '1rem',
+            },
+            '& code': {
+              backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
+              color: darkMode ? '#e6edf3' : '#24292f',
+              borderRadius: '6px',
+              padding: '0.2em 0.4em',
+              fontSize: '85%',
+              fontFamily: '"JetBrains Mono", monospace',
+            },
+            '& pre': {
+              backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
+              padding: '1em',
+              borderRadius: '6px',
+              overflow: 'auto',
+              '& code': {
+                backgroundColor: 'transparent',
+                padding: 0,
+                fontSize: '90%',
+              },
+            },
+            '& hr': {
+              border: 'none',
+              height: '2px',
+              backgroundColor: darkMode ? '#30363d' : '#dfe2e5',
+              margin: '1.5em 0',
+            },
+            ...getTableStyles(darkMode),
           },
-          '& blockquote': {
-            borderLeft: `4px solid ${darkMode ? '#30363d' : '#dfe2e5'}`,
-            margin: '0 0 1em 0',
-            padding: '0 1em',
-            color: darkMode ? '#8b949e' : '#6a737d',
-          },
-          '& hr': {
-            border: 'none',
-            height: '2px',
-            backgroundColor: darkMode ? '#30363d' : '#dfe2e5',
-            margin: '1.5em 0',
-          },
-          ...getTableStyles(darkMode),
-        },
-      }}
-    >
-      <EditorContent editor={editor} />
-      
+        }}
+      >
+        <EditorContent editor={editor} onContextMenu={handleContextMenu} />
+        {improving && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              padding: '10px 20px',
+              borderRadius: '4px',
+              zIndex: 1000,
+            }}
+          >
+            Improving text...
+          </Box>
+        )}
+      </Box>
       <Menu
         open={contextMenu !== null}
         onClose={handleClose}
