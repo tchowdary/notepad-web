@@ -4,12 +4,17 @@ import StarterKit from '@tiptap/starter-kit';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
-import { Box, IconButton, Menu, Stack, Tooltip, Typography } from '@mui/material';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
 import {
   FormatQuote,
   Code,
   HorizontalRule as HorizontalRuleIcon,
   FormatColorText,
+  TableChart,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 
@@ -23,6 +28,12 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
       TextStyle,
       Color,
       HorizontalRule,
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableCell,
+      TableHeader,
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -79,11 +90,10 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
 
   const handleContextMenu = (event) => {
     event.preventDefault();
-    if (editor?.view.state.selection.empty) return;
-    
     setContextMenu({
       mouseX: event.clientX,
       mouseY: event.clientY,
+      isInTable: editor?.isActive('table'),
     });
   };
 
@@ -127,6 +137,72 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
       icon: <FormatColorText />,
       action: () => editor?.chain().focus().setColor('#ffd700').run(),
     },
+    {
+      title: 'Insert Table',
+      icon: <TableChart />,
+      action: () => {
+        editor?.chain().focus()
+          .insertTable({
+            rows: 3,
+            cols: 3,
+            withHeaderRow: true
+          })
+          .run();
+        handleClose();
+      },
+    },
+  ];
+
+  const tableOptions = [
+    {
+      title: 'Add Column Before',
+      action: () => {
+        editor?.chain().focus().addColumnBefore().run();
+        handleClose();
+      },
+    },
+    {
+      title: 'Add Column After',
+      action: () => {
+        editor?.chain().focus().addColumnAfter().run();
+        handleClose();
+      },
+    },
+    {
+      title: 'Delete Column',
+      action: () => {
+        editor?.chain().focus().deleteColumn().run();
+        handleClose();
+      },
+    },
+    {
+      title: 'Add Row Before',
+      action: () => {
+        editor?.chain().focus().addRowBefore().run();
+        handleClose();
+      },
+    },
+    {
+      title: 'Add Row After',
+      action: () => {
+        editor?.chain().focus().addRowAfter().run();
+        handleClose();
+      },
+    },
+    {
+      title: 'Delete Row',
+      action: () => {
+        editor?.chain().focus().deleteRow().run();
+        handleClose();
+      },
+    },
+    {
+      title: 'Delete Table',
+      action: () => {
+        editor?.chain().focus().deleteTable().run();
+        handleClose();
+      },
+    },
   ];
 
   return (
@@ -144,7 +220,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
           margin: '0 auto',
           padding: '16px',
           outline: 'none',
-          backgroundColor: darkMode ? '#1e1e1e' : '#fdfdf7',
+          backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
           color: darkMode ? '#e6edf3' : '#24292f',
           fontFamily: '"JetBrains Mono", monospace',
           fontSize: '16px',
@@ -190,6 +266,24 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
             backgroundColor: darkMode ? '#30363d' : '#dfe2e5',
             margin: '1.5em 0',
           },
+          '& table': {
+            borderCollapse: 'collapse',
+            margin: '0 0 1em 0',
+            overflow: 'hidden',
+            width: '100%',
+            tableLayout: 'fixed',
+          },
+          '& table td, & table th': {
+            border: `1px solid ${darkMode ? '#30363d' : '#dfe2e5'}`,
+            padding: '0.5em',
+            backgroundColor: darkMode ? '#161b22' : '#fff',
+            wordBreak: 'break-word',
+          },
+          '& table th': {
+            fontWeight: 'bold',
+            textAlign: 'left',
+            backgroundColor: darkMode ? '#21262d' : '#f6f8fa',
+          },
         },
       }}
     >
@@ -212,34 +306,36 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
           },
         }}
       >
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{
-            padding: '4px',
-          }}
-        >
-          {formatOptions.map((option, index) => (
-            <Tooltip key={index} title={option.title}>
-              <IconButton
-                size="small"
-                onClick={() => {
-                  option.action();
-                  handleClose();
-                }}
-                sx={{
-                  padding: '4px',
-                  borderRadius: '4px',
-                  '&:hover': {
-                    backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
-                  },
-                }}
-              >
-                {option.icon}
-              </IconButton>
-            </Tooltip>
-          ))}
-        </Stack>
+        {contextMenu?.isInTable ? (
+          tableOptions.map((option, index) => (
+            <MenuItem
+              key={`table-${index}`}
+              onClick={option.action}
+              sx={{
+                fontSize: '14px',
+                minHeight: '32px',
+              }}
+            >
+              {option.title}
+            </MenuItem>
+          ))
+        ) : (
+          formatOptions.map((option, index) => (
+            <MenuItem
+              key={`format-${index}`}
+              onClick={option.action}
+              sx={{
+                fontSize: '14px',
+                minHeight: '32px',
+                display: 'flex',
+                gap: 1,
+              }}
+            >
+              {option.icon}
+              {option.title}
+            </MenuItem>
+          ))
+        )}
       </Menu>
     </Box>
   );
