@@ -26,6 +26,7 @@ import {
   Code as CodeIcon,
   Brush as BrushIcon,
   Palette as PaletteIcon,
+  CheckBoxOutlined as TodoIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import githubService from '../services/githubService';
@@ -48,6 +49,7 @@ const Toolbar = ({
   onFormatJson,
   className,
   currentFile,
+  onTodoClick,
 }) => {
   const theme = useTheme();
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
@@ -108,6 +110,12 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
+        <Tooltip title="Todo Manager">
+          <IconButton onClick={onTodoClick} size="small">
+            <TodoIcon />
+          </IconButton>
+        </Tooltip>
+
         <Tooltip title="Open File (Ctrl+O)">
           <IconButton onClick={onOpenFile} size="small">
             <FolderOpenIcon />
@@ -120,11 +128,11 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title={wordWrap ? "Word Wrap: On" : "Word Wrap: Off"}>
+        {/* <Tooltip title={wordWrap ? "Word Wrap: On" : "Word Wrap: Off"}>
           <IconButton onClick={onWordWrapChange} size="small">
             {wordWrap ? <WrapOnIcon /> : <WrapOffIcon />}
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         <Tooltip title={darkMode ? "Light Mode" : "Dark Mode"}>
           <IconButton onClick={onDarkModeChange} size="small">

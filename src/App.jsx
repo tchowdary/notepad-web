@@ -7,7 +7,8 @@ import CommandBar from './components/CommandBar';
 import ExcalidrawEditor from './components/ExcalidrawEditor';
 import TLDrawEditor from './components/TLDrawEditor';
 import GitHubSettingsModal from './components/GitHubSettingsModal';
-import { saveTabs, loadTabs, deleteDrawing, saveDrawing } from './utils/db';
+import TodoManager from './components/TodoManager';
+import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
 import { converters } from './utils/converters';
@@ -28,6 +29,11 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showCommandBar, setShowCommandBar] = useState(false);
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
+  const [todoData, setTodoData] = useState({
+    inbox: [],
+    archive: [],
+    projects: {}
+  });
   const editorRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
 
@@ -180,11 +186,42 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, []);
 
+  useEffect(() => {
+    const loadTodoState = async () => {
+      try {
+        const data = await loadTodoData();
+        console.log('App: Loading todo data:', data);
+        if (data) {
+          setTodoData(data);
+        }
+      } catch (error) {
+        console.error('Error loading todo data:', error);
+      }
+    };
+    loadTodoState();
+  }, []);
+
+  useEffect(() => {
+    const saveTodoState = async () => {
+      try {
+        if (Object.keys(todoData.inbox).length > 0 || 
+            Object.keys(todoData.archive).length > 0 || 
+            Object.keys(todoData.projects).length > 0) {
+          console.log('App: Saving todo data:', todoData);
+          await saveTodoData(todoData);
+        }
+      } catch (error) {
+        console.error('Error saving todo data:', error);
+      }
+    };
+    saveTodoState();
+  }, [todoData]);
+
   const handleNewTab = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     const newTab = {
       id: newId,
-      name: `untitled${newId}.md`,
+      name: `Code-${newId}.md`,
       content: '',
       type: 'markdown',
       editorType: 'codemirror'
@@ -200,7 +237,7 @@ function App() {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     const newTab = {
       id: newId,
-      name: `untitled${newId}.md`,
+      name: `Note-${newId}.md`,
       content: '',
       type: 'markdown',
       editorType: 'tiptap'
@@ -397,6 +434,28 @@ function App() {
     }
   };
 
+  const handleTodoClick = () => {
+    // Check if todo tab already exists
+    const todoTab = tabs.find(tab => tab.type === 'todo');
+    if (todoTab) {
+      setActiveTab(todoTab.id);
+      return;
+    }
+
+    // Create new todo tab with consistent ID generation
+    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const newTab = {
+      id: newId,
+      name: 'Todo',
+      content: '',
+      type: 'todo',
+      editorType: 'todo'
+    };
+
+    setTabs(prev => [...prev, newTab]);
+    setActiveTab(newId);
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -412,6 +471,13 @@ function App() {
         <TLDrawEditor
           darkMode={darkMode}
           id={tab.id}
+        />
+      );
+    } else if (tab.type === 'todo') {
+      return (
+        <TodoManager 
+          tasks={todoData}
+          onTasksChange={setTodoData}
         />
       );
     }
@@ -456,6 +522,7 @@ function App() {
             onFormatJson={() => editorRef.current?.formatJson()}
             currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
             setShowGitHubSettings={setShowGitHubSettings}
+            onTodoClick={handleTodoClick}
           />
         )}
         <CommandBar
