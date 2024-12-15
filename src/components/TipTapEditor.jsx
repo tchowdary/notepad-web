@@ -137,7 +137,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
         if (text) {
           try {
             const html = marked.parse(text);
-            editor.commands.setContent(html);
+            editor.commands.insertContent(html);
             return true;
           } catch (e) {
             console.error('Error parsing markdown:', e);
@@ -236,8 +236,8 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
         editor?.chain()
           .focus()
           .insertTable({
-            rows: 3,
-            cols: 3,
+            rows: 2,
+            cols: 2,
             withHeaderRow: true
           })
           .run();
@@ -298,6 +298,35 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
       title: 'Delete Table',
       action: () => {
         editor?.chain().focus().deleteTable().run();
+        handleClose();
+      },
+    },
+    {
+      title: 'Add Text Below Table',
+      action: () => {
+        // Find the table node
+        const { state } = editor;
+        const { selection } = state;
+        const tablePos = selection.$anchor.pos;
+        let table = null;
+        let tableEndPos = null;
+
+        // Find the table node and its position
+        state.doc.nodesBetween(0, state.doc.content.size, (node, pos) => {
+          if (node.type.name === 'table' && pos <= tablePos && pos + node.nodeSize >= tablePos) {
+            table = node;
+            tableEndPos = pos + node.nodeSize;
+            return false;
+          }
+        });
+
+        if (tableEndPos !== null) {
+          // Insert a new paragraph after the table
+          editor.chain()
+            .insertContentAt(tableEndPos, { type: 'paragraph' })
+            .focus(tableEndPos)
+            .run();
+        }
         handleClose();
       },
     },
