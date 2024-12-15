@@ -23,6 +23,7 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import FormatAlignJustifyIcon from '@mui/icons-material/FormatAlignJustify';
 import MarkdownPreview from './MarkdownPreview';
 import ApiKeyInput from './ApiKeyInput';
+import TipTapEditor from './TipTapEditor';
 import { improveText } from '../utils/textImprovement';
 import { converters } from '../utils/converters';
 
@@ -33,7 +34,8 @@ const Editor = forwardRef(({
   darkMode = false,
   showLineNumbers = true,
   showPreview,
-  focusMode
+  focusMode,
+  editorType = 'codemirror'
 }, ref) => {
   const [editorInstance, setEditorInstance] = useState(null);
   const [improving, setImproving] = useState(false);
@@ -174,14 +176,27 @@ const Editor = forwardRef(({
         }
       }}
     >
-      <CodeMirror
-        value={content}
-        options={options}
-        onBeforeChange={handleChange}
-        editorDidMount={(editor) => {
-          setEditorInstance(editor);
-        }}
-      />
+      {editorType === 'codemirror' ? (
+        <CodeMirror
+          value={content}
+          options={options}
+          onBeforeChange={handleChange}
+          editorDidMount={(editor) => {
+            setEditorInstance(editor);
+            const timeoutId = setTimeout(() => {
+              editor.focus();
+              editor.setCursor(editor.lineCount(), 0);
+            }, 100);
+            return () => clearTimeout(timeoutId);
+          }}
+        />
+      ) : (
+        <TipTapEditor
+          content={content}
+          onChange={onChange}
+          darkMode={darkMode}
+        />
+      )}
       
       {/* Conversion Menu */}
       <Menu
@@ -212,7 +227,7 @@ const Editor = forwardRef(({
           Improving text...
         </Box>
       )}
-      {!showPreview && (
+      {!showPreview && editorType === 'codemirror' && (
         <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1 }}>
           <Tooltip title="Improve Text">
             <IconButton 

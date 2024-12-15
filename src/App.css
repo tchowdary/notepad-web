@@ -40,11 +40,11 @@ body {
 
 /* Light theme overrides */
 .CodeMirror.cm-s-default {
-  background-color: #fdfdf7;
+  background-color: #FFFCF0;
 }
 
 .cm-s-default .CodeMirror-gutters {
-  background-color: #fdfdf7;
+  background-color: #FFFCF0;
   border-right: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -84,7 +84,7 @@ body {
 /* Light mode */
 .markdown-body:not(.markdown-dark) {
   color: #24292f;
-  background-color: #fdfdf7;
+  background-color: #FFFCF0;
 }
 
 .markdown-body:not(.markdown-dark) code {
@@ -221,6 +221,56 @@ body {
   color: #79c0ff;
 }
 
+/* TipTap Editor light mode styles */
+.ProseMirror table {
+  background-color: #FFFCF0;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.ProseMirror td,
+.ProseMirror th {
+  background-color: #FFFCF0;
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
+}
+
+.ProseMirror th {
+  font-weight: 600;
+  border-bottom: 2px solid #e0e0e0;
+  font-size: 0.95em;
+  color: #24292f;
+}
+
+.ProseMirror tr:hover td {
+  background-color: #FFFDF5;
+}
+
+/* Light mode table styles */
+.markdown-body:not(.markdown-dark) table {
+  background-color: #FFFCF0;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.markdown-body:not(.markdown-dark) td,
+.markdown-body:not(.markdown-dark) th {
+  background-color: #FFFCF0;
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
+}
+
+.markdown-body:not(.markdown-dark) th {
+  font-weight: 600;
+  border-bottom: 2px solid #e0e0e0;
+  font-size: 0.95em;
+  color: #24292f;
+}
+
+.markdown-body:not(.markdown-dark) tr:hover td {
+  background-color: #FFFDF5;
+}
+
 /* Split view styles */
 .split-view {
   display: flex;
@@ -258,8 +308,18 @@ body {
 
 /* Toolbar light mode */
 @media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #FFFCF0;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #FFFCF0;
+  }
   .MuiAppBar-root {
-    background-color: #fdfdf7 !important;
+    background-color: #FFFCF0 !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   }
   

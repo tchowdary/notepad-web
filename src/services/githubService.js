@@ -34,10 +34,6 @@ class GitHubService {
 
   isConfigured() {
     const isConfigured = !!(this.settings.token && this.settings.repo);
-    console.log('GitHub configuration status:', isConfigured, {
-      hasToken: !!this.settings.token,
-      hasRepo: !!this.settings.repo
-    });
     return isConfigured;
   }
 

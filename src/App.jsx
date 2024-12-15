@@ -16,7 +16,7 @@ import './App.css';
 function App() {
   const fileInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [tabs, setTabs] = useState([{ id: 1, name: 'untitled.md', content: '', type: 'markdown' }]);
+  const [tabs, setTabs] = useState([{ id: 1, name: 'untitled.md', content: '', type: 'markdown', editorType: 'tiptap' }]);
   const [activeTab, setActiveTab] = useState(1);
   const [wordWrap, setWordWrap] = useState(() => {
     const saved = localStorage.getItem('wordWrap');
@@ -35,8 +35,8 @@ function App() {
     palette: {
       mode: darkMode ? 'dark' : 'light',
       background: {
-        default: darkMode ? '#1e1e1e' : '#fdfdf7',
-        paper: darkMode ? '#252526' : '#fdfdf7',
+        default: darkMode ? '#1e1e1e' : '#FFFCF0',
+        paper: darkMode ? '#252526' : '#FFFCF0',
       },
       divider: darkMode ? '#333333' : '#e0e0e0',
     },
@@ -182,8 +182,34 @@ function App() {
 
   const handleNewTab = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    setTabs([...tabs, { id: newId, name: 'untitled.md', content: '', type: 'markdown' }]);
-    setActiveTab(newId);
+    const newTab = {
+      id: newId,
+      name: `untitled${newId}.md`,
+      content: '',
+      type: 'markdown',
+      editorType: 'codemirror'
+    };
+    setTabs(prevTabs => [...prevTabs, newTab]);
+    // Use requestAnimationFrame for smoother focus handling
+    requestAnimationFrame(() => {
+      setActiveTab(newId);
+    });
+  };
+
+  const handleDoubleClickSidebar = () => {
+    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const newTab = {
+      id: newId,
+      name: `untitled${newId}.md`,
+      content: '',
+      type: 'markdown',
+      editorType: 'tiptap'
+    };
+    setTabs(prevTabs => [...prevTabs, newTab]);
+    // Use requestAnimationFrame for smoother focus handling
+    requestAnimationFrame(() => {
+      setActiveTab(newId);
+    });
   };
 
   const handleTabClose = async (id) => {
@@ -199,7 +225,7 @@ function App() {
     const newTabs = tabs.filter(tab => tab.id !== id);
     if (newTabs.length === 0) {
       // Create a new empty tab if we're closing the last one
-      setTabs([{ id: 1, name: 'untitled.md', content: '', type: 'markdown' }]);
+      setTabs([{ id: 1, name: 'untitled.md', content: '', type: 'markdown', editorType: 'tiptap' }]);
       setActiveTab(1);
     } else {
       setTabs(newTabs);
@@ -230,15 +256,18 @@ function App() {
   };
 
   const handleContentChange = (id, newContent) => {
-    setTabs(tabs.map(tab =>
-      tab.id === id ? { ...tab, content: newContent } : tab
-    ));
+    setTabs(prevTabs => {
+      const updatedTabs = prevTabs.map(tab =>
+        tab.id === id ? { ...tab, content: newContent } : tab
+      );
+      return updatedTabs;
+    });
   };
 
   const handleTabAreaDoubleClick = (event) => {
     // Only create new tab if clicking on the tab area, not on existing tabs
     if (event.target.closest('.MuiTab-root') === null) {
-      handleNewTab();
+      handleDoubleClickSidebar();
     }
   };
 
@@ -278,7 +307,8 @@ function App() {
         id: newId,
         name: file.name,
         content: isExcalidraw || isTLDraw ? JSON.parse(content) : content,
-        type: isExcalidraw ? 'excalidraw' : isTLDraw ? 'tldraw' : 'markdown'
+        type: isExcalidraw ? 'excalidraw' : isTLDraw ? 'tldraw' : 'markdown',
+        editorType: 'tiptap'
       };
 
       if (isExcalidraw) {
@@ -306,14 +336,15 @@ function App() {
       id: newId, 
       name: `Drawing-${timestamp}.${type}`, 
       content: '', 
-      type 
+      type,
+      editorType: 'tiptap'
     }]);
     setActiveTab(newId);
   };
 
   const handleNewTLDraw = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    setTabs([...tabs, { id: newId, name: 'drawing.tldr', content: '', type: 'tldraw' }]);
+    setTabs([...tabs, { id: newId, name: 'drawing.tldr', content: '', type: 'tldraw', editorType: 'tiptap' }]);
     setActiveTab(newId);
   };
 
@@ -394,6 +425,7 @@ function App() {
         showPreview={showPreview}
         focusMode={focusMode}
         ref={editorRef}
+        editorType={tab.editorType}
       />
     );
   };
@@ -502,7 +534,7 @@ function App() {
                 onTabSelect={handleTabSelect}
                 onTabClose={handleTabClose}
                 onTabRename={handleTabRename}
-                onTabAreaDoubleClick={handleNewTab}
+                onTabAreaDoubleClick={handleTabAreaDoubleClick}
               />
             </Box>
           )}
