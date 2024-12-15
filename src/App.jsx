@@ -190,12 +190,10 @@ function App() {
     const loadTodoState = async () => {
       try {
         const data = await loadTodoData();
-        console.log('App: Loading todo data:', data);
         if (data) {
           setTodoData(data);
         }
       } catch (error) {
-        console.error('Error loading todo data:', error);
       }
     };
     loadTodoState();
@@ -207,7 +205,6 @@ function App() {
         if (Object.keys(todoData.inbox).length > 0 || 
             Object.keys(todoData.archive).length > 0 || 
             Object.keys(todoData.projects).length > 0) {
-          console.log('App: Saving todo data:', todoData);
           await saveTodoData(todoData);
         }
       } catch (error) {

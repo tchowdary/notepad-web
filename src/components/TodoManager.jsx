@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import TipTapEditor from './TipTapEditor';
 import {
   Box,
   Typography,
@@ -19,6 +20,7 @@ import {
   DialogActions,
   Link,
   Tooltip,
+  Drawer,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -29,6 +31,8 @@ import {
   MoreVert as MoreVertIcon,
   Today as TodayIcon,
   Event as EventIcon,
+  CalendarToday as CalendarIcon,
+  NoteAdd as NoteIcon,
 } from '@mui/icons-material';
 
 // Function to extract URLs from text
@@ -82,7 +86,7 @@ const getTodayString = () => {
   return today.toISOString().split('T')[0];
 };
 
-const TodoManager = ({ tasks, onTasksChange }) => {
+const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
   const [newTask, setNewTask] = useState('');
   const [selectedProject, setSelectedProject] = useState('inbox');
   const [anchorEl, setAnchorEl] = useState(null);
@@ -91,6 +95,8 @@ const TodoManager = ({ tasks, onTasksChange }) => {
   const [newProjectName, setNewProjectName] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [selectedTaskForNotes, setSelectedTaskForNotes] = useState(null);
+  const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
   const dateInputRef = React.useRef(null);
 
   const handleAddTask = () => {
@@ -102,7 +108,8 @@ const TodoManager = ({ tasks, onTasksChange }) => {
       completed: false,
       list: selectedProject,
       urls: extractUrls(newTask),
-      dueDate: selectedDate || null
+      dueDate: selectedDate || null,
+      notes: '',
     };
 
     if (selectedProject === 'inbox' || selectedProject === 'archive') {
@@ -315,8 +322,44 @@ const TodoManager = ({ tasks, onTasksChange }) => {
     setSelectedProject('inbox');
   };
 
+  const handleOpenNotes = (task) => {
+    setSelectedTaskForNotes(task);
+    setNotesDrawerOpen(true);
+  };
+
+  const handleCloseNotes = () => {
+    setSelectedTaskForNotes(null);
+    setNotesDrawerOpen(false);
+  };
+
+  const handleNotesChange = (newContent) => {
+    if (!selectedTaskForNotes) return;
+    
+    const updatedTodoData = { ...tasks };
+    
+    // Update the task in the appropriate list
+    if (selectedProject === 'inbox' || selectedProject === 'archive') {
+      updatedTodoData[selectedProject] = updatedTodoData[selectedProject].map(task =>
+        task.id === selectedTaskForNotes.id
+          ? { ...task, notes: newContent }
+          : task
+      );
+    } else {
+      // Update in projects
+      if (updatedTodoData.projects[selectedProject]) {
+        updatedTodoData.projects[selectedProject] = updatedTodoData.projects[selectedProject].map(task =>
+          task.id === selectedTaskForNotes.id
+            ? { ...task, notes: newContent }
+            : task
+        );
+      }
+    }
+    
+    onTasksChange(updatedTodoData);
+  };
+
   return (
-    <Box sx={{ height: '100%', display: 'flex', fontFamily: 'JetBrains Mono, monospace' }}>
+    <Box sx={{ height: '100%', display: 'flex' }}>
       {/* Hidden date input */}
       <input
         ref={dateInputRef}
@@ -506,6 +549,38 @@ const TodoManager = ({ tasks, onTasksChange }) => {
                   } 
                 }}
               />
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  visibility: 'hidden',
+                  '& .MuiIconButton-root': {
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                  },
+                  '.MuiListItem-root:hover &': {
+                    visibility: 'visible',
+                    '& .MuiIconButton-root': {
+                      opacity: 1,
+                    },
+                  },
+                }}
+              >
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpenNotes(task)}
+                  sx={{ mr: 1 }}
+                >
+                  <NoteIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => handleDeleteTask(task.id)}
+                  sx={{ mr: 1 }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </ListItem>
           ))}
         </List>
@@ -577,6 +652,35 @@ const TodoManager = ({ tasks, onTasksChange }) => {
           <Button onClick={handleAddProject}>Create</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Notes Drawer */}
+      <Drawer
+        anchor="right"
+        open={notesDrawerOpen}
+        onClose={handleCloseNotes}
+        PaperProps={{
+          sx: {
+            width: '400px',
+            bgcolor: darkMode ? '#1e1e1e' : 'background.paper',
+            color: darkMode ? '#ffffff' : 'text.primary',
+          }
+        }}
+      >
+        <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Notes for: {selectedTaskForNotes?.text}
+          </Typography>
+          {selectedTaskForNotes && (
+            <Box sx={{ flexGrow: 1 }}>
+              <TipTapEditor
+                content={selectedTaskForNotes.notes || ''}
+                onChange={handleNotesChange}
+                darkMode={darkMode}
+              />
+            </Box>
+          )}
+        </Box>
+      </Drawer>
     </Box>
   );
 };

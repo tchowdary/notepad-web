@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
+import Link from '@tiptap/extension-link';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
@@ -125,6 +126,13 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
       TextStyle,
       Color,
       HorizontalRule,
+      Link.configure({
+        openOnClick: true,
+        HTMLAttributes: {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+      }),
       Table.configure({
         resizable: true,
       }),

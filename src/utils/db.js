@@ -117,22 +117,11 @@ export const saveTodoData = async (todoData) => {
     const store = tx.objectStore(TODO_STORE);
 
     await new Promise((resolve, reject) => {
-      console.log('Saving to IndexedDB:', todoData);
       const request = store.put({ id: 'todoData', data: todoData });
-      
-      request.onsuccess = () => {
-        console.log('Successfully saved to IndexedDB');
-        resolve();
-      };
       
       request.onerror = (error) => {
         console.error('Error in IndexedDB save:', error);
         reject(error);
-      };
-
-      tx.oncomplete = () => {
-        console.log('Transaction completed');
-        resolve();
       };
 
       tx.onerror = (error) => {
@@ -166,17 +155,12 @@ export const loadTodoData = async () => {
           archive: [],
           projects: {}
         };
-        console.log('Loaded from IndexedDB:', todoData);
         resolve(todoData);
       };
       
       request.onerror = (error) => {
         console.error('Error in IndexedDB load:', error);
         reject(error);
-      };
-
-      tx.oncomplete = () => {
-        console.log('Load transaction completed');
       };
 
       tx.onerror = (error) => {
