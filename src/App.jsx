@@ -8,6 +8,7 @@ import ExcalidrawEditor from './components/ExcalidrawEditor';
 import TLDrawEditor from './components/TLDrawEditor';
 import GitHubSettingsModal from './components/GitHubSettingsModal';
 import TodoManager from './components/TodoManager';
+import QuickAddTask from './components/QuickAddTask';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
@@ -34,6 +35,7 @@ function App() {
     archive: [],
     projects: {}
   });
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const editorRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
 
@@ -184,6 +186,19 @@ function App() {
     // Use capture phase to handle the event before React's event system
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Command/Ctrl + Shift + A for quick add task
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'a') {
+        e.preventDefault();
+        setQuickAddOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
   useEffect(() => {
@@ -453,6 +468,23 @@ function App() {
     setActiveTab(newId);
   };
 
+  const handleQuickAddTask = (taskText) => {
+    const newTask = {
+      id: Date.now(),
+      text: taskText,
+      completed: false,
+      list: 'inbox',
+      urls: [],
+      dueDate: null,
+      notes: '',
+    };
+
+    setTodoData(prev => ({
+      ...prev,
+      inbox: [...prev.inbox, newTask]
+    }));
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -548,6 +580,12 @@ function App() {
         <GitHubSettingsModal
           open={showGitHubSettings}
           onClose={() => setShowGitHubSettings(false)}
+        />
+        <QuickAddTask
+          open={quickAddOpen}
+          onClose={() => setQuickAddOpen(false)}
+          onAddTask={handleQuickAddTask}
+          darkMode={darkMode}
         />
         <Box sx={{ 
           display: 'flex', 
