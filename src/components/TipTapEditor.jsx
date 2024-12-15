@@ -225,9 +225,9 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
       action: () => editor?.chain().focus().setHorizontalRule().run(),
     },
     {
-      title: 'Yellow Highlight',
+      title: 'Highlight',
       icon: <FormatColorText />,
-      action: () => editor?.chain().focus().setColor('#ffd700').run(),
+      action: () => editor?.chain().focus().setColor('#3AA99F').run(),
     },
     {
       title: 'Insert Table',
