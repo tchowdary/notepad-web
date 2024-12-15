@@ -16,6 +16,10 @@ import {
   FormatColorText,
   TableChart,
   AutoFixHigh,
+  AddCircleOutline,
+  DeleteOutline,
+  DeleteForever,
+  TextFields,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
@@ -78,6 +82,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const editorRef = React.useRef(null);
+  const menuRef = React.useRef(null);
 
   const handleImproveText = async () => {
     if (improving) return;
@@ -193,6 +198,30 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     setContextMenu(null);
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (contextMenu && menuRef.current && !menuRef.current.contains(event.target)) {
+        setContextMenu(null);
+      }
+    };
+
+    if (contextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      // Also close on escape key
+      const handleEscape = (event) => {
+        if (event.key === 'Escape') {
+          setContextMenu(null);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [contextMenu]);
+
   const formatOptions = [
     {
       title: 'H2',
@@ -254,6 +283,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
   const tableOptions = [
     {
       title: 'Add Column Before',
+      icon: <AddCircleOutline sx={{ transform: 'rotate(90deg)' }} />,
       action: () => {
         editor?.chain().focus().addColumnBefore().run();
         handleClose();
@@ -261,6 +291,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     },
     {
       title: 'Add Column After',
+      icon: <AddCircleOutline sx={{ transform: 'rotate(-90deg)' }} />,
       action: () => {
         editor?.chain().focus().addColumnAfter().run();
         handleClose();
@@ -268,6 +299,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     },
     {
       title: 'Delete Column',
+      icon: <DeleteOutline sx={{ transform: 'rotate(90deg)' }} />,
       action: () => {
         editor?.chain().focus().deleteColumn().run();
         handleClose();
@@ -275,6 +307,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     },
     {
       title: 'Add Row Before',
+      icon: <AddCircleOutline />,
       action: () => {
         editor?.chain().focus().addRowBefore().run();
         handleClose();
@@ -282,6 +315,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     },
     {
       title: 'Add Row After',
+      icon: <AddCircleOutline sx={{ transform: 'rotate(180deg)' }} />,
       action: () => {
         editor?.chain().focus().addRowAfter().run();
         handleClose();
@@ -289,6 +323,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     },
     {
       title: 'Delete Row',
+      icon: <DeleteOutline />,
       action: () => {
         editor?.chain().focus().deleteRow().run();
         handleClose();
@@ -296,6 +331,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     },
     {
       title: 'Delete Table',
+      icon: <DeleteForever />,
       action: () => {
         editor?.chain().focus().deleteTable().run();
         handleClose();
@@ -303,15 +339,14 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     },
     {
       title: 'Add Text Below Table',
+      icon: <TextFields />,
       action: () => {
-        // Find the table node
         const { state } = editor;
         const { selection } = state;
         const tablePos = selection.$anchor.pos;
         let table = null;
         let tableEndPos = null;
 
-        // Find the table node and its position
         state.doc.nodesBetween(0, state.doc.content.size, (node, pos) => {
           if (node.type.name === 'table' && pos <= tablePos && pos + node.nodeSize >= tablePos) {
             table = node;
@@ -321,7 +356,6 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
         });
 
         if (tableEndPos !== null) {
-          // Insert a new paragraph after the table
           editor.chain()
             .insertContentAt(tableEndPos, { type: 'paragraph' })
             .focus(tableEndPos)
@@ -333,7 +367,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
   ];
 
   return (
-    <Box
+    <Box 
       ref={editorRef}
       onContextMenu={handleContextMenu}
       sx={{
@@ -447,54 +481,60 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
           </Box>
         )}
       </Box>
-      <Menu
-        open={contextMenu !== null}
-        onClose={handleClose}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null
-            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-            : undefined
-        }
-        PaperProps={{
-          sx: {
-            minWidth: 'auto',
-            padding: '4px',
+      {contextMenu && (
+        <Stack
+          ref={menuRef}
+          direction="row"
+          spacing={1}
+          sx={{
+            position: 'fixed',
+            left: contextMenu.mouseX,
+            top: contextMenu.mouseY,
             backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
-          },
-        }}
-      >
-        {contextMenu?.isInTable ? (
-          tableOptions.map((option, index) => (
-            <MenuItem
-              key={`table-${index}`}
-              onClick={option.action}
-              sx={{
-                fontSize: '14px',
-                minHeight: '32px',
-              }}
-            >
-              {option.title}
-            </MenuItem>
-          ))
-        ) : (
-          formatOptions.map((option, index) => (
-            <MenuItem
-              key={`format-${index}`}
-              onClick={option.action}
-              sx={{
-                fontSize: '14px',
-                minHeight: '32px',
-                display: 'flex',
-                gap: 1,
-              }}
-            >
-              {option.icon}
-              {option.title}
-            </MenuItem>
-          ))
-        )}
-      </Menu>
+            borderRadius: 1,
+            boxShadow: 3,
+            p: 1,
+            zIndex: 1000,
+          }}
+        >
+          {contextMenu.isInTable ? (
+            tableOptions.map((option, index) => (
+              <Tooltip key={index} title={option.title}>
+                <IconButton
+                  size="small"
+                  onClick={option.action}
+                  sx={{
+                    color: darkMode ? '#e6edf3' : '#24292f',
+                  }}
+                >
+                  {option.icon}
+                </IconButton>
+              </Tooltip>
+            ))
+          ) : (
+            formatOptions.map((option, index) => (
+              <Tooltip key={index} title={option.title}>
+                <IconButton
+                  size="small"
+                  onClick={option.action}
+                  sx={{
+                    color: darkMode ? '#e6edf3' : '#24292f',
+                    '& .MuiSvgIcon-root': {
+                      fontSize: '1.2rem',
+                    },
+                    ...(option.title.startsWith('H') && {
+                      padding: '4px 8px',
+                      minWidth: '32px',
+                    }),
+                  }}
+                >
+                  {option.icon}
+                </IconButton>
+              </Tooltip>
+            ))
+          )}
+        </Stack>
+      )}
     </Box>
   );
 };
