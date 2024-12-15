@@ -34,9 +34,6 @@ class GitHubService {
 
   isConfigured() {
     const isConfigured = !!(this.settings.token && this.settings.repo);
-      hasToken: !!this.settings.token,
-      hasRepo: !!this.settings.repo
-    });
     return isConfigured;
   }
 
@@ -59,11 +56,13 @@ class GitHubService {
   shouldSyncFile(filename) {
     // Skip untitled.md files
     if (filename === 'untitled.md') {
+      console.log(`Skipping sync for untitled file: ${filename}`);
       return false;
     }
     
     // Include .md and .tldraw files
     const shouldSync = filename.endsWith('.md') || filename.endsWith('.tldraw');
+    console.log(`File ${filename} sync status:`, shouldSync);
     return shouldSync;
   }
 
@@ -119,12 +118,15 @@ class GitHubService {
   // Method to sync all files
   async syncAllFiles() {
     if (!this.isConfigured()) {
+      console.log('GitHub not configured, skipping sync');
       return;
     }
     
     try {
+      console.log('Starting sync process...');
       // Open IndexedDB connection using our utility function
       const db = await openDB();
+      console.log('Database connection opened');
 
       // Get all tabs from the store
       const tx = db.transaction(TABS_STORE, 'readonly');
@@ -134,18 +136,23 @@ class GitHubService {
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
       });
+      console.log('Retrieved tabs from database:', tabs.length);
 
       // Sync each file that meets our criteria
       let syncCount = 0;
       for (const tab of tabs) {
+        console.log(`Processing tab: ${tab.name}`);
         if (this.shouldSyncFile(tab.name)) {
           try {
             await this.uploadFile(tab.name, tab.content);
+            console.log(`Successfully synced file: ${tab.name}`);
             syncCount++;
           } catch (error) {
+            console.error(`Failed to sync file ${tab.name}:`, error);
           }
         }
       }
+      console.log(`Sync completed. Successfully synced ${syncCount} files`);
     } catch (error) {
       console.error('Error syncing files:', error);
       throw error; // Re-throw to be caught by the toolbar handler
