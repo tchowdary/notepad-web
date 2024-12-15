@@ -21,6 +21,7 @@
     "@mui/icons-material": "^6.1.10",
     "@mui/material": "^6.1.10",
     "@mui/x-date-pickers": "^7.23.2",
+    "@supabase/supabase-js": "^2.47.7",
     "@tiptap/extension-color": "^2.10.3",
     "@tiptap/extension-horizontal-rule": "^2.10.3",
     "@tiptap/extension-link": "^2.10.3",

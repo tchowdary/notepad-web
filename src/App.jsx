@@ -13,6 +13,7 @@ import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoD
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
 import { converters } from './utils/converters';
+import { syncNotes, fetchNotes, syncTodos, fetchTodos, generateUniqueId, archiveNote } from './services/supabaseService';
 import './App.css';
 
 function App() {
@@ -38,6 +39,46 @@ function App() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const editorRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
+
+  // Helper function to merge tabs based on most recent updates
+  const mergeTabs = (localTabs, remoteTabs) => {
+    const tabMap = new Map();
+    let maxId = 0;
+    
+    // Add all local tabs to the map and track max ID
+    localTabs.forEach(tab => {
+      const id = parseInt(tab.id);
+      maxId = Math.max(maxId, id);
+      tabMap.set(id.toString(), tab);
+    });
+    
+    // Update or add remote tabs if they're more recent
+    remoteTabs.forEach(tab => {
+      const id = parseInt(tab.id);
+      maxId = Math.max(maxId, id);
+      const localTab = tabMap.get(id.toString());
+      if (!localTab || new Date(tab.updated_at) > new Date(localTab.updated_at)) {
+        tabMap.set(id.toString(), {
+          ...tab,
+          id: parseInt(tab.id) // Ensure ID is a number
+        });
+      }
+    });
+    
+    // Convert map values to array and sort by ID
+    return Array.from(tabMap.values())
+      .sort((a, b) => parseInt(a.id) - parseInt(b.id));
+  };
+
+  // Helper function to merge data based on timestamps
+  const mergeData = (localData, remoteData) => {
+    if (!remoteData.updated_at) return localData;
+    if (!localData.updated_at) return remoteData;
+    
+    return new Date(remoteData.updated_at) > new Date(localData.updated_at)
+      ? remoteData
+      : localData;
+  };
 
   const theme = createTheme({
     palette: {
@@ -122,83 +163,91 @@ function App() {
     };
   }, []);
 
-  // Load tabs from IndexedDB on mount
   useEffect(() => {
     const initTabs = async () => {
       try {
         setIsLoading(true);
+        console.log('Loading tabs from IndexedDB...');
+        // Load from IndexedDB first
         const savedTabs = await loadTabs();
-        if (savedTabs && savedTabs.length > 0) {
-          setTabs(savedTabs);
-          setActiveTab(savedTabs[0].id);
+        console.log('Loaded tabs from IndexedDB:', savedTabs);
+
+        // Try to fetch from Supabase
+        try {
+          console.log('Fetching tabs from Supabase...');
+          const supabaseTabs = await fetchNotes();
+          console.log('Fetched tabs from Supabase:', supabaseTabs);
+
+          if (supabaseTabs && Array.isArray(supabaseTabs) && supabaseTabs.length > 0) {
+            // Merge tabs, preferring the most recently updated ones
+            const mergedTabs = mergeTabs(savedTabs || [], supabaseTabs);
+            console.log('Merged tabs:', mergedTabs);
+            setTabs(mergedTabs);
+            setActiveTab(mergedTabs[0]?.id);
+            // Sync merged tabs back to IndexedDB
+            await saveTabs(mergedTabs);
+          } else {
+            console.log('No tabs in Supabase, using IndexedDB data');
+            if (savedTabs && savedTabs.length > 0) {
+              setTabs(savedTabs);
+              setActiveTab(savedTabs[0].id);
+            } else {
+              // Create default tab if no tabs exist
+              const defaultTab = {
+                id: generateUniqueId(),
+                name: 'untitled.md',
+                content: '',
+                type: 'markdown',
+                editorType: 'tiptap'
+              };
+              setTabs([defaultTab]);
+              setActiveTab(defaultTab.id);
+              await saveTabs([defaultTab]);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching from Supabase:', error);
+          // If Supabase fails, use IndexedDB data
+          if (savedTabs && savedTabs.length > 0) {
+            setTabs(savedTabs);
+            setActiveTab(savedTabs[0].id);
+          } else {
+            // Create default tab if no tabs exist
+            const defaultTab = {
+              id: generateUniqueId(),
+              name: 'untitled.md',
+              content: '',
+              type: 'markdown',
+              editorType: 'tiptap'
+            };
+            setTabs([defaultTab]);
+            setActiveTab(defaultTab.id);
+            await saveTabs([defaultTab]);
+          }
         }
       } catch (error) {
-        console.error('Error loading tabs:', error);
+        console.error('Error initializing tabs:', error);
+        // Create default tab if everything fails
+        const defaultTab = {
+          id: generateUniqueId(),
+          name: 'untitled.md',
+          content: '',
+          type: 'markdown',
+          editorType: 'tiptap'
+        };
+        setTabs([defaultTab]);
+        setActiveTab(defaultTab.id);
+        try {
+          await saveTabs([defaultTab]);
+        } catch (e) {
+          console.error('Error saving default tab:', e);
+        }
       } finally {
         setIsLoading(false);
       }
     };
+
     initTabs();
-  }, []);
-
-  useEffect(() => {
-    if (!isLoading) {  // Don't save during initial load
-      saveTabs(tabs).catch(error => {
-        console.error('Error saving tabs:', error);
-      });
-    }
-  }, [tabs, isLoading]);
-
-  useEffect(() => {
-    localStorage.setItem('wordWrap', wordWrap);
-  }, [wordWrap]);
-
-  useEffect(() => {
-    localStorage.setItem('darkMode', darkMode);
-  }, [darkMode]);
-
-  useEffect(() => {
-    localStorage.setItem('showPreview', showPreview);
-  }, [showPreview]);
-
-  useEffect(() => {
-    const handleEscKey = (event) => {
-      if (event.key === 'Escape' && focusMode) {
-        setFocusMode(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleEscKey);
-    return () => window.removeEventListener('keydown', handleEscKey);
-  }, [focusMode]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Handle Ctrl+K before any other key combinations
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        e.stopPropagation();
-        setShowCommandBar(true);
-        return;
-      }
-    };
-
-    // Use capture phase to handle the event before React's event system
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, []);
-
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      // Command/Ctrl + Shift + A for quick add task
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'a') {
-        e.preventDefault();
-        setQuickAddOpen(true);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
   useEffect(() => {
@@ -215,76 +264,130 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const saveTodoState = async () => {
+    const loadAndSyncTodoData = async () => {
       try {
-        if (Object.keys(todoData.inbox).length > 0 || 
-            Object.keys(todoData.archive).length > 0 || 
-            Object.keys(todoData.projects).length > 0) {
-          await saveTodoData(todoData);
+        // Load from IndexedDB first
+        const localTodoData = await loadTodoData();
+        
+        // Try to fetch from Supabase
+        try {
+          const supabaseTodoData = await fetchTodos();
+          // Use the most recently updated data
+          const mergedTodoData = mergeData(localTodoData, supabaseTodoData);
+          setTodoData(mergedTodoData);
+          // Sync merged data back to IndexedDB
+          await saveTodoData(mergedTodoData);
+        } catch (error) {
+          console.error('Error fetching todos from Supabase:', error);
+          setTodoData(localTodoData);
         }
       } catch (error) {
-        console.error('Error saving todo data:', error);
+        console.error('Error loading todo data:', error);
       }
     };
-    saveTodoState();
+    loadAndSyncTodoData();
+  }, []);
+
+  useEffect(() => {
+    const syncData = async () => {
+      try {
+        await saveTodoData(todoData);
+        await syncTodos(todoData);
+      } catch (error) {
+        console.error('Error syncing todo data:', error);
+      }
+    };
+    syncData();
   }, [todoData]);
 
+  useEffect(() => {
+    if (!isLoading && tabs.length > 0) {  // Don't sync during initial load
+      const syncData = async () => {
+        try {
+          console.log('Syncing tabs to storage...', tabs);
+          await saveTabs(tabs);
+          await syncNotes(tabs);
+          console.log('Tabs synced successfully');
+        } catch (error) {
+          console.error('Error syncing tabs:', error);
+        }
+      };
+      
+      // Add a small delay to avoid too frequent syncs
+      const timeoutId = setTimeout(syncData, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [tabs, isLoading]);
+
+  const handleCloseTab = async (id) => {
+    try {
+      // Get the tab that's being closed
+      const tabToClose = tabs.find(tab => tab.id === id);
+      
+      // Remove the tab from local state only
+      const newTabs = tabs.filter(tab => tab.id !== id);
+      
+      // If we're closing the active tab, set a new active tab
+      if (activeTab === id) {
+        const index = tabs.findIndex(tab => tab.id === id);
+        const newActiveTab = newTabs[index] || newTabs[index - 1] || newTabs[0];
+        setActiveTab(newActiveTab ? newActiveTab.id : null);
+      }
+      
+      setTabs(newTabs);
+
+      // Mark the note as archived in Supabase instead of deleting
+      try {
+        await archiveNote(id);
+      } catch (error) {
+        console.error('Error archiving note in Supabase:', error);
+      }
+
+      // If it's a drawing, handle local cleanup
+      if (tabToClose?.type === 'excalidraw') {
+        try {
+          await deleteDrawing(id);
+        } catch (error) {
+          console.error('Error deleting drawing from IndexedDB:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error closing tab:', error);
+    }
+  };
+
   const handleNewTab = () => {
-    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const newId = generateUniqueId();
+    const timestamp = new Date().toISOString();
     const newTab = {
       id: newId,
-      name: `Code-${newId}.md`,
+      name: 'untitled.md',
       content: '',
       type: 'markdown',
-      editorType: 'codemirror'
+      editorType: 'tiptap',
+      created_at: timestamp,
+      updated_at: timestamp
     };
-    setTabs(prevTabs => [...prevTabs, newTab]);
-    // Use requestAnimationFrame for smoother focus handling
-    requestAnimationFrame(() => {
-      setActiveTab(newId);
-    });
+    setTabs([...tabs, newTab]);
+    setActiveTab(newId);
   };
 
   const handleDoubleClickSidebar = () => {
-    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const newId = generateUniqueId();
     const newTab = {
       id: newId,
       name: `Note-${newId}.md`,
       content: '',
       type: 'markdown',
-      editorType: 'tiptap'
+      editorType: 'tiptap',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
     // Use requestAnimationFrame for smoother focus handling
     requestAnimationFrame(() => {
       setActiveTab(newId);
     });
-  };
-
-  const handleTabClose = async (id) => {
-    const tab = tabs.find(t => t.id === id);
-    if (tab?.type === 'excalidraw') {
-      try {
-        await deleteDrawing(id);
-      } catch (error) {
-        console.error('Error deleting drawing:', error);
-      }
-    }
-    
-    const newTabs = tabs.filter(tab => tab.id !== id);
-    if (newTabs.length === 0) {
-      // Create a new empty tab if we're closing the last one
-      setTabs([{ id: 1, name: 'untitled.md', content: '', type: 'markdown', editorType: 'tiptap' }]);
-      setActiveTab(1);
-    } else {
-      setTabs(newTabs);
-      if (activeTab === id) {
-        // Set active tab to the previous tab, or the first one if we're at the beginning
-        const index = tabs.findIndex(tab => tab.id === id);
-        const newActiveTab = tabs[index === 0 ? 1 : index - 1].id;
-        setActiveTab(newActiveTab);
-      }
-    }
   };
 
   const handleTabRename = (id, newName) => {
@@ -349,7 +452,7 @@ function App() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target.result;
-      const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+      const newId = generateUniqueId();
       const isExcalidraw = file.name.endsWith('.excalidraw');
       const isTLDraw = file.name.endsWith('.tldr');
       const newTab = {
@@ -357,7 +460,9 @@ function App() {
         name: file.name,
         content: isExcalidraw || isTLDraw ? JSON.parse(content) : content,
         type: isExcalidraw ? 'excalidraw' : isTLDraw ? 'tldraw' : 'markdown',
-        editorType: 'tiptap'
+        editorType: 'tiptap',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       if (isExcalidraw) {
@@ -379,21 +484,23 @@ function App() {
   };
 
   const handleNewDrawing = (type = 'excalidraw') => {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const timestamp = new Date().toISOString();
+    const newId = generateUniqueId();
     setTabs([...tabs, { 
       id: newId, 
-      name: `Drawing-${timestamp}.${type}`, 
+      name: `Drawing-${timestamp.slice(0, 19).replace(/[:.]/g, '-')}.${type}`, 
       content: '', 
-      type,
-      editorType: 'tiptap'
+      type: type,
+      editorType: 'tiptap',
+      created_at: timestamp,
+      updated_at: timestamp
     }]);
     setActiveTab(newId);
   };
 
   const handleNewTLDraw = () => {
-    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    setTabs([...tabs, { id: newId, name: 'drawing.tldr', content: '', type: 'tldraw', editorType: 'tiptap' }]);
+    const newId = generateUniqueId();
+    setTabs([...tabs, { id: newId, name: 'drawing.tldr', content: '', type: 'tldraw', editorType: 'tiptap', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }]);
     setActiveTab(newId);
   };
 
@@ -455,13 +562,15 @@ function App() {
     }
 
     // Create new todo tab with consistent ID generation
-    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const newId = generateUniqueId();
     const newTab = {
       id: newId,
       name: 'Todo',
       content: '',
       type: 'todo',
-      editorType: 'todo'
+      editorType: 'todo',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     setTabs(prev => [...prev, newTab]);
@@ -634,7 +743,7 @@ function App() {
                 tabs={tabs}
                 activeTab={activeTab}
                 onTabSelect={handleTabSelect}
-                onTabClose={handleTabClose}
+                onTabClose={handleCloseTab}
                 onTabRename={handleTabRename}
                 onTabAreaDoubleClick={handleTabAreaDoubleClick}
               />

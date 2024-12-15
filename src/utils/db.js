@@ -35,12 +35,23 @@ export const saveTabs = async (tabs) => {
   // Clear existing tabs
   await store.clear();
   
+  // Sanitize the tabs data before saving
+  const sanitizedTabs = tabs.map(tab => ({
+    id: tab.id.toString(),
+    name: tab.name || '',
+    content: tab.content || '',
+    type: tab.type || 'markdown',
+    editorType: tab.editorType || 'tiptap'
+  }));
+  
   // Add all tabs
-  const promises = tabs.map(tab => store.add(tab));
+  const promises = sanitizedTabs.map(tab => store.add(tab));
 
   return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    Promise.all(promises).then(() => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    }).catch(reject);
   });
 };
 
