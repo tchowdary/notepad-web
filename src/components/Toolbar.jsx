@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar as MuiToolbar,
@@ -27,9 +27,12 @@ import {
   Brush as BrushIcon,
   Palette as PaletteIcon,
   CheckBoxOutlined as TodoIcon,
+  Cloud as CloudIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
+import SupabaseSettingsModal from './SupabaseSettingsModal';
 import githubService from '../services/githubService';
+import { supabase, initSupabase } from '../services/supabaseService';
 import { converters } from '../utils/converters';
 
 const Toolbar = ({
@@ -53,7 +56,16 @@ const Toolbar = ({
 }) => {
   const theme = useTheme();
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
+  const [showSupabaseSettings, setShowSupabaseSettings] = useState(false);
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
   const [convertAnchorEl, setConvertAnchorEl] = useState(null);
+
+  useEffect(() => {
+    // Check if Supabase is configured
+    const url = localStorage.getItem('supabase_url');
+    const key = localStorage.getItem('supabase_key');
+    setSupabaseConfigured(Boolean(url && key));
+  }, []);
 
   const handleGitHubSync = async () => {
     if (!githubService.isConfigured()) {
@@ -67,6 +79,26 @@ const Toolbar = ({
       console.log('GitHub sync completed successfully');
     } catch (error) {
       console.error('Failed to sync with GitHub:', error);
+    }
+  };
+
+  const handleSupabaseSettings = async () => {
+    setShowSupabaseSettings(true);
+  };
+
+  const handleSupabaseSettingsSave = async (config) => {
+    try {
+      // Save to localStorage
+      localStorage.setItem('supabase_url', config.url);
+      localStorage.setItem('supabase_key', config.key);
+      
+      // Initialize Supabase with new config
+      await initSupabase(config.url, config.key);
+      
+      setSupabaseConfigured(true);
+      setShowSupabaseSettings(false);
+    } catch (error) {
+      console.error('Failed to save Supabase settings:', error);
     }
   };
 
@@ -202,6 +234,14 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
+        {!supabaseConfigured && (
+          <Tooltip title="Configure Supabase">
+            <IconButton onClick={handleSupabaseSettings} size="small">
+              <CloudIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+
         <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
           <IconButton onClick={handleGitHubSync} size="small">
             <GitHubIcon />
@@ -211,6 +251,16 @@ const Toolbar = ({
         <GitHubSettingsModal
           open={showGitHubSettings}
           onClose={() => setShowGitHubSettings(false)}
+        />
+
+        <SupabaseSettingsModal
+          open={showSupabaseSettings}
+          onClose={() => setShowSupabaseSettings(false)}
+          onSave={handleSupabaseSettingsSave}
+          currentConfig={{
+            url: localStorage.getItem('supabase_url') || '',
+            key: localStorage.getItem('supabase_key') || '',
+          }}
         />
       </MuiToolbar>
     </AppBar>

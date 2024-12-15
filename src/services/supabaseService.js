@@ -1,19 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Get stored Supabase configuration
+const getStoredConfig = () => {
+  const url = localStorage.getItem('supabase_url');
+  const key = localStorage.getItem('supabase_key');
+  return { url, key };
+};
 
-console.log('Supabase Config:', {
-  url: supabaseUrl,
-  keyLength: supabaseKey?.length
-});
+// Initialize with null client if not configured
+const { url: initialUrl, key: initialKey } = getStoredConfig();
+export let supabase = initialUrl && initialKey ? createClient(initialUrl, initialKey) : null;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Supabase URL or Key is missing:', { supabaseUrl, supabaseKey });
-}
+// Function to check if Supabase is configured
+export const isSupabaseConfigured = () => {
+  const { url, key } = getStoredConfig();
+  return Boolean(url && key);
+};
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Function to reinitialize Supabase client with new config
+export const initSupabase = (url, key) => {
+  if (!url || !key) {
+    console.error('Supabase URL or Key is missing');
+    return;
+  }
+  supabase = createClient(url, key);
+  console.log('Supabase client initialized with new config');
+};
 
 // Generate a unique ID using timestamp and random number
 export const generateUniqueId = () => {
@@ -25,9 +37,14 @@ export const generateUniqueId = () => {
 // Notes table operations
 export const syncNotes = async (notes) => {
   try {
+    if (!supabase) {
+      console.warn('Supabase not configured, skipping sync');
+      return null;
+    }
+
     if (!Array.isArray(notes)) {
       console.warn('Notes is not an array:', notes);
-      return;
+      return null;
     }
 
     console.log('Syncing notes to Supabase:', notes);
@@ -57,13 +74,17 @@ export const syncNotes = async (notes) => {
     return data;
   } catch (error) {
     console.error('Error syncing notes:', error);
-    // Don't throw the error, just log it
     return null;
   }
 };
 
 export const fetchNotes = async () => {
   try {
+    if (!supabase) {
+      console.warn('Supabase not configured, skipping fetch');
+      return [];
+    }
+
     console.log('Fetching notes from Supabase');
     const { data, error } = await supabase
       .from('notes')
@@ -90,13 +111,18 @@ export const fetchNotes = async () => {
     return transformedData;
   } catch (error) {
     console.error('Error fetching notes:', error);
-    return [];  
+    return [];
   }
 };
 
 // Mark a note as archived instead of deleting
 export const archiveNote = async (noteId) => {
   try {
+    if (!supabase) {
+      console.warn('Supabase not configured, skipping archive');
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('notes')
       .update({ is_archived: true, updated_at: new Date().toISOString() })
@@ -113,6 +139,11 @@ export const archiveNote = async (noteId) => {
 // Todo table operations
 export const syncTodos = async (todos) => {
   try {
+    if (!supabase) {
+      console.warn('Supabase not configured, skipping sync');
+      return null;
+    }
+
     console.log('Syncing todos to Supabase:', todos);
     const { data, error } = await supabase
       .from('todos')
@@ -136,6 +167,11 @@ export const syncTodos = async (todos) => {
 
 export const fetchTodos = async () => {
   try {
+    if (!supabase) {
+      console.warn('Supabase not configured, skipping fetch');
+      return { inbox: [], archive: [], projects: {} };
+    }
+
     console.log('Fetching todos from Supabase');
     const { data, error } = await supabase
       .from('todos')
