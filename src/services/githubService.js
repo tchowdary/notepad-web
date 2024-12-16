@@ -1,4 +1,4 @@
-import { DB_NAME, DB_VERSION, TABS_STORE, openDB } from '../utils/db';
+import { DB_NAME, DB_VERSION, TABS_STORE, TODO_STORE, openDB } from '../utils/db';
 
 class GitHubService {
   constructor() {
@@ -53,80 +53,243 @@ class GitHubService {
     return `${year}/${month}/${filename}${extension}`;
   }
 
+  getTodoFilePath() {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = date.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+    return `todo/todo-${month}-${year}.md`;
+  }
+
   shouldSyncFile(filename) {
     // Skip untitled.md files
     if (filename === 'untitled.md') {
-      console.log(`Skipping sync for untitled file: ${filename}`);
       return false;
+    }
+    
+    // Special case for todos file
+    if (filename === 'Todo') {
+      return true;
     }
     
     // Include .md and .tldraw files
     const shouldSync = filename.endsWith('.md') || filename.endsWith('.tldraw');
-    console.log(`File ${filename} sync status:`, shouldSync);
     return shouldSync;
   }
 
-  async uploadFile(filename, content) {
-    if (!this.isConfigured() || !this.shouldSyncFile(filename)) return;
-
-    const path = this.getFilePath(filename);
-    const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${path}`;
-
-    // Check if file exists
-    let existingFile;
+  async getLatestFileSHA(path) {
     try {
+      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${path}`;
       const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `token ${this.settings.token}`,
           'Accept': 'application/vnd.github.v3+json'
         }
       });
+      
       if (response.ok) {
-        existingFile = await response.json();
+        const data = await response.json();
+        return data.sha;
+      }
+      if (response.status === 404) {
+        return null;
+      }
+      const errorData = await response.json();
+      throw new Error(`GitHub API error: ${response.status} - ${errorData.message}`);
+    } catch (error) {
+      if (error.message.includes('GitHub API error')) {
+        throw error;
+      }
+      console.error(`Error fetching SHA for ${path}:`, error);
+      return null;
+    }
+  }
+
+  async createDirectory(path) {
+    try {
+      // Extract directory path without the filename
+      const dirPath = path.split('/').slice(0, -1).join('/');
+      if (!dirPath) return; // No directory to create
+
+      // Try to create directory with a .gitkeep file
+      const keepFilePath = `${dirPath}/.gitkeep`;
+      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${keepFilePath}`;
+      
+      // Check if .gitkeep already exists
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `token ${this.settings.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (response.status === 404) {
+        // Create .gitkeep file to create the directory
+        const createResponse = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${this.settings.token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: `Create ${dirPath} directory`,
+            content: btoa(''),
+            branch: this.settings.branch
+          })
+        });
+
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json();
+          console.error(`Failed to create directory: ${errorData.message}`);
+        }
       }
     } catch (error) {
-      // File doesn't exist, continue with creation
+      console.error('Error creating directory:', error);
+    }
+  }
+
+  async uploadFile(filename, content) {
+    if (!this.isConfigured()) return;
+
+    try {
+      const path = filename === 'todo.md' ? this.getTodoFilePath() : this.getFilePath(filename);
+      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${path}`;
+
+      // Ensure the directory exists before uploading
+      await this.createDirectory(path);
+
+      // Always get the latest SHA before uploading
+      const latestSHA = await this.getLatestFileSHA(path);
+
+      const body = {
+        message: `Update ${path}`,
+        content: btoa(unescape(encodeURIComponent(content))),
+        branch: this.settings.branch
+      };
+
+      if (latestSHA) {
+        body.sha = latestSHA;
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${this.settings.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 409) {
+          // If we get a 409, try one more time with the latest SHA
+          const retryLatestSHA = await this.getLatestFileSHA(path);
+          if (retryLatestSHA) {
+            body.sha = retryLatestSHA;
+            const retryResponse = await fetch(apiUrl, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `token ${this.settings.token}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(body)
+            });
+            
+            if (!retryResponse.ok) {
+              const retryErrorData = await retryResponse.json();
+              throw new Error(`GitHub API error: ${retryResponse.status} - ${retryErrorData.message}`);
+            }
+            
+            return retryResponse.json();
+          }
+        }
+        throw new Error(`GitHub API error: ${response.status} - ${errorData.message}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  }
+
+  async syncTodos(tasks) {
+    if (!this.isConfigured()) return;
+
+    let content = `# Todo List\n\nLast updated: ${new Date().toISOString()}\n\n`;
+
+    // Handle inbox tasks
+    if (tasks.inbox && tasks.inbox.length > 0) {
+      content += '## Inbox\n\n';
+      content += tasks.inbox.map(task => {
+        const status = task.completed ? '[x]' : '[ ]';
+        const dueDate = task.dueDate ? ` (Due: ${task.dueDate})` : '';
+        const notes = task.notes ? `\n  Notes: ${task.notes}` : '';
+        return `- ${status} ${task.text}${dueDate}${notes}`;
+      }).join('\n');
+      content += '\n\n';
     }
 
-    const body = {
-      message: `Update ${path}`,
-      content: btoa(unescape(encodeURIComponent(content))),
-      branch: this.settings.branch
-    };
-
-    if (existingFile) {
-      body.sha = existingFile.sha;
+    // Handle project tasks
+    if (tasks.projects) {
+      Object.entries(tasks.projects).forEach(([project, projectTasks]) => {
+        if (projectTasks.length > 0) {
+          content += `## ${project}\n\n`;
+          content += projectTasks.map(task => {
+            const status = task.completed ? '[x]' : '[ ]';
+            const dueDate = task.dueDate ? ` (Due: ${task.dueDate})` : '';
+            const notes = task.notes ? `\n  Notes: ${task.notes}` : '';
+            return `- ${status} ${task.text}${dueDate}${notes}`;
+          }).join('\n');
+          content += '\n\n';
+        }
+      });
     }
 
-    const response = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `token ${this.settings.token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.statusText}`);
+    // Handle archived tasks
+    if (tasks.archive && tasks.archive.length > 0) {
+      content += '## Archive\n\n';
+      content += tasks.archive.map(task => {
+        const status = task.completed ? '[x]' : '[ ]';
+        const dueDate = task.dueDate ? ` (Due: ${task.dueDate})` : '';
+        const notes = task.notes ? `\n  Notes: ${task.notes}` : '';
+        return `- ${status} ${task.text}${dueDate}${notes}`;
+      }).join('\n');
+      content += '\n\n';
     }
-
-    return response.json();
+    
+    try {
+      await this.uploadFile('todo.md', content);
+    } catch (error) {
+      console.error('Failed to sync todos:', error);
+      throw error;
+    }
   }
 
   // Method to sync all files
   async syncAllFiles() {
     if (!this.isConfigured()) {
-      console.log('GitHub not configured, skipping sync');
       return;
     }
     
     try {
-      console.log('Starting sync process...');
       // Open IndexedDB connection using our utility function
       const db = await openDB();
-      console.log('Database connection opened');
+
+      // Get todos from the todo store
+      const todoTx = db.transaction(TODO_STORE, 'readonly');
+      const todoStore = todoTx.objectStore(TODO_STORE);
+      const todoRequest = todoStore.get('todoData');
+      
+      todoRequest.onsuccess = async () => {
+        const todoData = todoRequest.result?.data;
+        if (todoData) {
+          await this.syncTodos(todoData);
+        }
+      };
 
       // Get all tabs from the store
       const tx = db.transaction(TABS_STORE, 'readonly');
@@ -136,23 +299,19 @@ class GitHubService {
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
       });
-      console.log('Retrieved tabs from database:', tabs.length);
 
       // Sync each file that meets our criteria
       let syncCount = 0;
       for (const tab of tabs) {
-        console.log(`Processing tab: ${tab.name}`);
         if (this.shouldSyncFile(tab.name)) {
           try {
             await this.uploadFile(tab.name, tab.content);
-            console.log(`Successfully synced file: ${tab.name}`);
             syncCount++;
           } catch (error) {
             console.error(`Failed to sync file ${tab.name}:`, error);
           }
         }
       }
-      console.log(`Sync completed. Successfully synced ${syncCount} files`);
     } catch (error) {
       console.error('Error syncing files:', error);
       throw error; // Re-throw to be caught by the toolbar handler
