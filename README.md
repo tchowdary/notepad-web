@@ -1,6 +1,7 @@
 # Notepad React
 
-A modern, feature-rich text editor built with React and Material-UI. Try it live at [https://tanveer.github.io/notepad-react](https://tanveer.github.io/notepad-react)
+A modern, feature-rich text editor built with React and Material-UI. 
+Try it live at [https://tchowdary.github.io/notepad-react](https://tchowdary.github.io/notepad-react)
 
 ## Features
 
