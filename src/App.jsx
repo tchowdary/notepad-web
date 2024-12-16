@@ -9,6 +9,8 @@ import TLDrawEditor from './components/TLDrawEditor';
 import GitHubSettingsModal from './components/GitHubSettingsModal';
 import TodoManager from './components/TodoManager';
 import QuickAddTask from './components/QuickAddTask';
+import CommandPalette from './components/CommandPalette';
+import GitHubService from './services/githubService';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
@@ -30,6 +32,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showCommandBar, setShowCommandBar] = useState(false);
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [todoData, setTodoData] = useState({
     inbox: [],
     archive: [],
@@ -173,13 +176,17 @@ function App() {
   }, [focusMode]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = async (e) => {
       // Handle Ctrl+K before any other key combinations
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         e.stopPropagation();
         setShowCommandBar(true);
         return;
+      }
+      if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        setShowCommandPalette(true);
       }
     };
 
@@ -342,7 +349,7 @@ function App() {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleFileSelect = (event) => {
+  const handleFileSelect = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -485,6 +492,22 @@ function App() {
     }));
   };
 
+  const handleFileSelectFromCommandPalette = async (file) => {
+    const content = await GitHubService.getFileContent(file.path);
+    if (content !== null) {
+      const newTab = {
+        id: Date.now(),
+        name: file.name,
+        content,
+        type: 'markdown',
+        editorType: 'tiptap',
+        path: file.path
+      };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTab(newTab.id);
+    }
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -585,6 +608,12 @@ function App() {
           open={quickAddOpen}
           onClose={() => setQuickAddOpen(false)}
           onAddTask={handleQuickAddTask}
+          darkMode={darkMode}
+        />
+        <CommandPalette
+          isOpen={showCommandPalette}
+          onClose={() => setShowCommandPalette(false)}
+          onFileSelect={handleFileSelectFromCommandPalette}
           darkMode={darkMode}
         />
         <Box sx={{ 

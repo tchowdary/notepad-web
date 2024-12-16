@@ -317,6 +317,95 @@ class GitHubService {
       throw error; // Re-throw to be caught by the toolbar handler
     }
   }
+
+  async getCurrentMonthFiles() {
+    if (!this.isConfigured()) return [];
+
+    try {
+      const date = new Date();
+      const currentYear = date.getFullYear();
+      const currentMonth = date.getMonth() + 1;
+      
+      // Get last month's year and month
+      const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+      const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+      // Format the paths
+      const currentPath = `${currentYear}/${String(currentMonth).padStart(2, '0')}`;
+      const lastPath = `${lastMonthYear}/${String(lastMonth).padStart(2, '0')}`;
+
+      // Fetch files from both months
+      const [currentFiles, lastMonthFiles] = await Promise.all([
+        this.fetchFilesFromPath(currentPath),
+        this.fetchFilesFromPath(lastPath)
+      ]);
+
+      // Combine and return all files
+      return [...currentFiles, ...lastMonthFiles];
+    } catch (error) {
+      console.error('Error fetching files:', error);
+      return [];
+    }
+  }
+
+  async fetchFilesFromPath(path) {
+    try {
+      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${path}`;
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `token ${this.settings.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return []; // Directory doesn't exist yet
+        }
+        throw new Error(`Failed to fetch files: ${response.statusText}`);
+      }
+
+      const files = await response.json();
+      return files
+        .filter(file => file.type === 'file')
+        .map(file => ({
+          name: file.name,
+          path: file.path,
+          sha: file.sha,
+          size: file.size,
+          url: file.download_url,
+          month: path.split('/')[1] // Add month info for display
+        }));
+    } catch (error) {
+      console.error(`Error fetching files from ${path}:`, error);
+      return [];
+    }
+  }
+
+  async getFileContent(path) {
+    if (!this.isConfigured()) return null;
+
+    try {
+      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${path}`;
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `token ${this.settings.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file content: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const content = decodeURIComponent(escape(atob(data.content)));
+      return content;
+    } catch (error) {
+      console.error('Error fetching file content:', error);
+      return null;
+    }
+  }
 }
 
 export default new GitHubService();
