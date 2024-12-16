@@ -62,7 +62,7 @@ class GitHubService {
 
   shouldSyncFile(filename) {
     // Skip untitled.md files
-    if (filename === 'untitled.md') {
+    if (filename === 'untitled.md' || filename.startsWith('Note') || filename.startsWith('Code')) {
       return false;
     }
     
