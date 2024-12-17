@@ -6,7 +6,7 @@ import { Download as DownloadIcon, FolderOpen as FolderOpenIcon, Sync as SyncIco
 import { saveDrawing, loadDrawing } from '../utils/db';
 import githubService from '../services/githubService';
 
-const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
+const TLDrawInstance = ({ darkMode, id, initialData, onSave, name }) => {
   const [editor, setEditor] = useState(null);
 
   const handleMount = useCallback((editor) => {
@@ -65,12 +65,12 @@ const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `drawing-${id}.tldr`;
+    link.download = name || `drawing-${id}.tldraw`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-  }, [editor, id]);
+  }, [editor, id, name]);
 
   const handleFileUpload = useCallback((event) => {
     if (!editor) return;
@@ -100,15 +100,50 @@ const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
     try {
       const serializedState = editor.getSnapshot();
       // First save locally
-      onSave(serializedState);
+      onSave({
+        document: serializedState,
+        session: {
+          version: 0,
+          currentPageId: editor.currentPageId,
+          exportBackground: true,
+          isFocusMode: false,
+          isDebugMode: false,
+          isToolLocked: false,
+          isGridMode: false,
+          pageStates: [{
+            pageId: editor.currentPageId,
+            camera: editor.camera,
+            selectedShapeIds: [],
+            focusedGroupId: null
+          }]
+        }
+      });
       
       // Then sync to GitHub
-      await githubService.uploadFile(`${id}.tldraw`, JSON.stringify(serializedState));
+      const filename = name || `drawing-${id}.tldraw`;
+      await githubService.uploadFile(filename, JSON.stringify({
+        document: serializedState,
+        session: {
+          version: 0,
+          currentPageId: editor.currentPageId,
+          exportBackground: true,
+          isFocusMode: false,
+          isDebugMode: false,
+          isToolLocked: false,
+          isGridMode: false,
+          pageStates: [{
+            pageId: editor.currentPageId,
+            camera: editor.camera,
+            selectedShapeIds: [],
+            focusedGroupId: null
+          }]
+        }
+      }));
       console.log('Diagram synced with GitHub successfully');
     } catch (error) {
       console.error('Error syncing with GitHub:', error);
     }
-  }, [editor, onSave, id]);
+  }, [editor, onSave, id, name]);
 
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -127,7 +162,7 @@ const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
       }}>
         <input
           type="file"
-          accept=".tldr"
+          accept=".tldraw"
           style={{ display: 'none' }}
           id={`file-upload-${id}`}
           onChange={handleFileUpload}
@@ -162,7 +197,7 @@ const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
   );
 };
 
-const TLDrawEditor = ({ darkMode, id, initialContent }) => {
+const TLDrawEditor = ({ darkMode, id, initialContent, name }) => {
   const [loadedData, setLoadedData] = useState(null);
 
   useEffect(() => {
@@ -202,6 +237,7 @@ const TLDrawEditor = ({ darkMode, id, initialContent }) => {
       <TLDrawInstance
         darkMode={darkMode}
         id={id}
+        name={name}
         onSave={saveTLDrawData}
         initialData={loadedData}
       />

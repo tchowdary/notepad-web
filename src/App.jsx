@@ -358,7 +358,7 @@ function App() {
       const content = e.target.result;
       const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
       const isExcalidraw = file.name.endsWith('.excalidraw');
-      const isTLDraw = file.name.endsWith('.tldr');
+      const isTLDraw = file.name.endsWith('.tldraw');
       const newTab = {
         id: newId,
         name: file.name,
@@ -400,7 +400,7 @@ function App() {
 
   const handleNewTLDraw = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    setTabs([...tabs, { id: newId, name: 'drawing.tldr', content: '', type: 'tldraw', editorType: 'tiptap' }]);
+    setTabs([...tabs, { id: newId, name: 'drawing.tldraw', content: '', type: 'tldraw', editorType: 'tiptap' }]);
     setActiveTab(newId);
   };
 
@@ -534,6 +534,7 @@ function App() {
         <TLDrawEditor
           darkMode={darkMode}
           id={tab.id}
+          name={tab.name}
           initialContent={tab.content}
         />
       );
@@ -688,7 +689,7 @@ function App() {
         ref={fileInputRef}
         style={{ display: 'none' }}
         onChange={handleFileSelect}
-        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldr"
+        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
       />
     </ThemeProvider>
   );
