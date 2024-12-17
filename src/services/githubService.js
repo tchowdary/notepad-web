@@ -77,30 +77,36 @@ class GitHubService {
   }
 
   async getLatestFileSHA(path) {
+    if (!this.isConfigured()) return null;
+
     try {
-      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${path}`;
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Authorization': `token ${this.settings.token}`,
-          'Accept': 'application/vnd.github.v3+json'
+      const response = await fetch(
+        `https://api.github.com/repos/${this.settings.repo}/contents/${path}?ref=${this.settings.branch}`,
+        {
+          headers: {
+            'Authorization': `token ${this.settings.token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
         }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data.sha;
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        const errorData = await response.json();
+        console.error('Error getting SHA:', errorData);
+        throw new Error(`Failed to get file SHA: ${errorData.message}`);
       }
-      if (response.status === 404) {
+
+      const data = await response.json();
+      return data.sha;
+    } catch (error) {
+      if (error.message.includes('404')) {
         return null;
       }
-      const errorData = await response.json();
-      throw new Error(`GitHub API error: ${response.status} - ${errorData.message}`);
-    } catch (error) {
-      if (error.message.includes('GitHub API error')) {
-        throw error;
-      }
-      console.error(`Error fetching SHA for ${path}:`, error);
-      return null;
+      console.error('Error in getLatestFileSHA:', error);
+      throw error;
     }
   }
 
@@ -152,17 +158,23 @@ class GitHubService {
     if (!this.isConfigured()) return;
 
     try {
-      const path = filename === 'todo.md' ? this.getTodoFilePath() : this.getFilePath(filename);
-      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${path}`;
+      const currentPath = filename === 'todo.md' ? this.getTodoFilePath() : this.getFilePath(filename);
+      
+      // Find where the file currently exists (if anywhere)
+      const existingPath = await this.findExistingFilePath(currentPath);
+      
+      const latestSHA = await this.getLatestFileSHA(existingPath);
+      
+      // Always use the existing path if we found a SHA, otherwise use current path
+      const uploadPath = existingPath;
+      
+      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${uploadPath}`;
 
       // Ensure the directory exists before uploading
-      await this.createDirectory(path);
-
-      // Always get the latest SHA before uploading
-      const latestSHA = await this.getLatestFileSHA(path);
+      await this.createDirectory(uploadPath);
 
       const body = {
-        message: `Update ${path}`,
+        message: `Update ${uploadPath}`,
         content: btoa(unescape(encodeURIComponent(content))),
         branch: this.settings.branch
       };
@@ -183,37 +195,45 @@ class GitHubService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        if (response.status === 409) {
-          // If we get a 409, try one more time with the latest SHA
-          const retryLatestSHA = await this.getLatestFileSHA(path);
-          if (retryLatestSHA) {
-            body.sha = retryLatestSHA;
-            const retryResponse = await fetch(apiUrl, {
-              method: 'PUT',
-              headers: {
-                'Authorization': `token ${this.settings.token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(body)
-            });
-            
-            if (!retryResponse.ok) {
-              const retryErrorData = await retryResponse.json();
-              throw new Error(`GitHub API error: ${retryResponse.status} - ${retryErrorData.message}`);
-            }
-            
-            return retryResponse.json();
-          }
-        }
-        throw new Error(`GitHub API error: ${response.status} - ${errorData.message}`);
+        console.error('Upload error response:', errorData);
+        throw new Error(`Failed to upload file: ${errorData.message}`);
       }
 
-      return response.json();
+      const responseData = await response.json();
+      
     } catch (error) {
       console.error('Error uploading file:', error);
       throw error;
     }
+  }
+
+  async findExistingFilePath(path) {
+    const pathParts = path.split('/');
+    if (pathParts.length < 3) return path;
+
+    const currentYear = parseInt(pathParts[0]);
+    const currentMonth = parseInt(pathParts[1]);
+    const filename = pathParts[2];
+
+
+    // Check current month first
+    const currentSHA = await this.getLatestFileSHA(path);
+    if (currentSHA) {
+      return path;
+    }
+
+    // If not in current month, check previous month
+    const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    const prevPath = `${prevYear}/${String(prevMonth).padStart(2, '0')}/${filename}`;
+    
+    const prevSHA = await this.getLatestFileSHA(prevPath);
+    
+    if (prevSHA) {
+      return prevPath;
+    }
+
+    return path;
   }
 
   async syncTodos(tasks) {
