@@ -9,6 +9,8 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
 import {
   FormatQuote,
@@ -21,6 +23,7 @@ import {
   DeleteOutline,
   DeleteForever,
   TextFields,
+  CheckBox,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
@@ -79,6 +82,98 @@ const getTableStyles = (darkMode) => ({
   },
 });
 
+const getEditorStyles = (darkMode) => ({
+  '& .ProseMirror': {
+    minHeight: '100%',
+    outline: 'none',
+    '& > * + *': {
+      marginTop: '0.75em',
+    },
+    '& p': {
+      margin: 0,
+    },
+    '& h1': {
+      fontSize: '2em',
+      fontWeight: '600',
+      lineHeight: '1.25',
+      margin: '1em 0 0.5em',
+    },
+    '& h2': {
+      fontSize: '1.5em',
+      fontWeight: '600',
+      lineHeight: '1.25',
+      margin: '1em 0 0.5em',
+    },
+    '& h3': {
+      fontSize: '1.25em',
+      fontWeight: '600',
+      lineHeight: '1.25',
+      margin: '1em 0 0.5em',
+    },
+    '& h4': {
+      fontSize: '1em',
+      fontWeight: '600',
+      lineHeight: '1.25',
+      margin: '1em 0 0.5em',
+    },
+    '& ul, & ol': {
+      padding: '0 1rem',
+    },
+    '& blockquote': {
+      borderLeft: `3px solid ${darkMode ? '#30363d' : '#dfe2e5'}`,
+      color: darkMode ? '#8b949e' : '#6a737d',
+      marginLeft: 0,
+      marginRight: 0,
+      paddingLeft: '1rem',
+    },
+    '& code': {
+      backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
+      color: darkMode ? '#e6edf3' : '#24292f',
+      borderRadius: '6px',
+      padding: '0.2em 0.4em',
+      fontSize: '85%',
+      fontFamily: '"JetBrains Mono", monospace',
+    },
+    '& pre': {
+      backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
+      padding: '1em',
+      borderRadius: '6px',
+      overflow: 'auto',
+      '& code': {
+        backgroundColor: 'transparent',
+        padding: 0,
+        fontSize: '90%',
+      },
+    },
+    '& hr': {
+      border: 'none',
+      height: '2px',
+      backgroundColor: darkMode ? '#30363d' : '#dfe2e5',
+      margin: '1.5em 0',
+    },
+    '& ul[data-type="taskList"]': {
+      listStyle: 'none',
+      padding: 0,
+      '& li': {
+        display: 'flex',
+        gap: '0.5rem',
+        '& > label': {
+          flex: '0 0 auto',
+          marginRight: '0.5rem',
+          userSelect: 'none',
+        },
+        '& > div': {
+          flex: '1 1 auto',
+        },
+        '& input[type="checkbox"]': {
+          cursor: 'pointer',
+        },
+      },
+    },
+    ...getTableStyles(darkMode),
+  },
+});
+
 const TipTapEditor = ({ content, onChange, darkMode }) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
@@ -125,7 +220,6 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
       StarterKit,
       TextStyle,
       Color,
-      HorizontalRule,
       Link.configure({
         openOnClick: true,
         HTMLAttributes: {
@@ -133,14 +227,19 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
           rel: 'noopener noreferrer',
         },
       }),
+      HorizontalRule,
       Table.configure({
         resizable: true,
       }),
       TableRow,
       TableCell,
       TableHeader,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
     ],
-    content: '',
+    content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
@@ -286,6 +385,11 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
       icon: <AutoFixHigh />,
       action: handleImproveText,
     },
+    {
+      title: 'Task List',
+      icon: <CheckBox />,
+      action: () => editor?.chain().focus().toggleTaskList().run(),
+    },
   ];
 
   const tableOptions = [
@@ -398,76 +502,7 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
           lineHeight: '1.6',
           position: 'relative',
           height: '100%',
-          '& .ProseMirror': {
-            minHeight: '100%',
-            outline: 'none',
-            '& > * + *': {
-              marginTop: '0.75em',
-            },
-            '& p': {
-              margin: 0,
-            },
-            '& h1': {
-              fontSize: '2em',
-              fontWeight: '600',
-              lineHeight: '1.25',
-              margin: '1em 0 0.5em',
-            },
-            '& h2': {
-              fontSize: '1.5em',
-              fontWeight: '600',
-              lineHeight: '1.25',
-              margin: '1em 0 0.5em',
-            },
-            '& h3': {
-              fontSize: '1.25em',
-              fontWeight: '600',
-              lineHeight: '1.25',
-              margin: '1em 0 0.5em',
-            },
-            '& h4': {
-              fontSize: '1em',
-              fontWeight: '600',
-              lineHeight: '1.25',
-              margin: '1em 0 0.5em',
-            },
-            '& ul, & ol': {
-              padding: '0 1rem',
-            },
-            '& blockquote': {
-              borderLeft: `3px solid ${darkMode ? '#30363d' : '#dfe2e5'}`,
-              color: darkMode ? '#8b949e' : '#6a737d',
-              marginLeft: 0,
-              marginRight: 0,
-              paddingLeft: '1rem',
-            },
-            '& code': {
-              backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
-              color: darkMode ? '#e6edf3' : '#24292f',
-              borderRadius: '6px',
-              padding: '0.2em 0.4em',
-              fontSize: '85%',
-              fontFamily: '"JetBrains Mono", monospace',
-            },
-            '& pre': {
-              backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
-              padding: '1em',
-              borderRadius: '6px',
-              overflow: 'auto',
-              '& code': {
-                backgroundColor: 'transparent',
-                padding: 0,
-                fontSize: '90%',
-              },
-            },
-            '& hr': {
-              border: 'none',
-              height: '2px',
-              backgroundColor: darkMode ? '#30363d' : '#dfe2e5',
-              margin: '1.5em 0',
-            },
-            ...getTableStyles(darkMode),
-          },
+          ...getEditorStyles(darkMode),
         }}
       >
         <EditorContent editor={editor} onContextMenu={handleContextMenu} />
