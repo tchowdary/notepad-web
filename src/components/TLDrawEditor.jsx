@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { Download as DownloadIcon, FolderOpen as FolderOpenIcon } from '@mui/icons-material';
+import { Download as DownloadIcon, FolderOpen as FolderOpenIcon, Sync as SyncIcon } from '@mui/icons-material';
 import { saveDrawing, loadDrawing } from '../utils/db';
+import githubService from '../services/githubService';
 
 const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
   const [editor, setEditor] = useState(null);
@@ -15,7 +16,24 @@ const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
   const handleChange = useCallback(
     (editor) => {
       const snapshot = editor.store.getSnapshot();
-      onSave(snapshot);
+      onSave({
+        document: snapshot,
+        session: {
+          version: 0,
+          currentPageId: editor.currentPageId,
+          exportBackground: true,
+          isFocusMode: false,
+          isDebugMode: false,
+          isToolLocked: false,
+          isGridMode: false,
+          pageStates: [{
+            pageId: editor.currentPageId,
+            camera: editor.camera,
+            selectedShapeIds: [],
+            focusedGroupId: null
+          }]
+        }
+      });
     },
     [onSave]
   );
@@ -26,7 +44,24 @@ const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
     // Use the editor's built-in serialization
     const serializedState = editor.getSnapshot();
     
-    const blob = new Blob([JSON.stringify(serializedState)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({
+      document: serializedState,
+      session: {
+        version: 0,
+        currentPageId: editor.currentPageId,
+        exportBackground: true,
+        isFocusMode: false,
+        isDebugMode: false,
+        isToolLocked: false,
+        isGridMode: false,
+        pageStates: [{
+          pageId: editor.currentPageId,
+          camera: editor.camera,
+          selectedShapeIds: [],
+          focusedGroupId: null
+        }]
+      }
+    })], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -59,19 +94,36 @@ const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
     event.target.value = '';
   }, [editor]);
 
+  const handleSync = useCallback(async () => {
+    if (!editor) return;
+    
+    try {
+      const serializedState = editor.getSnapshot();
+      // First save locally
+      onSave(serializedState);
+      
+      // Then sync to GitHub
+      await githubService.uploadFile(`${id}.tldraw`, JSON.stringify(serializedState));
+      console.log('Diagram synced with GitHub successfully');
+    } catch (error) {
+      console.error('Error syncing with GitHub:', error);
+    }
+  }, [editor, onSave, id]);
+
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
       <Box sx={{ 
         position: 'absolute', 
-        top: 8, 
-        right: 8, 
+        top: 0,
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 1,
         backgroundColor: darkMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',
-        borderRadius: '4px',
+        borderRadius: '0 0 4px 4px',
         backdropFilter: 'blur(4px)',
         display: 'flex',
         gap: 1,
-        padding: '4px'
+        padding: '4px 8px'
       }}>
         <input
           type="file"
@@ -93,28 +145,41 @@ const TLDrawInstance = ({ darkMode, id, initialData, onSave }) => {
             <DownloadIcon />
           </IconButton>
         </Tooltip>
+        <Tooltip title="Sync with GitHub">
+          <IconButton onClick={handleSync} size="small">
+            <SyncIcon />
+          </IconButton>
+        </Tooltip>
       </Box>
       <Tldraw
         persistenceKey={`tldraw-${id}`}
         darkMode={darkMode}
         onMount={handleMount}
         onChange={handleChange}
-        initialData={initialData}
+        snapshot={initialData?.document}
       />
     </Box>
   );
 };
 
-const TLDrawEditor = ({ darkMode, id }) => {
-  const loadTLDrawData = useCallback(async () => {
-    try {
-      const data = await loadDrawing(id);
-      return data?.tldrawData || undefined;
-    } catch (error) {
-      console.error('Error loading drawing:', error);
-      return undefined;
-    }
-  }, [id]);
+const TLDrawEditor = ({ darkMode, id, initialContent }) => {
+  const [loadedData, setLoadedData] = useState(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        if (initialContent) {
+          setLoadedData(initialContent);
+          return;
+        }
+        const data = await loadDrawing(id);
+        setLoadedData(data?.tldrawData);
+      } catch (error) {
+        console.error('Error loading drawing:', error);
+      }
+    };
+    loadData();
+  }, [id, initialContent]);
 
   const saveTLDrawData = useCallback(async (data) => {
     try {
@@ -138,7 +203,7 @@ const TLDrawEditor = ({ darkMode, id }) => {
         darkMode={darkMode}
         id={id}
         onSave={saveTLDrawData}
-        initialData={loadTLDrawData()}
+        initialData={loadedData}
       />
     </Box>
   );

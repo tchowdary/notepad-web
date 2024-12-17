@@ -495,12 +495,23 @@ function App() {
   const handleFileSelectFromCommandPalette = async (file) => {
     const content = await GitHubService.getFileContent(file.path);
     if (content !== null) {
+      let parsedContent = content;
+      if (file.name.endsWith('.tldraw')) {
+        try {
+          // Parse but keep the entire state structure
+          parsedContent = JSON.parse(content);
+        } catch (error) {
+          console.error('Error parsing TLDraw file:', error);
+          return;
+        }
+      }
+      
       const newTab = {
         id: Date.now(),
         name: file.name,
-        content,
-        type: 'markdown',
-        editorType: 'tiptap',
+        content: parsedContent,
+        type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
+        editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 'tiptap',
         path: file.path
       };
       setTabs(prev => [...prev, newTab]);
@@ -523,6 +534,7 @@ function App() {
         <TLDrawEditor
           darkMode={darkMode}
           id={tab.id}
+          initialContent={tab.content}
         />
       );
     } else if (tab.type === 'todo') {
