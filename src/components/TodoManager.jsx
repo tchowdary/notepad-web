@@ -413,7 +413,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
             </ListItemIcon>
             <ListItemText 
               primary="Inbox" 
-              sx={{ '& .MuiTypography-root': { fontFamily: 'JetBrains Mono, monospace' } }}
+              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
             />
           </ListItem>
 
@@ -424,7 +424,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
             <ListItemText 
               primary="Today" 
               secondary={getTodayTasks().length > 0 ? `${getTodayTasks().length} tasks` : null}
-              sx={{ '& .MuiTypography-root': { fontFamily: 'JetBrains Mono, monospace' } }}
+              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
             />
           </ListItem>
           
@@ -434,7 +434,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
             </ListItemIcon>
             <ListItemText 
               primary="Archive"
-              sx={{ '& .MuiTypography-root': { fontFamily: 'JetBrains Mono, monospace' } }}
+              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
             />
           </ListItem>
 
@@ -443,7 +443,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
           <ListItem>
             <ListItemText 
               primary="Projects" 
-              sx={{ '& .MuiTypography-root': { fontFamily: 'JetBrains Mono, monospace' } }}
+              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
             />
             <IconButton size="small" onClick={() => setNewProjectDialogOpen(true)}>
               <AddIcon />
@@ -473,7 +473,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
               </ListItemIcon>
               <ListItemText 
                 primary={project}
-                sx={{ '& .MuiTypography-root': { fontFamily: 'JetBrains Mono, monospace' } }}
+                sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
               />
             </ListItem>
           ))}
@@ -484,7 +484,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
       <Box sx={{ flex: 1, p: 2 }}>
         <Typography 
           variant="h6" 
-          sx={{ mb: 2, fontFamily: 'JetBrains Mono, monospace' }}
+          sx={{ mb: 2, fontFamily: 'Rubik, sans-serif' }}
         >
           {selectedProject.charAt(0).toUpperCase() + selectedProject.slice(1)}
         </Typography>
@@ -499,7 +499,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
             onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
             sx={{ 
               '& .MuiInputBase-root': { 
-                fontFamily: 'JetBrains Mono, monospace' 
+                fontFamily: 'Rubik, sans-serif' 
               } 
             }}
           />
@@ -546,7 +546,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
                         autoFocus
                         sx={{ 
                           '& .MuiInputBase-root': { 
-                            fontFamily: 'JetBrains Mono, monospace' 
+                            fontFamily: 'Rubik, sans-serif' 
                           } 
                         }}
                       />
@@ -582,7 +582,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
                         variant="caption"
                         sx={{
                           color: isToday(task.dueDate) ? 'error.main' : 'text.secondary',
-                          fontFamily: 'JetBrains Mono, monospace',
+                          fontFamily: 'Rubik, sans-serif',
                           display: 'flex',
                           alignItems: 'center',
                           gap: 0.5
@@ -596,7 +596,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
                         variant="caption"
                         sx={{
                           color: 'text.secondary',
-                          fontFamily: 'JetBrains Mono, monospace',
+                          fontFamily: 'Rubik, sans-serif',
                           display: 'flex',
                           alignItems: 'center',
                           gap: 0.5
@@ -610,7 +610,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
                 }
                 sx={{ 
                   '& .MuiTypography-root': { 
-                    fontFamily: 'JetBrains Mono, monospace',
+                    fontFamily: 'Rubik, sans-serif',
                     textDecoration: task.completed ? 'line-through' : 'none'
                   } 
                 }}
@@ -710,7 +710,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
         open={newProjectDialogOpen} 
         onClose={() => setNewProjectDialogOpen(false)}
       >
-        <DialogTitle sx={{ fontFamily: 'JetBrains Mono, monospace' }}>
+        <DialogTitle sx={{ fontFamily: 'Rubik, sans-serif' }}>
           New Project
         </DialogTitle>
         <DialogContent>
@@ -723,7 +723,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
             onChange={(e) => setNewProjectName(e.target.value)}
             sx={{ 
               '& .MuiInputBase-root': { 
-                fontFamily: 'JetBrains Mono, monospace' 
+                fontFamily: 'Rubik, sans-serif' 
               } 
             }}
           />
@@ -762,7 +762,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
             variant="h6" 
             sx={{ 
               mb: 2,
-              fontFamily: 'JetBrains Mono, monospace',
+              fontFamily: 'Rubik, sans-serif',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center'
