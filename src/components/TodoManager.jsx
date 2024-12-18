@@ -33,6 +33,7 @@ import {
   Event as EventIcon,
   CalendarToday as CalendarIcon,
   NoteAdd as NoteIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 
 // Function to extract URLs from text
@@ -95,6 +96,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
   const [newProjectName, setNewProjectName] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTaskText, setEditingTaskText] = useState('');
   const [selectedTaskForNotes, setSelectedTaskForNotes] = useState(null);
   const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
   const dateInputRef = React.useRef(null);
@@ -358,6 +360,40 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
     onTasksChange(updatedTodoData);
   };
 
+  const handleStartEditTask = (task) => {
+    setEditingTaskId(task.id);
+    setEditingTaskText(task.text);
+  };
+
+  const handleSaveEditTask = () => {
+    if (!editingTaskId || !editingTaskText.trim()) return;
+    
+    let updatedTasks = { ...tasks };
+    
+    if (selectedProject === 'inbox' || selectedProject === 'archive') {
+      updatedTasks[selectedProject] = updatedTasks[selectedProject].map(task =>
+        task.id === editingTaskId
+          ? { ...task, text: editingTaskText }
+          : task
+      );
+    } else if (selectedProject !== 'today') {
+      updatedTasks.projects[selectedProject] = updatedTasks.projects[selectedProject].map(task =>
+        task.id === editingTaskId
+          ? { ...task, text: editingTaskText }
+          : task
+      );
+    }
+    
+    onTasksChange(updatedTasks);
+    setEditingTaskId(null);
+    setEditingTaskText('');
+  };
+
+  const handleCancelEditTask = () => {
+    setEditingTaskId(null);
+    setEditingTaskText('');
+  };
+
   return (
     <Box sx={{ height: '100%', display: 'flex' }}>
       {/* Hidden date input */}
@@ -494,7 +530,37 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
                 />
               </ListItemIcon>
               <ListItemText 
-                primary={textWithLinks(task.text)}
+                primary={
+                  editingTaskId === task.id ? (
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={editingTaskText}
+                        onChange={(e) => setEditingTaskText(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveEditTask();
+                          }
+                        }}
+                        autoFocus
+                        sx={{ 
+                          '& .MuiInputBase-root': { 
+                            fontFamily: 'JetBrains Mono, monospace' 
+                          } 
+                        }}
+                      />
+                      <IconButton size="small" onClick={handleSaveEditTask}>
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" onClick={handleCancelEditTask}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    textWithLinks(task.text)
+                  )
+                }
                 secondary={
                   <Box 
                     component="span" 
@@ -553,9 +619,9 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  visibility: 'hidden',
+                  visibility: task.notes ? 'visible' : 'hidden',
                   '& .MuiIconButton-root': {
-                    opacity: 0,
+                    opacity: task.notes ? 1 : 0,
                     transition: 'opacity 0.2s',
                   },
                   '.MuiListItem-root:hover &': {
@@ -566,20 +632,35 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
                   },
                 }}
               >
-                <IconButton
-                  size="small"
-                  onClick={() => handleOpenNotes(task)}
-                  sx={{ mr: 1 }}
-                >
-                  <NoteIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => handleDeleteTask(task.id)}
-                  sx={{ mr: 1 }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title={task.notes ? "View Notes" : "Add Notes"}>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenNotes(task)}
+                    sx={{ mr: 1 }}
+                  >
+                    <NoteIcon 
+                      fontSize="small" 
+                      color={task.notes ? "primary" : "inherit"}
+                    />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Edit Task">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleStartEditTask(task)}
+                    sx={{ mr: 1 }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete Task">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDeleteTask(task.id)}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </ListItem>
           ))}
@@ -655,23 +736,45 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
 
       {/* Notes Drawer */}
       <Drawer
-        anchor="right"
+        anchor="bottom"
         open={notesDrawerOpen}
         onClose={handleCloseNotes}
         PaperProps={{
           sx: {
-            width: '400px',
+            height: '50%',
             bgcolor: darkMode ? '#1e1e1e' : 'background.paper',
             color: darkMode ? '#ffffff' : 'text.primary',
           }
         }}
       >
-        <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
+        <Box 
+          sx={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            margin: '0 auto',
+            width: '100%',
+            maxWidth: '100ch',
+            p: 2,
+          }}
+        >
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              mb: 2,
+              fontFamily: 'JetBrains Mono, monospace',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
             Notes for: {selectedTaskForNotes?.text}
+            <IconButton onClick={handleCloseNotes} size="small">
+              <DeleteIcon />
+            </IconButton>
           </Typography>
           {selectedTaskForNotes && (
-            <Box sx={{ flexGrow: 1 }}>
+            <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
               <TipTapEditor
                 content={selectedTaskForNotes.notes || ''}
                 onChange={handleNotesChange}
