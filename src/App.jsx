@@ -492,6 +492,10 @@ function App() {
     }));
   };
 
+  const handleQuickAddClick = () => {
+    setQuickAddOpen(true);
+  };
+
   const handleFileSelectFromCommandPalette = async (file) => {
     const content = await GitHubService.getFileContent(file.path);
     if (content !== null) {
@@ -588,6 +592,7 @@ function App() {
             currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
             setShowGitHubSettings={setShowGitHubSettings}
             onTodoClick={handleTodoClick}
+            onQuickAddClick={handleQuickAddClick}
           />
         )}
         <CommandBar

@@ -27,6 +27,8 @@ import {
   Brush as BrushIcon,
   Palette as PaletteIcon,
   CheckBoxOutlined as TodoIcon,
+  PlaylistAdd as QuickAddIcon,
+  TaskAlt as TodoManagerIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import githubService from '../services/githubService';
@@ -50,6 +52,7 @@ const Toolbar = ({
   className,
   currentFile,
   onTodoClick,
+  onQuickAddClick,
 }) => {
   const theme = useTheme();
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
@@ -110,9 +113,15 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
+        <Tooltip title="Quick Add Task">
+          <IconButton onClick={onQuickAddClick} size="small">
+            <QuickAddIcon />
+          </IconButton>
+        </Tooltip>
+
         <Tooltip title="Todo Manager">
           <IconButton onClick={onTodoClick} size="small">
-            <TodoIcon />
+            <TodoManagerIcon />
           </IconButton>
         </Tooltip>
 
@@ -159,11 +168,11 @@ const Toolbar = ({
             }}
             size="small"
           >
-            <PaletteIcon />
+            <DrawIcon />
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="New Excalidraw">
+        {/* <Tooltip title="New Excalidraw">
           <IconButton
             onClick={() => {
               onNewDrawing('excalidraw');
@@ -172,7 +181,7 @@ const Toolbar = ({
           >
             <DrawIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         <Tooltip title="Convert Text">
           <IconButton 
@@ -196,11 +205,11 @@ const Toolbar = ({
           ))}
         </Menu>
 
-        <Tooltip title="Format JSON">
+        {/* <Tooltip title="Format JSON">
           <IconButton onClick={onFormatJson} size="small">
             <CodeIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
           <IconButton onClick={handleGitHubSync} size="small">
