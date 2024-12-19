@@ -201,6 +201,13 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = async (e) => {
+      // Exit focus mode on Escape key
+      if (e.key === 'Escape' && focusMode) {
+        setFocusMode(false);
+        setShowSidebar(true);
+        return;
+      }
+      
       // Handle Ctrl+K before any other key combinations
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -217,7 +224,7 @@ function App() {
     // Use capture phase to handle the event before React's event system
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, []);
+  }, [focusMode]);
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -608,7 +615,10 @@ function App() {
     onDarkModeChange: setDarkMode,
     onShowPreviewChange: setShowPreview,
     onNewDrawing: handleNewDrawing,
-    onFocusModeChange: setFocusMode,
+    onFocusModeChange: () => {
+      setFocusMode(!focusMode);
+      setShowSidebar(focusMode);
+    },
     onNewTLDraw: handleNewTLDraw,
     onConvert: handleConvert,
     onFormatJson: () => editorRef.current?.formatJson(),
@@ -631,28 +641,35 @@ function App() {
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         {!isLoading && (
           <>
-            <Toolbar 
-              onNewTab={handleNewTab}
-              onOpenFile={handleOpenFile}
-              onSaveFile={handleSaveFile}
-              wordWrap={wordWrap}
-              onWordWrapChange={() => setWordWrap(!wordWrap)}
-              darkMode={darkMode}
-              onDarkModeChange={() => setDarkMode(!darkMode)}
-              focusMode={focusMode}
-              onFocusModeChange={() => setFocusMode(!focusMode)}
-              showPreview={showPreview}
-              onShowPreviewChange={() => setShowPreview(!showPreview)}
-              onNewDrawing={handleNewDrawing}
-              onConvert={(converterId) => handleConvert(converterId)}
-              onFormatJson={() => editorRef.current?.formatJson()}
-              currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
-              setShowGitHubSettings={setShowGitHubSettings}
-              onTodoClick={handleTodoClick}
-              onQuickAddClick={handleQuickAddClick}
-              showChat={showChat}
-              onChatToggle={handleChatToggle}
-            />
+            <Box sx={{ 
+              display: focusMode ? 'none' : 'block'
+            }}>
+              <Toolbar 
+                onNewTab={handleNewTab}
+                onOpenFile={handleOpenFile}
+                onSaveFile={handleSaveFile}
+                wordWrap={wordWrap}
+                onWordWrapChange={() => setWordWrap(!wordWrap)}
+                darkMode={darkMode}
+                onDarkModeChange={() => setDarkMode(!darkMode)}
+                focusMode={focusMode}
+                onFocusModeChange={() => {
+                  setFocusMode(!focusMode);
+                  setShowSidebar(focusMode);
+                }}
+                showPreview={showPreview}
+                onShowPreviewChange={() => setShowPreview(!showPreview)}
+                onNewDrawing={handleNewDrawing}
+                onConvert={(converterId) => handleConvert(converterId)}
+                onFormatJson={() => editorRef.current?.formatJson()}
+                currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
+                setShowGitHubSettings={setShowGitHubSettings}
+                onTodoClick={handleTodoClick}
+                onQuickAddClick={handleQuickAddClick}
+                showChat={showChat}
+                onChatToggle={handleChatToggle}
+              />
+            </Box>
             <CommandBar
               open={showCommandBar}
               onClose={() => setShowCommandBar(false)}
@@ -692,7 +709,9 @@ function App() {
               }}>
                 <Box sx={{ 
                   flex: showChat ? '0 0 50%' : 1,
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}>
                   {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
                 </Box>
@@ -702,7 +721,9 @@ function App() {
                     flex: '0 0 50%',
                     borderLeft: 1,
                     borderColor: 'divider',
-                    bgcolor: 'background.paper'
+                    bgcolor: 'background.paper',
+                    display: 'flex',
+                    flexDirection: 'column'
                   }}>
                     <ChatBox />
                   </Box>
@@ -710,7 +731,7 @@ function App() {
               </Box>
 
               {/* Right Sidebar */}
-              {showSidebar && !showChat && (
+              {!focusMode && showSidebar && !showChat && (
                 <Box
                   sx={{
                     width: 250,
