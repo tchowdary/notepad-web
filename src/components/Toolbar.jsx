@@ -220,7 +220,7 @@ const Toolbar = ({
           // For example, refreshing available models in the chat
         }} />
 
-        <Tooltip title="Toggle Chat">
+        {/* <Tooltip title="Toggle Chat">
           <IconButton
             color={showChat ? 'primary' : 'inherit'}
             onClick={onChatToggle}
@@ -228,7 +228,7 @@ const Toolbar = ({
           >
             <ChatIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
           <IconButton onClick={handleGitHubSync} size="small">

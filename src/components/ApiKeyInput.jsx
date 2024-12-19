@@ -35,7 +35,7 @@ const DEFAULT_MODELS = {
   ],
   anthropic: [
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
-    { id: 'Claude 3.5 Haiku', name: 'Claude 3.5 Haiku' }
+    { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku' }
   ]
 };
 
