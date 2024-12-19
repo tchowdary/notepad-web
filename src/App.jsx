@@ -11,6 +11,8 @@ import TodoManager from './components/TodoManager';
 import QuickAddTask from './components/QuickAddTask';
 import CommandPalette from './components/CommandPalette';
 import GitHubService from './services/githubService';
+import ChatBox from './components/ChatBox';
+import ApiKeyInput from './components/ApiKeyInput';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
@@ -20,8 +22,8 @@ import './App.css';
 function App() {
   const fileInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [tabs, setTabs] = useState([{ id: 1, name: 'untitled.md', content: '', type: 'markdown', editorType: 'tiptap' }]);
-  const [activeTab, setActiveTab] = useState(1);
+  const [tabs, setTabs] = useState([]);
+  const [activeTab, setActiveTab] = useState(null);
   const [wordWrap, setWordWrap] = useState(() => {
     const saved = localStorage.getItem('wordWrap');
     return saved !== null ? saved === 'true' : true;
@@ -39,6 +41,8 @@ function App() {
     projects: {}
   });
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showApiSettings, setShowApiSettings] = useState(false);
   const editorRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
 
@@ -125,23 +129,43 @@ function App() {
     };
   }, []);
 
-  // Load tabs from IndexedDB on mount
   useEffect(() => {
-    const initTabs = async () => {
+    const initializeApp = async () => {
       try {
-        setIsLoading(true);
         const savedTabs = await loadTabs();
         if (savedTabs && savedTabs.length > 0) {
           setTabs(savedTabs);
           setActiveTab(savedTabs[0].id);
+        } else {
+          // Create default tab if no saved tabs
+          const defaultTab = { 
+            id: 1, 
+            name: 'untitled.md', 
+            content: '', 
+            type: 'markdown', 
+            editorType: 'tiptap' 
+          };
+          setTabs([defaultTab]);
+          setActiveTab(1);
         }
+        setIsLoading(false);
       } catch (error) {
-        console.error('Error loading tabs:', error);
-      } finally {
+        console.error('Error initializing app:', error);
+        // Create default tab on error
+        const defaultTab = { 
+          id: 1, 
+          name: 'untitled.md', 
+          content: '', 
+          type: 'markdown', 
+          editorType: 'tiptap' 
+        };
+        setTabs([defaultTab]);
+        setActiveTab(1);
         setIsLoading(false);
       }
     };
-    initTabs();
+    
+    initializeApp();
   }, []);
 
   useEffect(() => {
@@ -523,6 +547,17 @@ function App() {
     }
   };
 
+  const handleChatToggle = () => {
+    const newChatState = !showChat;
+    setShowChat(newChatState);
+    // Only hide sidebar when opening chat, restore it when closing
+    if (newChatState) {
+      setShowSidebar(false);
+    } else {
+      setShowSidebar(true);
+    }
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -565,129 +600,157 @@ function App() {
     );
   };
 
-  if (isLoading) {
-    return null;
-  }
+  const commandList = createCommandList({
+    onNewTab: handleNewTab,
+    onOpenFile: handleOpenFile,
+    onSaveFile: handleSaveFile,
+    onWordWrapChange: setWordWrap,
+    onDarkModeChange: setDarkMode,
+    onShowPreviewChange: setShowPreview,
+    onNewDrawing: handleNewDrawing,
+    onFocusModeChange: setFocusMode,
+    onNewTLDraw: handleNewTLDraw,
+    onConvert: handleConvert,
+    onFormatJson: () => editorRef.current?.formatJson(),
+    wordWrap,
+    darkMode,
+    showPreview,
+    focusMode,
+    setShowGitHubSettings,
+    currentFile: activeTab ? tabs.find(tab => tab.id === activeTab) : null,
+    setShowApiSettings,
+    onTodoClick: handleTodoClick,
+    onQuickAddClick: handleQuickAddClick,
+    showChat,
+    onChatToggle: handleChatToggle
+  });
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        {!focusMode && (
-          <Toolbar 
-            onNewTab={handleNewTab}
-            onOpenFile={handleOpenFile}
-            onSaveFile={handleSaveFile}
-            wordWrap={wordWrap}
-            onWordWrapChange={() => setWordWrap(!wordWrap)}
-            darkMode={darkMode}
-            onDarkModeChange={() => setDarkMode(!darkMode)}
-            focusMode={focusMode}
-            onFocusModeChange={() => setFocusMode(!focusMode)}
-            showPreview={showPreview}
-            onShowPreviewChange={() => setShowPreview(!showPreview)}
-            onNewDrawing={handleNewDrawing}
-            onConvert={(converterId) => handleConvert(converterId)}
-            onFormatJson={() => editorRef.current?.formatJson()}
-            currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
-            setShowGitHubSettings={setShowGitHubSettings}
-            onTodoClick={handleTodoClick}
-            onQuickAddClick={handleQuickAddClick}
-          />
-        )}
-        <CommandBar
-          open={showCommandBar}
-          onClose={() => setShowCommandBar(false)}
-          commands={createCommandList({
-            onNewTab: handleNewTab,
-            onOpenFile: handleOpenFile,
-            onSaveFile: handleSaveFile,
-            onWordWrapChange: setWordWrap,
-            onDarkModeChange: setDarkMode,
-            onShowPreviewChange: setShowPreview,
-            onNewDrawing: handleNewDrawing,
-            onFocusModeChange: setFocusMode,
-            onNewTLDraw: handleNewTLDraw,
-            onConvert: handleConvert,
-            onFormatJson: () => editorRef.current?.formatJson(),
-            wordWrap,
-            darkMode,
-            showPreview,
-            focusMode,
-            setShowGitHubSettings,
-            currentFile: activeTab ? tabs.find(tab => tab.id === activeTab) : null
-          })}
-        />
-        <GitHubSettingsModal
-          open={showGitHubSettings}
-          onClose={() => setShowGitHubSettings(false)}
-        />
-        <QuickAddTask
-          open={quickAddOpen}
-          onClose={() => setQuickAddOpen(false)}
-          onAddTask={handleQuickAddTask}
-          darkMode={darkMode}
-        />
-        <CommandPalette
-          isOpen={showCommandPalette}
-          onClose={() => setShowCommandPalette(false)}
-          onFileSelect={handleFileSelectFromCommandPalette}
-          darkMode={darkMode}
-        />
-        <Box sx={{ 
-          display: 'flex', 
-          flex: 1,
-          overflow: 'hidden',
-          position: 'relative'
-        }}>
-          <Box sx={{ 
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            overflow: 'hidden'
-          }}>
-            {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
-          </Box>
-          {!focusMode && (
-            <Box
-              sx={{
-                width: 250,
-                flexShrink: 0,
-                display: isPWA() && !showSidebar ? 'none' : 'block',
-                transition: 'all 0.3s ease',
-                borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
-                backgroundColor: (theme) => theme.palette.background.paper,
-                position: 'relative',
-                zIndex: 1
-              }}
-              onMouseEnter={() => {
-                if (isPWA()) {
-                  setShowSidebar(true);
-                  if (sidebarTimeoutRef.current) {
-                    clearTimeout(sidebarTimeoutRef.current);
-                  }
-                }
-              }}
-              onMouseLeave={() => {
-                if (isPWA()) {
-                  sidebarTimeoutRef.current = setTimeout(() => {
-                    setShowSidebar(false);
-                  }, 1000);
-                }
-              }}
-            >
-              <TabList
-                tabs={tabs}
-                activeTab={activeTab}
-                onTabSelect={handleTabSelect}
-                onTabClose={handleTabClose}
-                onTabRename={handleTabRename}
-                onTabAreaDoubleClick={handleTabAreaDoubleClick}
-              />
+        {!isLoading && (
+          <>
+            <Toolbar 
+              onNewTab={handleNewTab}
+              onOpenFile={handleOpenFile}
+              onSaveFile={handleSaveFile}
+              wordWrap={wordWrap}
+              onWordWrapChange={() => setWordWrap(!wordWrap)}
+              darkMode={darkMode}
+              onDarkModeChange={() => setDarkMode(!darkMode)}
+              focusMode={focusMode}
+              onFocusModeChange={() => setFocusMode(!focusMode)}
+              showPreview={showPreview}
+              onShowPreviewChange={() => setShowPreview(!showPreview)}
+              onNewDrawing={handleNewDrawing}
+              onConvert={(converterId) => handleConvert(converterId)}
+              onFormatJson={() => editorRef.current?.formatJson()}
+              currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
+              setShowGitHubSettings={setShowGitHubSettings}
+              onTodoClick={handleTodoClick}
+              onQuickAddClick={handleQuickAddClick}
+              showChat={showChat}
+              onChatToggle={handleChatToggle}
+            />
+            <CommandBar
+              open={showCommandBar}
+              onClose={() => setShowCommandBar(false)}
+              commands={commandList}
+            />
+            <GitHubSettingsModal
+              open={showGitHubSettings}
+              onClose={() => setShowGitHubSettings(false)}
+            />
+            <ApiKeyInput
+              open={showApiSettings}
+              onClose={() => setShowApiSettings(false)}
+            />
+            <QuickAddTask
+              open={quickAddOpen}
+              onClose={() => setQuickAddOpen(false)}
+              onAddTask={handleQuickAddTask}
+              darkMode={darkMode}
+            />
+            <CommandPalette
+              isOpen={showCommandPalette}
+              onClose={() => setShowCommandPalette(false)}
+              onFileSelect={handleFileSelectFromCommandPalette}
+              darkMode={darkMode}
+            />
+            <Box sx={{ 
+              display: 'flex', 
+              flex: 1,
+              overflow: 'hidden'
+            }}>
+              {/* Main Content Area */}
+              <Box sx={{ 
+                flex: 1,
+                display: 'flex',
+                flexDirection: showChat ? 'row' : 'column',
+                overflow: 'hidden'
+              }}>
+                <Box sx={{ 
+                  flex: showChat ? '0 0 50%' : 1,
+                  overflow: 'hidden'
+                }}>
+                  {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
+                </Box>
+                
+                {showChat && (
+                  <Box sx={{ 
+                    flex: '0 0 50%',
+                    borderLeft: 1,
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper'
+                  }}>
+                    <ChatBox />
+                  </Box>
+                )}
+              </Box>
+
+              {/* Right Sidebar */}
+              {showSidebar && !showChat && (
+                <Box
+                  sx={{
+                    width: 250,
+                    flexShrink: 0,
+                    display: isPWA() && !showSidebar ? 'none' : 'block',
+                    transition: 'all 0.3s ease',
+                    borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
+                    backgroundColor: (theme) => theme.palette.background.paper,
+                    position: 'relative',
+                    zIndex: 1
+                  }}
+                  onMouseEnter={() => {
+                    if (isPWA()) {
+                      setShowSidebar(true);
+                      if (sidebarTimeoutRef.current) {
+                        clearTimeout(sidebarTimeoutRef.current);
+                      }
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (isPWA()) {
+                      sidebarTimeoutRef.current = setTimeout(() => {
+                        setShowSidebar(false);
+                      }, 1000);
+                    }
+                  }}
+                >
+                  <TabList
+                    tabs={tabs}
+                    activeTab={activeTab}
+                    onTabSelect={handleTabSelect}
+                    onTabClose={handleTabClose}
+                    onTabRename={handleTabRename}
+                    onTabAreaDoubleClick={handleTabAreaDoubleClick}
+                  />
+                </Box>
+              )}
             </Box>
-          )}
-        </Box>
+          </>
+        )}
       </Box>
       <input
         type="file"
