@@ -145,10 +145,14 @@ const ChatBox = () => {
     const loadCustomInstructions = async () => {
       const instructions = await customInstructionsStorage.getAllInstructions();
       setCustomInstructions(instructions);
-      if (instructions.length > 0) {
-        const lastInstruction = localStorage.getItem('last_selected_instruction');
-        const instruction = instructions.find(i => i.id === lastInstruction) || instructions[0];
-        setSelectedInstruction(instruction);
+      
+      // Only set selected instruction if there was a valid last selection
+      const lastInstruction = localStorage.getItem('last_selected_instruction');
+      if (lastInstruction !== null && lastInstruction !== 'null') {
+        const instruction = instructions.find(i => i.id === lastInstruction);
+        if (instruction) {
+          setSelectedInstruction(instruction);
+        }
       }
     };
     loadCustomInstructions();
