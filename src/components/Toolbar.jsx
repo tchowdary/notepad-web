@@ -29,8 +29,10 @@ import {
   CheckBoxOutlined as TodoIcon,
   PlaylistAdd as QuickAddIcon,
   TaskAlt as TodoManagerIcon,
+  Chat as ChatIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
+import ApiKeyInput from './ApiKeyInput';
 import githubService from '../services/githubService';
 import { converters } from '../utils/converters';
 
@@ -53,6 +55,8 @@ const Toolbar = ({
   currentFile,
   onTodoClick,
   onQuickAddClick,
+  onChatToggle,
+  showChat,
 }) => {
   const theme = useTheme();
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
@@ -208,6 +212,21 @@ const Toolbar = ({
         {/* <Tooltip title="Format JSON">
           <IconButton onClick={onFormatJson} size="small">
             <CodeIcon />
+          </IconButton>
+        </Tooltip> */}
+
+        <ApiKeyInput onSave={() => {
+          // You can add any callback logic here if needed
+          // For example, refreshing available models in the chat
+        }} />
+
+        {/* <Tooltip title="Toggle Chat">
+          <IconButton
+            color={showChat ? 'primary' : 'inherit'}
+            onClick={onChatToggle}
+            size="large"
+          >
+            <ChatIcon />
           </IconButton>
         </Tooltip> */}
 

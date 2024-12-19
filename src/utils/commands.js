@@ -16,6 +16,8 @@ import {
   Fullscreen as FullscreenIcon,
   Edit as TLDrawIcon,
   GitHub as GitHubIcon,
+  Chat as ChatIcon,
+  ChatBubbleOutline as ChatBubbleOutlineIcon,
 } from '@mui/icons-material';
 import { converters } from './converters';
 import githubService from '../services/githubService';
@@ -39,6 +41,9 @@ export const createCommandList = ({
   setShowGitHubSettings,
   currentFile,
   onToggleFullScreen,
+  onChatToggle,
+  showChat,
+  setShowApiSettings,
 }) => {
   const mainCommands = [
     {
@@ -139,7 +144,23 @@ export const createCommandList = ({
       description: 'Create a new TLDraw drawing',
       icon: TLDrawIcon,
       action: () => onNewDrawing('tldraw')
-    }
+    },
+    {
+      id: 'configure-ai',
+      label: 'Configure AI Models',
+      description: 'Configure OpenAI and Anthropic API keys and models',
+      icon: KeyIcon,
+      shortcut: 'mod+shift+m',
+      action: () => setShowApiSettings(true),
+    },
+    {
+      id: 'toggle-chat',
+      label: 'Toggle Chat',
+      description: 'Toggle chat',
+      icon: showChat ? ChatIcon : ChatBubbleOutlineIcon,
+      action: () => onChatToggle(),
+      shortcut: 'Ctrl+Shift+C',
+    },
   ];
 
   // Create converter commands
