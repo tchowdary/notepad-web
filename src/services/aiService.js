@@ -1,5 +1,10 @@
-const sendOpenAIMessage = async (messages, model, apiKey) => {
+const sendOpenAIMessage = async (messages, model, apiKey, customInstruction) => {
   try {
+    const messagePayload = [...messages];
+    if (customInstruction) {
+      messagePayload.unshift({ role: 'system', content: customInstruction.content });
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -8,7 +13,7 @@ const sendOpenAIMessage = async (messages, model, apiKey) => {
       },
       body: JSON.stringify({
         model,
-        messages: messages.map(({ role, content }) => ({ role, content })),
+        messages: messagePayload.map(({ role, content }) => ({ role, content })),
         stream: false,
       }),
     });
@@ -25,7 +30,7 @@ const sendOpenAIMessage = async (messages, model, apiKey) => {
   }
 };
 
-const sendAnthropicMessage = async (messages, model, apiKey) => {
+const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) => {
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -41,8 +46,9 @@ const sendAnthropicMessage = async (messages, model, apiKey) => {
           role: role === 'assistant' ? 'assistant' : 'user',
           content,
         })),
+        system: customInstruction ? customInstruction.content : undefined,
         max_tokens: 1024,
-        temperature:0
+        temperature: 0
       }),
     });
 
