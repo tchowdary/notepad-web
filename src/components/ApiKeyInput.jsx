@@ -31,7 +31,7 @@ const DEFAULT_MODELS = {
   openai: [
     { id: 'gpt-4o', name: 'GPT-4o' },
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-    { id: 'gpt-o1-mini', name: 'GPT-o1 Mini' },
+    { id: 'o1-preview-2024-09-12', name: 'o1 Preview' },
   ],
   anthropic: [
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
