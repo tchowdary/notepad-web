@@ -12,6 +12,17 @@ import {
   CircularProgress,
   Tooltip,
   Menu,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Divider,
+  ListItemIcon,
 } from '@mui/material';
 import { 
   Send as SendIcon, 
@@ -19,6 +30,9 @@ import {
   Add as AddIcon,
   Settings as SettingsIcon,
   History as HistoryIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  AutoFixHigh as AutoFixHighIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -29,6 +43,7 @@ import {
   getAvailableProviders,
 } from '../services/aiService';
 import { chatStorage } from '../services/chatStorageService';
+import { customInstructionsStorage } from '../services/customInstructionsService';
 
 const ChatBox = () => {
   const [sessions, setSessions] = useState([]);
@@ -42,6 +57,13 @@ const ChatBox = () => {
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
   const [historyAnchorEl, setHistoryAnchorEl] = useState(null);
+  const [customInstructions, setCustomInstructions] = useState([]);
+  const [selectedInstruction, setSelectedInstruction] = useState(null);
+  const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
+  const [editingInstruction, setEditingInstruction] = useState(null);
+  const [newInstructionName, setNewInstructionName] = useState('');
+  const [newInstructionContent, setNewInstructionContent] = useState('');
+  const [instructionMenuAnchorEl, setInstructionMenuAnchorEl] = useState(null);
   const theme = useTheme();
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -119,6 +141,23 @@ const ChatBox = () => {
     return () => { mounted = false; };
   }, [messages, activeSessionId]);
 
+  useEffect(() => {
+    const loadCustomInstructions = async () => {
+      const instructions = await customInstructionsStorage.getAllInstructions();
+      setCustomInstructions(instructions);
+      
+      // Only set selected instruction if there was a valid last selection
+      const lastInstruction = localStorage.getItem('last_selected_instruction');
+      if (lastInstruction !== null && lastInstruction !== 'null') {
+        const instruction = instructions.find(i => i.id === lastInstruction);
+        if (instruction) {
+          setSelectedInstruction(instruction);
+        }
+      }
+    };
+    loadCustomInstructions();
+  }, []);
+
   const createNewSession = async () => {
     try {
       const newSession = {
@@ -172,30 +211,75 @@ const ChatBox = () => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || !selectedProvider || isLoading) return;
+  const handleSendMessage = async () => {
+    if (!input.trim() || !selectedProvider) return;
 
-    setError('');
-    setIsLoading(true);
-    const [provider, modelId] = selectedProvider.split('|');
-    const settings = JSON.parse(localStorage.getItem('ai_settings'));
-    const apiKey = settings[provider].key;
+    const [provider, model] = selectedProvider.split('|');
+    const newMessage = { role: 'user', content: input };
+    const updatedMessages = [...messages, newMessage];
 
-    const newMessages = [...messages, { role: 'user', content: input }];
-    setMessages(newMessages);
+    setMessages(updatedMessages);
     setInput('');
+    setIsLoading(true);
+    setError('');
 
     try {
-      const response = provider === 'openai'
-        ? await sendOpenAIMessage(newMessages, modelId, apiKey)
-        : await sendAnthropicMessage(newMessages, modelId, apiKey);
+      const apiKey = localStorage.getItem(`${provider}_api_key`);
+      if (!apiKey) {
+        throw new Error(`No API key found for ${provider}`);
+      }
 
-      setMessages(prev => [...prev, response]);
-    } catch (error) {
-      setError(error.message);
-      console.error('AI API error:', error);
+      const response = provider === 'openai'
+        ? await sendOpenAIMessage(updatedMessages, model, apiKey, selectedInstruction)
+        : await sendAnthropicMessage(updatedMessages, model, apiKey, selectedInstruction);
+
+      setMessages([...updatedMessages, response]);
+      
+      if (activeSessionId) {
+        await chatStorage.saveSession({
+          id: activeSessionId,
+          messages: [...updatedMessages, response],
+        });
+      }
+    } catch (err) {
+      setError(err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCreateInstruction = async () => {
+    if (!newInstructionName.trim() || !newInstructionContent.trim()) return;
+
+    const instruction = {
+      name: newInstructionName,
+      content: newInstructionContent,
+    };
+
+    const savedInstruction = await customInstructionsStorage.saveInstruction(instruction);
+    setCustomInstructions(await customInstructionsStorage.getAllInstructions());
+    setSelectedInstruction(savedInstruction);
+    localStorage.setItem('last_selected_instruction', savedInstruction.id);
+    
+    setNewInstructionName('');
+    setNewInstructionContent('');
+    setInstructionDialogOpen(false);
+    setEditingInstruction(null);
+  };
+
+  const handleEditInstruction = (instruction) => {
+    setEditingInstruction(instruction);
+    setNewInstructionName(instruction.name);
+    setNewInstructionContent(instruction.content);
+    setInstructionDialogOpen(true);
+  };
+
+  const handleDeleteInstruction = async (id) => {
+    await customInstructionsStorage.deleteInstruction(id);
+    setCustomInstructions(await customInstructionsStorage.getAllInstructions());
+    if (selectedInstruction?.id === id) {
+      setSelectedInstruction(null);
+      localStorage.removeItem('last_selected_instruction');
     }
   };
 
@@ -243,13 +327,7 @@ const ChatBox = () => {
   };
 
   return (
-    <Box sx={{ 
-      height: '100%', 
-      display: 'flex', 
-      flexDirection: 'column',
-      bgcolor: theme.palette.background.default,
-      fontFamily: 'Rubik, sans-serif'
-    }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2 }}>
       {error && (
         <Alert severity="error" sx={{ mx: 2, mt: 2 }} onClose={() => setError('')}>
           {error}
@@ -370,49 +448,50 @@ const ChatBox = () => {
           </Tooltip>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', p: 2 }}>
           <TextField
-            fullWidth
-            variant="outlined"
-            size="small"
-            placeholder={selectedProvider ? "Type your message..." : "Configure AI models first"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={!selectedProvider || isLoading}
             onKeyPress={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleSend();
+                handleSendMessage();
               }
             }}
             multiline
-            minRows={3}
-            maxRows={8}
-            inputRef={inputRef}
+            maxRows={5}
+            fullWidth
+            placeholder="Type your message..."
+            variant="outlined"
+            size="small"
+            InputProps={{
+              startAdornment: (
+                <Tooltip title={selectedInstruction ? `Custom Instruction: ${selectedInstruction.name}` : "Select Custom Instruction"}>
+                  <IconButton
+                    onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
+                    color={selectedInstruction ? "primary" : "default"}
+                    size="small"
+                    sx={{ mr: 1 }}
+                  >
+                    <AutoFixHighIcon />
+                  </IconButton>
+                </Tooltip>
+              ),
+            }}
             sx={{
-              '& .MuiInputBase-root': {
-                bgcolor: theme.palette.background.paper,
-                fontFamily: 'Rubik, sans-serif'
-              },
-              '& .MuiInputBase-input': {
-                fontFamily: 'Rubik, sans-serif'
+              '& .MuiOutlinedInput-root': {
+                paddingRight: '14px',
               }
             }}
           />
-          <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-            <IconButton 
-              onClick={handleSend} 
-              color="primary"
-              disabled={!selectedProvider || !input.trim() || isLoading}
-              sx={{ height: 40, width: 40 }}
-            >
-              {isLoading ? (
-                <CircularProgress size={24} />
-              ) : (
-                <SendIcon />
-              )}
-            </IconButton>
-          </Box>
+          <IconButton 
+            onClick={handleSendMessage} 
+            color="primary"
+            disabled={!selectedProvider || !input.trim() || isLoading}
+            sx={{ height: 40, width: 40 }}
+          >
+            {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
+          </IconButton>
         </Box>
       </Box>
 
@@ -442,17 +521,174 @@ const ChatBox = () => {
         anchorEl={historyAnchorEl}
         open={Boolean(historyAnchorEl)}
         onClose={() => setHistoryAnchorEl(null)}
+        PaperProps={{
+          sx: { maxWidth: '400px' }
+        }}
       >
-        {sessions.map(session => (
-          <MenuItem 
-            key={session.id} 
-            onClick={() => switchSession(session.id)}
-            selected={session.id === activeSessionId}
-          >
-            {new Date(session.created).toLocaleString()} ({session.messages.length})
-          </MenuItem>
-        ))}
+        {sessions.map(session => {
+          const firstMessage = session.messages[0]?.content || '';
+          const preview = firstMessage.length > 60 ? firstMessage.substring(0, 60) + '...' : firstMessage;
+          const date = new Date(session.lastUpdated).toLocaleString();
+          
+          return (
+            <MenuItem
+              key={session.id}
+              onClick={() => {
+                setActiveSessionId(session.id);
+                setMessages(session.messages);
+                setHistoryAnchorEl(null);
+              }}
+              selected={session.id === activeSessionId}
+              sx={{ 
+                whiteSpace: 'normal',
+                minWidth: '300px'
+              }}
+            >
+              <ListItemText 
+                primary={preview || 'Empty session'}
+                secondary={date}
+                primaryTypographyProps={{
+                  sx: { 
+                    fontSize: '0.9rem',
+                    mb: 0.5,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }
+                }}
+                secondaryTypographyProps={{
+                  sx: { 
+                    fontSize: '0.75rem',
+                    color: 'text.secondary'
+                  }
+                }}
+              />
+            </MenuItem>
+          );
+        })}
       </Menu>
+
+      <Menu
+        anchorEl={instructionMenuAnchorEl}
+        open={Boolean(instructionMenuAnchorEl)}
+        onClose={() => setInstructionMenuAnchorEl(null)}
+      >
+        <MenuItem 
+          onClick={() => {
+            setEditingInstruction(null);
+            setNewInstructionName('');
+            setNewInstructionContent('');
+            setInstructionDialogOpen(true);
+            setInstructionMenuAnchorEl(null);
+          }}
+        >
+          <ListItemIcon>
+            <AddIcon />
+          </ListItemIcon>
+          <ListItemText primary="Create New Instruction" />
+        </MenuItem>
+        <Divider />
+        {customInstructions.length === 0 ? (
+          <MenuItem disabled>
+            <ListItemText primary="No custom instructions" secondary="Create one to get started" />
+          </MenuItem>
+        ) : (
+          customInstructions.map(instruction => (
+            <MenuItem
+              key={instruction.id}
+              selected={selectedInstruction?.id === instruction.id}
+              sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                minWidth: '300px'
+              }}
+            >
+              <ListItemText 
+                primary={instruction.name}
+                onClick={() => {
+                  setSelectedInstruction(instruction);
+                  localStorage.setItem('last_selected_instruction', instruction.id);
+                  setInstructionMenuAnchorEl(null);
+                }}
+              />
+              <Box>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditInstruction(instruction);
+                    setInstructionMenuAnchorEl(null);
+                  }}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteInstruction(instruction.id);
+                    setInstructionMenuAnchorEl(null);
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </MenuItem>
+          ))
+        )}
+        {selectedInstruction && (
+          <>
+            <Divider />
+            <MenuItem 
+              onClick={() => {
+                setSelectedInstruction(null);
+                localStorage.removeItem('last_selected_instruction');
+                setInstructionMenuAnchorEl(null);
+              }}
+            >
+              <ListItemText primary="Clear Selection" />
+            </MenuItem>
+          </>
+        )}
+      </Menu>
+
+      <Dialog
+        open={instructionDialogOpen}
+        onClose={() => setInstructionDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingInstruction ? 'Edit Custom Instruction' : 'Create Custom Instruction'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Instruction Name"
+            fullWidth
+            value={newInstructionName}
+            onChange={(e) => setNewInstructionName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Instruction Content"
+            fullWidth
+            multiline
+            rows={4}
+            value={newInstructionContent}
+            onChange={(e) => setNewInstructionContent(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInstructionDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCreateInstruction} variant="contained">
+            {editingInstruction ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
