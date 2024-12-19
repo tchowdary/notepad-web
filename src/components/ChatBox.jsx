@@ -8,13 +8,18 @@ import {
   useTheme,
   Select,
   MenuItem,
-  FormControl,
-  InputLabel,
   Alert,
   CircularProgress,
   Tooltip,
+  Menu,
 } from '@mui/material';
-import { Send as SendIcon, ContentCopy as CopyIcon } from '@mui/icons-material';
+import { 
+  Send as SendIcon, 
+  ContentCopy as CopyIcon, 
+  Add as AddIcon,
+  Settings as SettingsIcon,
+  History as HistoryIcon,
+} from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -23,8 +28,11 @@ import {
   sendAnthropicMessage,
   getAvailableProviders,
 } from '../services/aiService';
+import { chatStorage } from '../services/chatStorageService';
 
 const ChatBox = () => {
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [providers, setProviders] = useState([]);
@@ -32,32 +40,123 @@ const ChatBox = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
+  const [historyAnchorEl, setHistoryAnchorEl] = useState(null);
   const theme = useTheme();
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    // Load available providers
     const availableProviders = getAvailableProviders();
     setProviders(availableProviders);
     
-    // Load last selected provider from localStorage
     const lastProvider = localStorage.getItem('last_selected_provider');
     if (lastProvider && availableProviders.some(p => 
       p.models.some(m => `${p.name}|${m.id}` === lastProvider)
     )) {
       setSelectedProvider(lastProvider);
     } else if (availableProviders.length > 0) {
-      const defaultProvider = `${availableProviders[0].name}|${availableProviders[0].selectedModel}`;
+      const defaultProvider = `${availableProviders[0].name}|${availableProviders[0].models[0].id}`;
       setSelectedProvider(defaultProvider);
       localStorage.setItem('last_selected_provider', defaultProvider);
     }
+  }, []);
 
-    // Focus input on load
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSessions = async () => {
+      try {
+        const savedSessions = await chatStorage.getAllSessions();
+        if (!mounted) return;
+        
+        setSessions(savedSessions);
+        if (savedSessions.length > 0) {
+          const lastSession = savedSessions[0]; // Sessions are sorted by lastUpdated
+          setActiveSessionId(lastSession.id);
+          setMessages(lastSession.messages);
+        } else {
+          await createNewSession();
+        }
+      } catch (error) {
+        console.error('Error loading sessions:', error);
+        if (!mounted) return;
+        setError('Failed to load chat history');
+      }
+    };
+
+    loadSessions();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const saveSession = async () => {
+      if (!activeSessionId || messages.length === 0) return;
+
+      try {
+        const session = {
+          id: activeSessionId,
+          messages,
+          created: sessions.find(s => s.id === activeSessionId)?.created || new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+        };
+        await chatStorage.saveSession(session);
+        if (!mounted) return;
+
+        const updatedSessions = await chatStorage.getAllSessions();
+        if (!mounted) return;
+        setSessions(updatedSessions);
+      } catch (error) {
+        console.error('Error saving session:', error);
+        if (!mounted) return;
+        setError('Failed to save chat session');
+      }
+    };
+
+    saveSession();
+    return () => { mounted = false; };
+  }, [messages, activeSessionId]);
+
+  const createNewSession = async () => {
+    try {
+      const newSession = {
+        id: Date.now().toString(),
+        messages: [],
+        created: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+      };
+      await chatStorage.saveSession(newSession);
+      const updatedSessions = await chatStorage.getAllSessions();
+      setSessions(updatedSessions);
+      setActiveSessionId(newSession.id);
+      setMessages([]);
+      setHistoryAnchorEl(null);
+    } catch (error) {
+      console.error('Error creating new session:', error);
+      setError('Failed to create new chat session');
+    }
+  };
+
+  const switchSession = async (sessionId) => {
+    try {
+      const session = await chatStorage.getSession(sessionId);
+      if (session) {
+        setActiveSessionId(session.id);
+        setMessages(session.messages);
+      }
+      setHistoryAnchorEl(null);
+    } catch (error) {
+      console.error('Error switching session:', error);
+      setError('Failed to switch chat session');
+    }
+  };
+
+  useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -82,7 +181,6 @@ const ChatBox = () => {
     const settings = JSON.parse(localStorage.getItem('ai_settings'));
     const apiKey = settings[provider].key;
 
-    // Add user message
     const newMessages = [...messages, { role: 'user', content: input }];
     setMessages(newMessages);
     setInput('');
@@ -101,7 +199,6 @@ const ChatBox = () => {
     }
   };
 
-  // Custom renderer for code blocks
   const renderers = {
     code({ node, inline, className, children, ...props }) {
       const match = /language-(\w+)/.exec(className || '');
@@ -153,28 +250,6 @@ const ChatBox = () => {
       bgcolor: theme.palette.background.default,
       fontFamily: 'Rubik, sans-serif'
     }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <FormControl fullWidth size="small">
-          <InputLabel>Select Model</InputLabel>
-          <Select
-            value={selectedProvider}
-            onChange={(e) => handleProviderChange(e.target.value)}
-            label="Select Model"
-          >
-            {providers.map(provider => 
-              provider.models.map(model => (
-                <MenuItem 
-                  key={`${provider.name}|${model.id}`}
-                  value={`${provider.name}|${model.id}`}
-                >
-                  {`${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)} - ${model.name}`}
-                </MenuItem>
-              ))
-            )}
-          </Select>
-        </FormControl>
-      </Box>
-
       {error && (
         <Alert severity="error" sx={{ mx: 2, mt: 2 }} onClose={() => setError('')}>
           {error}
@@ -265,11 +340,36 @@ const ChatBox = () => {
       </Box>
 
       <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-        {!selectedProvider && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Please configure AI models in settings (Cmd/Ctrl+Shift+M)
-          </Alert>
-        )}
+        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+          <Tooltip title="Model Settings">
+            <IconButton 
+              size="small"
+              onClick={(e) => setSettingsAnchorEl(e.currentTarget)}
+            >
+              <SettingsIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Chat History">
+            <IconButton 
+              size="small"
+              onClick={(e) => setHistoryAnchorEl(e.currentTarget)}
+            >
+              <HistoryIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="New Chat">
+            <IconButton 
+              size="small"
+              onClick={createNewSession}
+              color="primary"
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
         <Box sx={{ display: 'flex', gap: 1 }}>
           <TextField
             fullWidth
@@ -315,6 +415,44 @@ const ChatBox = () => {
           </Box>
         </Box>
       </Box>
+
+      <Menu
+        anchorEl={settingsAnchorEl}
+        open={Boolean(settingsAnchorEl)}
+        onClose={() => setSettingsAnchorEl(null)}
+      >
+        {providers.map(provider => 
+          provider.models.map(model => (
+            <MenuItem 
+              key={`${provider.name}|${model.id}`}
+              value={`${provider.name}|${model.id}`}
+              selected={selectedProvider === `${provider.name}|${model.id}`}
+              onClick={() => {
+                handleProviderChange(`${provider.name}|${model.id}`);
+                setSettingsAnchorEl(null);
+              }}
+            >
+              {`${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)} - ${model.name}`}
+            </MenuItem>
+          ))
+        )}
+      </Menu>
+
+      <Menu
+        anchorEl={historyAnchorEl}
+        open={Boolean(historyAnchorEl)}
+        onClose={() => setHistoryAnchorEl(null)}
+      >
+        {sessions.map(session => (
+          <MenuItem 
+            key={session.id} 
+            onClick={() => switchSession(session.id)}
+            selected={session.id === activeSessionId}
+          >
+            {new Date(session.created).toLocaleString()} ({session.messages.length})
+          </MenuItem>
+        ))}
+      </Menu>
     </Box>
   );
 };
