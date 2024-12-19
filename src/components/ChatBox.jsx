@@ -517,16 +517,52 @@ const ChatBox = () => {
         anchorEl={historyAnchorEl}
         open={Boolean(historyAnchorEl)}
         onClose={() => setHistoryAnchorEl(null)}
+        PaperProps={{
+          sx: { maxWidth: '400px' }
+        }}
       >
-        {sessions.map(session => (
-          <MenuItem 
-            key={session.id} 
-            onClick={() => switchSession(session.id)}
-            selected={session.id === activeSessionId}
-          >
-            {new Date(session.created).toLocaleString()} ({session.messages.length})
-          </MenuItem>
-        ))}
+        {sessions.map(session => {
+          const firstMessage = session.messages[0]?.content || '';
+          const preview = firstMessage.length > 60 ? firstMessage.substring(0, 60) + '...' : firstMessage;
+          const date = new Date(session.lastUpdated).toLocaleString();
+          
+          return (
+            <MenuItem
+              key={session.id}
+              onClick={() => {
+                setActiveSessionId(session.id);
+                setMessages(session.messages);
+                setHistoryAnchorEl(null);
+              }}
+              selected={session.id === activeSessionId}
+              sx={{ 
+                whiteSpace: 'normal',
+                minWidth: '300px'
+              }}
+            >
+              <ListItemText 
+                primary={preview || 'Empty session'}
+                secondary={date}
+                primaryTypographyProps={{
+                  sx: { 
+                    fontSize: '0.9rem',
+                    mb: 0.5,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }
+                }}
+                secondaryTypographyProps={{
+                  sx: { 
+                    fontSize: '0.75rem',
+                    color: 'text.secondary'
+                  }
+                }}
+              />
+            </MenuItem>
+          );
+        })}
       </Menu>
 
       <Menu
