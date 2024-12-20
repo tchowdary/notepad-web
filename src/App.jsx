@@ -14,6 +14,7 @@ import GitHubService from './services/githubService';
 import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
+import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
@@ -642,6 +643,21 @@ function App() {
       );
     }
 
+    // Use TipTap editor for markdown files
+    if (tab.editorType === 'tiptap') {
+      return (
+        <TipTapEditor
+          key={tab.id} // Add key to force remount
+          content={tab.content}
+          onChange={(newContent) => handleContentChange(tab.id, newContent)}
+          darkMode={darkMode}
+          cursorPosition={tab.cursorPosition}
+          onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
+        />
+      );
+    }
+
+    // Fallback to CodeMirror editor
     return (
       <Editor
         content={tab.content}
@@ -649,11 +665,9 @@ function App() {
         wordWrap={wordWrap}
         darkMode={darkMode}
         showPreview={showPreview}
-        focusMode={focusMode}
-        ref={editorRef}
-        editorType={tab.editorType}
         cursorPosition={tab.cursorPosition}
-        onCursorChange={(cursor) => handleCursorChange(tab.id, cursor)}
+        onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
+        ref={editorRef}
       />
     );
   };

@@ -181,6 +181,7 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
   const menuRef = React.useRef(null);
   const isRestoringCursor = React.useRef(false);
   const isEditorReady = React.useRef(false);
+  const lastKnownPosition = React.useRef(null);
 
   const editor = useEditor({
     extensions: [
@@ -208,82 +209,70 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
-    autofocus: true,
+    autofocus: false,
     onCreate: ({ editor }) => {
       isEditorReady.current = true;
-      editor.commands.focus();
     },
-  }, [content]);
+  });
 
-  // Handle cursor position restoration whenever editor is ready or cursorPosition changes
+  // Only restore cursor position when switching between tabs
   useEffect(() => {
-    if (editor && isEditorReady.current && cursorPosition) {
+    if (editor && isEditorReady.current && cursorPosition && cursorPosition !== lastKnownPosition.current) {
       const pos = cursorPosition;
+      lastKnownPosition.current = pos;
       
-      const restorePosition = () => {
-        try {
-          isRestoringCursor.current = true;
-          editor.commands.focus();
-          
-          // Get document length
-          const docLength = editor.state.doc.content.size;
-          
-          // Ensure position is within valid range
-          let targetPos;
-          if (typeof pos === 'number') {
-            targetPos = Math.min(Math.max(0, pos), docLength);
-          } else {
-            targetPos = {
-              from: Math.min(Math.max(0, pos.from), docLength),
-              to: Math.min(Math.max(0, pos.to), docLength)
-            };
-          }
+      try {
+        isRestoringCursor.current = true;
+        const docLength = editor.state.doc.content.size;
+        
+        // Ensure position is within valid range
+        let targetPos;
+        if (typeof pos === 'number') {
+          targetPos = Math.min(Math.max(0, pos), docLength);
+        } else {
+          targetPos = {
+            from: Math.min(Math.max(0, pos.from), docLength),
+            to: Math.min(Math.max(0, pos.to), docLength)
+          };
+        }
 
-          // Set selection
-          if (typeof targetPos === 'number') {
-            editor.commands.setTextSelection(targetPos);
-          } else {
-            editor.commands.setTextSelection(targetPos);
-          }
+        // Set selection
+        if (typeof targetPos === 'number') {
+          editor.commands.setTextSelection(targetPos);
+        } else {
+          editor.commands.setTextSelection(targetPos);
+        }
 
-          // Get the current selection end position
-          const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
+        // Get the current selection end position
+        const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
+        
+        // Only scroll if the position is valid
+        if (end <= docLength) {
+          const resolvedPos = editor.state.doc.resolve(end);
+          editor.view.dispatch(editor.state.tr.setSelection(
+            editor.state.selection.constructor.near(resolvedPos)
+          ));
           
-          // Only scroll if the position is valid
-          if (end <= docLength) {
-            // Create a text selection at the target position
-            const resolvedPos = editor.state.doc.resolve(end);
-            const transaction = editor.state.tr.setSelection(
-              editor.state.selection.constructor.near(resolvedPos)
-            );
-            
-            // Dispatch the transaction and ensure it's visible
-            editor.view.dispatch(transaction);
-            editor.view.dispatch(editor.state.tr.scrollIntoView());
-
-            // Additional scroll to make sure it's in view
-            const editorElement = editor.view.dom.closest('.ProseMirror');
-            if (editorElement) {
-              const rect = editor.view.coordsAtPos(end);
+          // Scroll into view without animation
+          const editorElement = editor.view.dom.closest('.ProseMirror');
+          if (editorElement) {
+            const rect = editor.view.coordsAtPos(end);
+            if (rect) {
               const containerRect = editorElement.getBoundingClientRect();
               const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
-              editorElement.scrollTo({
-                top: scrollTop,
-                behavior: 'auto'
+              requestAnimationFrame(() => {
+                editorElement.scrollTop = scrollTop;
               });
             }
           }
-        } catch (error) {
-          console.warn('Error restoring cursor position:', error);
-        } finally {
-          isRestoringCursor.current = false;
         }
-      };
-
-      // Small delay to ensure editor is fully ready
-      setTimeout(restorePosition, 50);
+      } catch (error) {
+        console.warn('Error restoring cursor position:', error);
+      } finally {
+        isRestoringCursor.current = false;
+      }
     }
-  }, [editor, cursorPosition, isEditorReady.current]);
+  }, [editor, cursorPosition]);
 
   // Track cursor position changes
   useEffect(() => {
@@ -293,6 +282,7 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
         
         const { from, to } = editor.state.selection;
         const position = from === to ? from : { from, to };
+        lastKnownPosition.current = position;
         onCursorChange(position);
       };
       
@@ -301,17 +291,11 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
     }
   }, [editor, onCursorChange]);
 
-  // Ensure editor gets focus when switching tabs
-  useEffect(() => {
-    if (editor && isEditorReady.current) {
-      editor.commands.focus();
-    }
-  }, [editor, content]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       isEditorReady.current = false;
+      lastKnownPosition.current = null;
     };
   }, []);
 
