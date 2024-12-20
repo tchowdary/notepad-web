@@ -38,6 +38,7 @@ import {
   Image as ImageIcon,
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
+  Key as KeyIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -50,6 +51,7 @@ import {
 } from '../services/aiService';
 import { chatStorage } from '../services/chatStorageService';
 import { customInstructionsStorage } from '../services/customInstructionsService';
+import ApiKeyInput from './ApiKeyInput';
 
 const ChatBox = () => {
   const [sessions, setSessions] = useState([]);
@@ -72,6 +74,7 @@ const ChatBox = () => {
   const [instructionMenuAnchorEl, setInstructionMenuAnchorEl] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const theme = useTheme();
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -768,6 +771,11 @@ const ChatBox = () => {
                 <FullscreenIcon />
               </IconButton>
             </Tooltip>
+            <Tooltip title="API Keys">
+              <IconButton onClick={() => setApiKeyDialogOpen(true)} size="small">
+                <KeyIcon />
+              </IconButton>
+            </Tooltip>
             </Box>
 
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', p: 2 }}>
@@ -998,6 +1006,11 @@ const ChatBox = () => {
               </>
             )}
           </Menu>
+
+          <ApiKeyInput
+            open={apiKeyDialogOpen}
+            onClose={() => setApiKeyDialogOpen(false)}
+          />
 
           <Dialog
             open={instructionDialogOpen}
