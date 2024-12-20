@@ -624,8 +624,20 @@ const ChatBox = () => {
         }}
       >
         {sessions.map(session => {
-          const firstMessage = session.messages[0]?.content || '';
-          const preview = firstMessage.length > 60 ? firstMessage.substring(0, 60) + '...' : firstMessage;
+          const firstMessage = session.messages[0];
+          let preview = '';
+          
+          if (firstMessage) {
+            if (typeof firstMessage.content === 'string') {
+              preview = firstMessage.content;
+            } else if (Array.isArray(firstMessage.content)) {
+              preview = '[Image with text]';
+            } else if (firstMessage.content?.type === 'image') {
+              preview = '[Image]';
+            }
+          }
+          
+          preview = preview.length > 60 ? preview.substring(0, 60) + '...' : preview;
           const date = new Date(session.lastUpdated).toLocaleString();
           
           return (
