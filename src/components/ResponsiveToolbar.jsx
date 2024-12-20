@@ -41,6 +41,9 @@ const ResponsiveToolbar = ({
         bgcolor: theme.palette.background.paper,
         display: { xs: 'block', sm: 'block', md: 'none' }, // Only show on mobile and tablet
         zIndex: (theme) => theme.zIndex.drawer + 2,
+        left: 0,
+        right: 0,
+        width: '100%',
       }}
     >
       <MuiToolbar variant="dense" sx={{ justifyContent: 'space-around' }}>

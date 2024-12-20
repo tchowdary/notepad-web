@@ -4,7 +4,6 @@ import {
   Toolbar as MuiToolbar,
   IconButton,
   Tooltip,
-  useTheme,
   Menu,
   MenuItem,
 } from '@mui/material';
@@ -58,7 +57,6 @@ const Toolbar = ({
   onChatToggle,
   showChat,
 }) => {
-  const theme = useTheme();
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [convertAnchorEl, setConvertAnchorEl] = useState(null);
 
@@ -93,12 +91,22 @@ const Toolbar = ({
   return (
     <AppBar 
       position="static" 
-      color="default" 
+      color={darkMode ? "default" : "primary"} 
       elevation={0}
       className={className}
       sx={{
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        bgcolor: theme.palette.background.paper,
+        borderBottom: `1px solid ${darkMode ? '#333' : '#ccc'}`,
+        bgcolor: darkMode ? '#333' : '#fff',
+        '& .MuiIconButton-root': {
+          color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+          '&:hover': {
+            color: darkMode ? '#fff' : '#000',
+          }
+        },
+        '& .MuiTooltip-tooltip': {
+          fontSize: '0.75rem',
+          opacity: 0.9
+        }
       }}
     >
       <MuiToolbar 
