@@ -23,6 +23,7 @@ import {
   ListItemSecondaryAction,
   Divider,
   ListItemIcon,
+  Input,
 } from '@mui/material';
 import { 
   Send as SendIcon, 
@@ -33,6 +34,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   AutoFixHigh as AutoFixHighIcon,
+  Image as ImageIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -64,6 +66,7 @@ const ChatBox = () => {
   const [newInstructionName, setNewInstructionName] = useState('');
   const [newInstructionContent, setNewInstructionContent] = useState('');
   const [instructionMenuAnchorEl, setInstructionMenuAnchorEl] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
   const theme = useTheme();
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -211,34 +214,73 @@ const ChatBox = () => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const handleImageSelect = async (event) => {
+    const file = event.target.files[0];
+    if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Data = reader.result.split(',')[1];
+        setSelectedImage({
+          data: base64Data,
+          type: file.type
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSendMessage = async () => {
-    if (!input.trim() || !selectedProvider) return;
+    if ((!input.trim() && !selectedImage) || !selectedProvider || isLoading) return;
 
-    const [provider, model] = selectedProvider.split('|');
-    const newMessage = { role: 'user', content: input };
-    const updatedMessages = [...messages, newMessage];
+    const [providerName, model] = selectedProvider.split('|');
+    const newMessage = {
+      role: 'user',
+      content: input,
+      timestamp: new Date().toISOString(),
+    };
 
-    setMessages(updatedMessages);
+    if (selectedImage) {
+      newMessage.content = [
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: selectedImage.type,
+            data: selectedImage.data
+          }
+        },
+        {
+          type: "text",
+          text: input || "What's in this image?"
+        }
+      ];
+    }
+
+    setMessages(prev => [...prev, newMessage]);
     setInput('');
-    setIsLoading(true);
-    setError('');
+    setSelectedImage(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
 
     try {
-      const apiKey = localStorage.getItem(`${provider}_api_key`);
+      setIsLoading(true);
+      setError('');
+      const apiKey = localStorage.getItem(`${providerName}_api_key`);
       if (!apiKey) {
-        throw new Error(`No API key found for ${provider}`);
+        throw new Error(`No API key found for ${providerName}`);
       }
 
-      const response = provider === 'openai'
-        ? await sendOpenAIMessage(updatedMessages, model, apiKey, selectedInstruction)
-        : await sendAnthropicMessage(updatedMessages, model, apiKey, selectedInstruction);
+      const response = providerName === 'openai'
+        ? await sendOpenAIMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction)
+        : await sendAnthropicMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction);
 
-      setMessages([...updatedMessages, response]);
+      setMessages(prev => [...prev, response]);
       
       if (activeSessionId) {
         await chatStorage.saveSession({
           id: activeSessionId,
-          messages: [...updatedMessages, response],
+          messages: messages.concat([newMessage, response]),
         });
       }
     } catch (err) {
@@ -283,47 +325,79 @@ const ChatBox = () => {
     }
   };
 
-  const renderers = {
-    code({ node, inline, className, children, ...props }) {
-      const match = /language-(\w+)/.exec(className || '');
-      const language = match ? match[1] : 'javascript';
-      
-      if (!inline) {
-        return (
-          <Box sx={{ position: 'relative', my: 2 }}>
-            <IconButton
-              size="small"
-              onClick={() => handleCopy(String(children), props.key)}
-              sx={{
-                position: 'absolute',
-                right: 8,
-                top: 8,
-                color: 'white',
-                bgcolor: 'rgba(255,255,255,0.1)',
-                '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                },
-              }}
-            >
-              <CopyIcon fontSize="small" />
-            </IconButton>
-            <SyntaxHighlighter
-              language={language}
-              style={oneDark}
-              customStyle={{
-                margin: 0,
-                borderRadius: 4,
-                padding: '2em 1em 1em 1em',
-              }}
-              {...props}
-            >
-              {String(children).replace(/\n$/, '')}
-            </SyntaxHighlighter>
-          </Box>
-        );
-      }
-      return <code className={className} {...props}>{children}</code>;
-    },
+  const renderMessageContent = (content) => {
+    if (Array.isArray(content)) {
+      return content.map((item, index) => {
+        if (item.type === 'text') {
+          return (
+            <Typography key={index} variant="body1" component="div">
+              <ReactMarkdown
+                components={{
+                  code: ({ node, inline, className, children, ...props }) => {
+                    const match = /language-(\w+)/.exec(className || '');
+                    return !inline && match ? (
+                      <SyntaxHighlighter
+                        style={oneDark}
+                        language={match[1]}
+                        PreTag="div"
+                        {...props}
+                      >
+                        {String(children).replace(/\n$/, '')}
+                      </SyntaxHighlighter>
+                    ) : (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {item.text}
+              </ReactMarkdown>
+            </Typography>
+          );
+        } else if (item.type === 'image') {
+          return (
+            <Box key={index} sx={{ my: 1 }}>
+              <img 
+                src={`data:${item.source.media_type};base64,${item.source.data}`}
+                alt="User uploaded image"
+                style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
+              />
+            </Box>
+          );
+        }
+        return null;
+      });
+    }
+
+    return (
+      <Typography variant="body1" component="div">
+        <ReactMarkdown
+          components={{
+            code: ({ node, inline, className, children, ...props }) => {
+              const match = /language-(\w+)/.exec(className || '');
+              return !inline && match ? (
+                <SyntaxHighlighter
+                  style={oneDark}
+                  language={match[1]}
+                  PreTag="div"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            },
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </Typography>
+    );
   };
 
   return (
@@ -364,7 +438,7 @@ const ChatBox = () => {
                 {message.role === 'user' ? (
                   <>
                     <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif' }}>
-                      {message.content}
+                      {renderMessageContent(message.content)}
                     </Typography>
                     <IconButton
                       size="small"
@@ -388,7 +462,7 @@ const ChatBox = () => {
                   </>
                 ) : (
                   <>
-                    <ReactMarkdown components={renderers}>{message.content}</ReactMarkdown>
+                    {renderMessageContent(message.content)}
                     <IconButton
                       size="small"
                       onClick={() => handleCopy(message.content, index)}
@@ -449,6 +523,18 @@ const ChatBox = () => {
         </Box>
 
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', p: 2 }}>
+          <input
+            type="file"
+            accept="image/jpeg,image/png"
+            style={{ display: 'none' }}
+            id="image-upload"
+            onChange={handleImageSelect}
+          />
+          <label htmlFor="image-upload">
+            <IconButton component="span" color={selectedImage ? "primary" : "default"}>
+              <ImageIcon />
+            </IconButton>
+          </label>
           <TextField
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -487,7 +573,7 @@ const ChatBox = () => {
           <IconButton 
             onClick={handleSendMessage} 
             color="primary"
-            disabled={!selectedProvider || !input.trim() || isLoading}
+            disabled={!selectedProvider || (!input.trim() && !selectedImage) || isLoading}
             sx={{ height: 40, width: 40 }}
           >
             {isLoading ? <CircularProgress size={24} /> : <SendIcon />}

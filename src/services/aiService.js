@@ -44,7 +44,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) 
         model,
         messages: messages.map(({ role, content }) => ({
           role: role === 'assistant' ? 'assistant' : 'user',
-          content,
+          content: Array.isArray(content) ? content : { type: 'text', text: content }
         })),
         system: customInstruction ? customInstruction.content : undefined,
         max_tokens: 1024,
@@ -53,13 +53,15 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) 
     });
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || `Anthropic API error: ${response.statusText}`);
     }
 
     const data = await response.json();
     return {
       role: 'assistant',
       content: data.content[0].text,
+      timestamp: new Date().toISOString()
     };
   } catch (error) {
     console.error('Anthropic API error:', error);
