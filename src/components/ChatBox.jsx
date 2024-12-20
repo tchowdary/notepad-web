@@ -434,24 +434,48 @@ const ChatBox = () => {
       )}
 
       <Box
+        sx={{
+          p: 1,
+          borderBottom: 1,
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          bgcolor: 'background.paper',
+          position: 'sticky',
+          top: 0,
+          zIndex: 2,
+        }}
+      >
+        {/* ... header content ... */}
+      </Box>
+
+      {/* Messages Container */}
+      <Box
         ref={messagesContainerRef}
         sx={{
           flex: 1,
           overflowY: 'auto',
           p: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
           '@media (max-width: 960px)': {
             pb: 8, // Add padding at bottom for mobile to account for input
+            height: 'calc(100vh - 120px)', // Account for header and input height
+            WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
           }
         }}
       >
         {messages.map((message, index) => (
           <Box 
             key={index} 
-            sx={{ 
-              position: 'relative',
+            sx={{
               display: 'flex',
-              justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
-              width: '100%'
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              maxWidth: '100%',
+              wordBreak: 'break-word'
             }}
           >
             <Paper
@@ -519,6 +543,7 @@ const ChatBox = () => {
         <div ref={messagesEndRef} />
       </Box>
 
+      {/* Input Container */}
       <Box
         sx={{
           p: 2,
@@ -530,6 +555,7 @@ const ChatBox = () => {
           left: { xs: 0, md: 'auto' },
           right: { xs: 0, md: 'auto' },
           width: '100%',
+          zIndex: 2,
           '@media (max-width: 960px)': {
             pb: 4, // Extra padding at bottom for mobile to avoid overlap with responsive toolbar
           }
