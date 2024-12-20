@@ -208,11 +208,12 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
-    autofocus: false,
+    autofocus: true,
     onCreate: ({ editor }) => {
       isEditorReady.current = true;
+      editor.commands.focus();
     },
-  });
+  }, [content]);
 
   // Handle cursor position restoration whenever editor is ready or cursorPosition changes
   useEffect(() => {
@@ -299,6 +300,13 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
       return () => editor.off('selectionUpdate', handleSelectionUpdate);
     }
   }, [editor, onCursorChange]);
+
+  // Ensure editor gets focus when switching tabs
+  useEffect(() => {
+    if (editor && isEditorReady.current) {
+      editor.commands.focus();
+    }
+  }, [editor, content]);
 
   // Cleanup on unmount
   useEffect(() => {
