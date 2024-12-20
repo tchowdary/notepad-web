@@ -220,40 +220,63 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
       const pos = cursorPosition;
       
       const restorePosition = () => {
-        isRestoringCursor.current = true;
-        editor.commands.focus();
-        
-        if (typeof pos === 'number') {
-          editor.commands.setTextSelection(pos);
-        } else {
-          editor.commands.setTextSelection({ from: pos.from, to: pos.to });
+        try {
+          isRestoringCursor.current = true;
+          editor.commands.focus();
+          
+          // Get document length
+          const docLength = editor.state.doc.content.size;
+          
+          // Ensure position is within valid range
+          let targetPos;
+          if (typeof pos === 'number') {
+            targetPos = Math.min(Math.max(0, pos), docLength);
+          } else {
+            targetPos = {
+              from: Math.min(Math.max(0, pos.from), docLength),
+              to: Math.min(Math.max(0, pos.to), docLength)
+            };
+          }
+
+          // Set selection
+          if (typeof targetPos === 'number') {
+            editor.commands.setTextSelection(targetPos);
+          } else {
+            editor.commands.setTextSelection(targetPos);
+          }
+
+          // Get the current selection end position
+          const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
+          
+          // Only scroll if the position is valid
+          if (end <= docLength) {
+            // Create a text selection at the target position
+            const resolvedPos = editor.state.doc.resolve(end);
+            const transaction = editor.state.tr.setSelection(
+              editor.state.selection.constructor.near(resolvedPos)
+            );
+            
+            // Dispatch the transaction and ensure it's visible
+            editor.view.dispatch(transaction);
+            editor.view.dispatch(editor.state.tr.scrollIntoView());
+
+            // Additional scroll to make sure it's in view
+            const editorElement = editor.view.dom.closest('.ProseMirror');
+            if (editorElement) {
+              const rect = editor.view.coordsAtPos(end);
+              const containerRect = editorElement.getBoundingClientRect();
+              const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
+              editorElement.scrollTo({
+                top: scrollTop,
+                behavior: 'auto'
+              });
+            }
+          }
+        } catch (error) {
+          console.warn('Error restoring cursor position:', error);
+        } finally {
+          isRestoringCursor.current = false;
         }
-
-        // Get the current selection
-        const end = typeof pos === 'number' ? pos : pos.from;
-        
-        // Create a text selection at the target position
-        const transaction = editor.state.tr.setSelection(
-          editor.state.selection.constructor.near(editor.state.doc.resolve(end))
-        );
-        
-        // Dispatch the transaction and ensure it's visible
-        editor.view.dispatch(transaction);
-        editor.view.dispatch(editor.state.tr.scrollIntoView());
-
-        // Additional scroll to make sure it's in view
-        const editorElement = editor.view.dom.closest('.ProseMirror');
-        if (editorElement) {
-          const rect = editor.view.coordsAtPos(end);
-          const containerRect = editorElement.getBoundingClientRect();
-          const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
-          editorElement.scrollTo({
-            top: scrollTop,
-            behavior: 'auto'
-          });
-        }
-
-        isRestoringCursor.current = false;
       };
 
       // Small delay to ensure editor is fully ready
