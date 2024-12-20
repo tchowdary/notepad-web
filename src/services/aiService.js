@@ -44,7 +44,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) 
         model,
         messages: messages.map(({ role, content }) => ({
           role: role === 'assistant' ? 'assistant' : 'user',
-          content,
+          content: Array.isArray(content) ? content : { type: 'text', text: content }
         })),
         system: customInstruction ? customInstruction.content : undefined,
         max_tokens: 1024,
@@ -53,16 +53,67 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) 
     });
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || `Anthropic API error: ${response.statusText}`);
     }
 
     const data = await response.json();
     return {
       role: 'assistant',
       content: data.content[0].text,
+      timestamp: new Date().toISOString()
     };
   } catch (error) {
     console.error('Anthropic API error:', error);
+    throw error;
+  }
+};
+
+const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => {
+  try {
+    // Convert messages to Gemini format
+    const messagePayload = messages.map(({ role, content }) => ({
+      role: role === 'assistant' ? 'model' : 'user',
+      parts: Array.isArray(content) ? content : [{ text: content }]
+    }));
+
+    if (customInstruction) {
+      messagePayload.unshift({ role: 'user', parts: [{ text: customInstruction.content }] });
+    }
+
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        contents: messagePayload,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || `Gemini API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('No response from Gemini API');
+    }
+
+    return {
+      role: 'assistant',
+      content: data.candidates[0].content.parts[0].text,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Gemini API error:', error);
     throw error;
   }
 };
@@ -73,6 +124,7 @@ const getAISettings = () => {
     return {
       openai: { key: '', models: [], selectedModel: '' },
       anthropic: { key: '', models: [], selectedModel: '' },
+      gemini: { key: '', models: [], selectedModel: '' },
     };
   }
   return JSON.parse(settings);
@@ -92,6 +144,7 @@ const getAvailableProviders = () => {
 export {
   sendOpenAIMessage,
   sendAnthropicMessage,
+  sendGeminiMessage,
   getAISettings,
   getAvailableProviders,
 };
