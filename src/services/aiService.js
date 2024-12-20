@@ -44,7 +44,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) 
         model,
         messages: messages.map(({ role, content }) => ({
           role: role === 'assistant' ? 'assistant' : 'user',
-          content: Array.isArray(content) ? content : { type: 'text', text: content }
+          content: Array.isArray(content) ? content : [{ type: 'text', text: content }]
         })),
         system: customInstruction ? customInstruction.content : undefined,
         max_tokens: 1024,
