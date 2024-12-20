@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextStyle from '@tiptap/extension-text-style';
@@ -174,7 +174,7 @@ const getEditorStyles = (darkMode) => ({
   },
 });
 
-const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorChange }) => {
+const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange }, ref) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const editorRef = React.useRef(null);
@@ -520,6 +520,17 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
     }
   }, [contextMenu]);
 
+  // Expose editor instance through ref
+  useImperativeHandle(ref, () => ({
+    editor,
+    clearContent: () => {
+      editor?.chain().focus().clearContent().run();
+    },
+    getText: () => {
+      return editor?.getText() || '';
+    }
+  }), [editor]);
+
   return (
     <Box 
       ref={editorRef}
@@ -622,6 +633,6 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
       )}
     </Box>
   );
-};
+});
 
 export default TipTapEditor;

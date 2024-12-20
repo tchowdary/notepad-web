@@ -46,6 +46,7 @@ function App() {
   const [showChat, setShowChat] = useState(false);
   const [showApiSettings, setShowApiSettings] = useState(false);
   const editorRef = useRef(null);
+  const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
   const [sidebarHoverEnabled, setSidebarHoverEnabled] = useState(() => {
     // Only enable hover on desktop
@@ -615,6 +616,48 @@ function App() {
     }
   };
 
+  const handleCopyContent = () => {
+    if (activeTab) {
+      const tab = tabs.find(t => t.id === activeTab);
+      if (tab) {
+        // For TipTap editor, get plain text
+        if (tipTapEditorRef.current?.editor) {
+          const plainText = tipTapEditorRef.current.editor.getText();
+          navigator.clipboard.writeText(plainText);
+        } else {
+          // For other editors, copy content as is
+          navigator.clipboard.writeText(tab.content);
+        }
+      }
+    }
+  };
+
+  const handleClearContent = () => {
+    if (activeTab) {
+      // For TipTap editor, use chain.clearContent()
+      if (tipTapEditorRef.current?.editor) {
+        tipTapEditorRef.current.editor.chain().focus().clearContent().run();
+        // Update tabs state
+        const updatedTabs = tabs.map(tab => {
+          if (tab.id === activeTab) {
+            return { ...tab, content: '' };
+          }
+          return tab;
+        });
+        setTabs(updatedTabs);
+      } else {
+        // For other editors
+        const updatedTabs = tabs.map(tab => {
+          if (tab.id === activeTab) {
+            return { ...tab, content: '' };
+          }
+          return tab;
+        });
+        setTabs(updatedTabs);
+      }
+    }
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -647,6 +690,7 @@ function App() {
     if (tab.editorType === 'tiptap') {
       return (
         <TipTapEditor
+          ref={tipTapEditorRef}
           key={tab.id} // Add key to force remount
           content={tab.content}
           onChange={(newContent) => handleContentChange(tab.id, newContent)}
@@ -768,12 +812,12 @@ function App() {
             <ResponsiveToolbar
               darkMode={darkMode}
               onDarkModeChange={() => setDarkMode(!darkMode)}
-              focusMode={focusMode}
-              onFocusModeChange={() => setFocusMode(!focusMode)}
               onChatToggle={() => setShowChat(!showChat)}
               showChat={showChat}
               onSidebarToggle={() => setShowSidebar(!showSidebar)}
-              onApiSettingsClick={() => setShowApiSettings(true)}
+              showSidebar={showSidebar}
+              onCopy={handleCopyContent}
+              onClear={handleClearContent}
             />
             <Box sx={{ 
               display: 'flex', 

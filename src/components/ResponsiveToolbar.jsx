@@ -9,21 +9,21 @@ import {
 import {
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
-  Fullscreen as FullscreenIcon,
   Chat as ChatIcon,
   Menu as MenuIcon,
-  Settings as SettingsIcon,
+  ContentCopy as CopyIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 
 const ResponsiveToolbar = ({
   darkMode,
   onDarkModeChange,
-  focusMode,
-  onFocusModeChange,
   onChatToggle,
   showChat,
   onSidebarToggle,
-  onApiSettingsClick,
+  showSidebar,
+  onCopy,
+  onClear,
   className,
 }) => {
   const theme = useTheme();
@@ -47,8 +47,12 @@ const ResponsiveToolbar = ({
       }}
     >
       <MuiToolbar variant="dense" sx={{ justifyContent: 'space-around' }}>
-        <Tooltip title="Toggle Sidebar">
-          <IconButton onClick={onSidebarToggle} size="small">
+        <Tooltip title={showSidebar ? "Hide Sidebar" : "Show Sidebar"}>
+          <IconButton 
+            onClick={onSidebarToggle} 
+            size="small"
+            color={showSidebar ? "primary" : "default"}
+          >
             <MenuIcon />
           </IconButton>
         </Tooltip>
@@ -59,21 +63,21 @@ const ResponsiveToolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Focus Mode">
-          <IconButton onClick={onFocusModeChange} size="small">
-            <FullscreenIcon color={focusMode ? 'primary' : 'inherit'} />
+        <Tooltip title="Copy Content">
+          <IconButton onClick={onCopy} size="small">
+            <CopyIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Clear Content">
+          <IconButton onClick={onClear} size="small">
+            <ClearIcon />
           </IconButton>
         </Tooltip>
 
         <Tooltip title="Toggle Chat">
           <IconButton onClick={onChatToggle} size="small">
             <ChatIcon color={showChat ? 'primary' : 'inherit'} />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title="API Settings">
-          <IconButton onClick={onApiSettingsClick} size="small">
-            <SettingsIcon />
           </IconButton>
         </Tooltip>
       </MuiToolbar>
