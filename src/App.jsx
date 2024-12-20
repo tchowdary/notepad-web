@@ -13,6 +13,7 @@ import CommandPalette from './components/CommandPalette';
 import GitHubService from './services/githubService';
 import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
+import ResponsiveToolbar from './components/ResponsiveToolbar';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
@@ -45,6 +46,10 @@ function App() {
   const [showApiSettings, setShowApiSettings] = useState(false);
   const editorRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
+  const [sidebarHoverEnabled, setSidebarHoverEnabled] = useState(() => {
+    // Only enable hover on desktop
+    return !window.matchMedia('(max-width: 960px)').matches;
+  });
 
   const theme = createTheme({
     palette: {
@@ -266,6 +271,15 @@ function App() {
     };
     saveTodoState();
   }, [todoData]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 960px)');
+    const handleResize = (e) => {
+      setSidebarHoverEnabled(!e.matches);
+    };
+    mediaQuery.addEventListener('change', handleResize);
+    return () => mediaQuery.removeEventListener('change', handleResize);
+  }, []);
 
   const handleNewTab = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
@@ -578,6 +592,28 @@ function App() {
     }
   };
 
+  const handleSidebarMouseEnter = () => {
+    if (sidebarHoverEnabled && !isPWA()) {
+      clearTimeout(sidebarTimeoutRef.current);
+      setShowSidebar(true);
+    }
+  };
+
+  const handleSidebarMouseLeave = () => {
+    if (sidebarHoverEnabled && !isPWA()) {
+      sidebarTimeoutRef.current = setTimeout(() => {
+        setShowSidebar(false);
+      }, 300);
+    }
+  };
+
+  const handleEditorClick = (event) => {
+    // Only handle clicks in responsive mode
+    if (window.innerWidth <= 960) {
+      setShowSidebar(false);
+    }
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -653,11 +689,14 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {!isLoading && (
           <>
             <Box sx={{ 
-              display: focusMode ? 'none' : 'block'
+              display: focusMode ? 'none' : 'block',
+              '@media (max-width: 960px)': {
+                display: 'none'
+              }
             }}>
               <Toolbar 
                 onNewTab={handleNewTab}
@@ -685,6 +724,7 @@ function App() {
                 onChatToggle={handleChatToggle}
               />
             </Box>
+
             <CommandBar
               open={showCommandBar}
               onClose={() => setShowCommandBar(false)}
@@ -710,6 +750,17 @@ function App() {
               onFileSelect={handleFileSelectFromCommandPalette}
               darkMode={darkMode}
             />
+            
+            <ResponsiveToolbar
+              darkMode={darkMode}
+              onDarkModeChange={() => setDarkMode(!darkMode)}
+              focusMode={focusMode}
+              onFocusModeChange={() => setFocusMode(!focusMode)}
+              onChatToggle={() => setShowChat(!showChat)}
+              showChat={showChat}
+              onSidebarToggle={() => setShowSidebar(!showSidebar)}
+              onApiSettingsClick={() => setShowApiSettings(true)}
+            />
             <Box sx={{ 
               display: 'flex', 
               flex: 1,
@@ -720,57 +771,73 @@ function App() {
                 flex: 1,
                 display: 'flex',
                 flexDirection: showChat ? 'row' : 'column',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                position: 'relative'
               }}>
-                <Box sx={{ 
-                  flex: showChat ? '0 0 50%' : 1,
-                  overflow: 'hidden',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
+                {/* Editor Area */}
+                <Box 
+                  onClick={handleEditorClick}
+                  sx={{ 
+                    flex: 1,
+                    minWidth: 0,
+                    position: 'relative',
+                    overflow: 'auto',
+                    // Add overlay when sidebar is shown in mobile
+                    '&::after': {
+                      content: '""',
+                      display: { xs: showSidebar ? 'block' : 'none', md: 'none' },
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      bgcolor: 'rgba(0, 0, 0, 0.3)',
+                      zIndex: 1,
+                      pointerEvents: 'none' // Allow scrolling when overlay is shown
+                    }
+                  }}
+                >
                   {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
                 </Box>
                 
                 {showChat && (
-                  <Box sx={{ 
-                    flex: '0 0 50%',
-                    borderLeft: 1,
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
+                  <Box
+                    sx={{
+                      width: { xs: '100%', md: '50%' },
+                      flexShrink: 0,
+                      borderLeft: `1px solid ${theme.palette.divider}`,
+                      bgcolor: theme.palette.background.paper,
+                      position: { xs: 'fixed', md: 'relative' },
+                      right: { xs: 0, md: 'auto' },
+                      top: { xs: 0, md: 'auto' },
+                      height: { xs: '100%', md: 'auto' },
+                      zIndex: { xs: theme.zIndex.drawer + 1, md: 1 },
+                    }}
+                  >
                     <ChatBox />
                   </Box>
                 )}
               </Box>
 
               {/* Right Sidebar */}
-              {!focusMode && showSidebar && !showChat && (
+              {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && (
                 <Box
+                  onMouseEnter={handleSidebarMouseEnter}
+                  onMouseLeave={handleSidebarMouseLeave}
                   sx={{
                     width: 250,
                     flexShrink: 0,
-                    display: isPWA() && !showSidebar ? 'none' : 'block',
-                    transition: 'all 0.3s ease',
-                    borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
-                    backgroundColor: (theme) => theme.palette.background.paper,
+                    borderLeft: `1px solid ${theme.palette.divider}`,
+                    bgcolor: theme.palette.background.paper,
+                    overflowY: 'auto',
                     position: 'relative',
-                    zIndex: 1
-                  }}
-                  onMouseEnter={() => {
-                    if (isPWA()) {
-                      setShowSidebar(true);
-                      if (sidebarTimeoutRef.current) {
-                        clearTimeout(sidebarTimeoutRef.current);
-                      }
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    if (isPWA()) {
-                      sidebarTimeoutRef.current = setTimeout(() => {
-                        setShowSidebar(false);
-                      }, 1000);
+                    zIndex: 1,
+                    '@media (max-width: 960px)': {
+                      position: 'fixed',
+                      right: 0,
+                      height: '100%',
+                      transform: showSidebar ? 'translateX(0)' : 'translateX(100%)',
+                      transition: 'transform 0.3s ease-in-out'
                     }
                   }}
                 >

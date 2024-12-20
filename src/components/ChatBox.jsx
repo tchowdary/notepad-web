@@ -71,6 +71,7 @@ const ChatBox = () => {
   const theme = useTheme();
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
     const availableProviders = getAvailableProviders();
@@ -413,21 +414,36 @@ const ChatBox = () => {
   };
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        maxHeight: '100vh',
+        position: 'relative',
+        '@media (max-width: 960px)': {
+          height: '100vh',
+          width: '100vw',
+        }
+      }}
+    >
       {error && (
         <Alert severity="error" sx={{ mx: 2, mt: 2 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
 
-      <Box sx={{ 
-        flexGrow: 1, 
-        overflowY: 'auto',
-        p: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2
-      }}>
+      <Box
+        ref={messagesContainerRef}
+        sx={{
+          flex: 1,
+          overflowY: 'auto',
+          p: 2,
+          '@media (max-width: 960px)': {
+            pb: 8, // Add padding at bottom for mobile to account for input
+          }
+        }}
+      >
         {messages.map((message, index) => (
           <Box 
             key={index} 
@@ -503,7 +519,22 @@ const ChatBox = () => {
         <div ref={messagesEndRef} />
       </Box>
 
-      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+      <Box
+        sx={{
+          p: 2,
+          borderTop: 1,
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          position: { xs: 'fixed', md: 'sticky' },
+          bottom: { xs: 0, md: 'auto' },
+          left: { xs: 0, md: 'auto' },
+          right: { xs: 0, md: 'auto' },
+          width: '100%',
+          '@media (max-width: 960px)': {
+            pb: 4, // Extra padding at bottom for mobile to avoid overlap with responsive toolbar
+          }
+        }}
+      >
         <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
           <Tooltip title="Model Settings">
             <IconButton 
