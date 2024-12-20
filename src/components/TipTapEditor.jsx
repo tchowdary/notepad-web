@@ -180,6 +180,109 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
   const editorRef = React.useRef(null);
   const menuRef = React.useRef(null);
   const isRestoringCursor = React.useRef(false);
+  const isEditorReady = React.useRef(false);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        horizontalRule: false,
+      }),
+      TextStyle,
+      Color,
+      Link.configure({
+        openOnClick: false,
+      }),
+      HorizontalRule,
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+    ],
+    content,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+    autofocus: false,
+    onCreate: ({ editor }) => {
+      isEditorReady.current = true;
+    },
+  });
+
+  // Handle cursor position restoration whenever editor is ready or cursorPosition changes
+  useEffect(() => {
+    if (editor && isEditorReady.current && cursorPosition) {
+      const pos = cursorPosition;
+      
+      const restorePosition = () => {
+        isRestoringCursor.current = true;
+        editor.commands.focus();
+        
+        if (typeof pos === 'number') {
+          editor.commands.setTextSelection(pos);
+        } else {
+          editor.commands.setTextSelection({ from: pos.from, to: pos.to });
+        }
+
+        // Get the current selection
+        const end = typeof pos === 'number' ? pos : pos.from;
+        
+        // Create a text selection at the target position
+        const transaction = editor.state.tr.setSelection(
+          editor.state.selection.constructor.near(editor.state.doc.resolve(end))
+        );
+        
+        // Dispatch the transaction and ensure it's visible
+        editor.view.dispatch(transaction);
+        editor.view.dispatch(editor.state.tr.scrollIntoView());
+
+        // Additional scroll to make sure it's in view
+        const editorElement = editor.view.dom.closest('.ProseMirror');
+        if (editorElement) {
+          const rect = editor.view.coordsAtPos(end);
+          const containerRect = editorElement.getBoundingClientRect();
+          const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
+          editorElement.scrollTo({
+            top: scrollTop,
+            behavior: 'auto'
+          });
+        }
+
+        isRestoringCursor.current = false;
+      };
+
+      // Small delay to ensure editor is fully ready
+      setTimeout(restorePosition, 50);
+    }
+  }, [editor, cursorPosition, isEditorReady.current]);
+
+  // Track cursor position changes
+  useEffect(() => {
+    if (editor && onCursorChange && isEditorReady.current) {
+      const handleSelectionUpdate = () => {
+        if (isRestoringCursor.current) return;
+        
+        const { from, to } = editor.state.selection;
+        const position = from === to ? from : { from, to };
+        onCursorChange(position);
+      };
+      
+      editor.on('selectionUpdate', handleSelectionUpdate);
+      return () => editor.off('selectionUpdate', handleSelectionUpdate);
+    }
+  }, [editor, onCursorChange]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isEditorReady.current = false;
+    };
+  }, []);
 
   const handleImproveText = async () => {
     if (improving) return;
@@ -215,162 +318,6 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
       setImproving(false);
     }
   };
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        horizontalRule: false,
-      }),
-      TextStyle,
-      Color,
-      Link.configure({
-        openOnClick: false,
-      }),
-      HorizontalRule,
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-    ],
-    content,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
-    },
-    autofocus: false,
-  });
-
-  // Store cursor position in editor state
-  useEffect(() => {
-    if (editor) {
-      editor.storage.cursorPosition = cursorPosition;
-    }
-  }, [editor, cursorPosition]);
-
-  useEffect(() => {
-    if (editor && editor.storage.cursorPosition) {
-      const pos = editor.storage.cursorPosition;
-      
-      // Delay to ensure editor is ready
-      setTimeout(() => {
-        editor.commands.focus();
-        
-        if (typeof pos === 'number') {
-          editor.commands.setTextSelection(pos);
-        } else {
-          editor.commands.setTextSelection({ from: pos.from, to: pos.to });
-        }
-
-        // Get the current selection
-        const selection = editor.state.selection;
-        const end = typeof pos === 'number' ? pos : pos.from;
-        
-        // Create a text selection at the target position
-        const transaction = editor.state.tr.setSelection(
-          editor.state.selection.constructor.near(editor.state.doc.resolve(end))
-        );
-        
-        // Dispatch the transaction and ensure it's visible
-        editor.view.dispatch(transaction);
-        editor.view.dispatch(editor.state.tr.scrollIntoView());
-
-        // Additional scroll to make sure it's in view
-        const editorElement = editor.view.dom.closest('.ProseMirror');
-        if (editorElement) {
-          const rect = editor.view.coordsAtPos(end);
-          const containerRect = editorElement.getBoundingClientRect();
-          const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
-          editorElement.scrollTo({
-            top: scrollTop,
-            behavior: 'auto'
-          });
-        }
-      }, 100);
-    }
-  }, [editor]);
-
-  // Track cursor position changes
-  useEffect(() => {
-    if (editor && onCursorChange) {
-      const handleSelectionUpdate = () => {
-        if (isRestoringCursor.current) return;
-        
-        const { from, to } = editor.state.selection;
-        const position = from === to ? from : { from, to };
-        onCursorChange(position);
-      };
-      
-      editor.on('selectionUpdate', handleSelectionUpdate);
-      return () => editor.off('selectionUpdate', handleSelectionUpdate);
-    }
-  }, [editor, onCursorChange]);
-
-  useEffect(() => {
-    if (editor) {
-      const focusEditor = () => {
-        editor.commands.focus();
-      };
-      focusEditor();
-      return () => {};
-    }
-  }, [editor]);
-
-  useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      try {
-        const html = marked.parse(content);
-        if (html !== content) {
-          editor.commands.setContent(html);
-        } else {
-          editor.commands.setContent(content);
-        }
-      } catch (e) {
-        editor.commands.setContent(content);
-      }
-    }
-  }, [content, editor]);
-
-  const handleContextMenu = (event) => {
-    event.preventDefault();
-    setContextMenu({
-      mouseX: event.clientX,
-      mouseY: event.clientY,
-      isInTable: editor?.isActive('table'),
-    });
-  };
-
-  const handleClose = () => {
-    setContextMenu(null);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (contextMenu && menuRef.current && !menuRef.current.contains(event.target)) {
-        setContextMenu(null);
-      }
-    };
-
-    if (contextMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      // Also close on escape key
-      const handleEscape = (event) => {
-        if (event.key === 'Escape') {
-          setContextMenu(null);
-        }
-      };
-      document.addEventListener('keydown', handleEscape);
-
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-        document.removeEventListener('keydown', handleEscape);
-      };
-    }
-  }, [contextMenu]);
 
   const formatOptions = [
     {
@@ -520,6 +467,43 @@ const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorCha
       },
     },
   ];
+
+  const handleContextMenu = (event) => {
+    event.preventDefault();
+    setContextMenu({
+      mouseX: event.clientX,
+      mouseY: event.clientY,
+      isInTable: editor?.isActive('table'),
+    });
+  };
+
+  const handleClose = () => {
+    setContextMenu(null);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (contextMenu && menuRef.current && !menuRef.current.contains(event.target)) {
+        setContextMenu(null);
+      }
+    };
+
+    if (contextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      // Also close on escape key
+      const handleEscape = (event) => {
+        if (event.key === 'Escape') {
+          setContextMenu(null);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [contextMenu]);
 
   return (
     <Box 
