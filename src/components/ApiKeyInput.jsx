@@ -36,6 +36,10 @@ const DEFAULT_MODELS = {
   anthropic: [
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
     { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku' }
+  ],
+  gemini: [
+    { id: 'gemini-2.0-flash-exp', name: 'Gemini Flash' },
+    { id: 'gemini-2.0-flash-thinking-exp-1219', name: 'Gemini o1' }
   ]
 };
 
@@ -48,14 +52,19 @@ const ApiKeyInput = ({ open, onClose }) => {
   // Provider states
   const [providers, setProviders] = useState({
     openai: {
-      key: '',
-      models: [],
-      selectedModel: '',
+      key: localStorage.getItem('openai_api_key') || '',
+      models: DEFAULT_MODELS.openai,
+      selectedModel: localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
     },
     anthropic: {
-      key: '',
-      models: [],
-      selectedModel: '',
+      key: localStorage.getItem('anthropic_api_key') || '',
+      models: DEFAULT_MODELS.anthropic,
+      selectedModel: localStorage.getItem('anthropic_model') || DEFAULT_MODELS.anthropic[0].id,
+    },
+    gemini: {
+      key: localStorage.getItem('gemini_api_key') || '',
+      models: DEFAULT_MODELS.gemini,
+      selectedModel: localStorage.getItem('gemini_model') || DEFAULT_MODELS.gemini[0].id,
     }
   });
 
@@ -63,21 +72,26 @@ const ApiKeyInput = ({ open, onClose }) => {
     // Load saved settings
     const savedSettings = localStorage.getItem('ai_settings');
     if (savedSettings) {
-      setProviders(JSON.parse(savedSettings));
-    } else {
-      // Initialize with default models
-      setProviders({
+      const parsed = JSON.parse(savedSettings);
+      // Ensure all providers exist in the saved settings
+      const updatedSettings = {
         openai: {
-          key: localStorage.getItem('openai_api_key') || '',
-          models: DEFAULT_MODELS.openai,
-          selectedModel: localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
+          key: parsed.openai?.key || localStorage.getItem('openai_api_key') || '',
+          models: parsed.openai?.models || DEFAULT_MODELS.openai,
+          selectedModel: parsed.openai?.selectedModel || localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
         },
         anthropic: {
-          key: localStorage.getItem('anthropic_api_key') || '',
-          models: DEFAULT_MODELS.anthropic,
-          selectedModel: localStorage.getItem('anthropic_model') || DEFAULT_MODELS.anthropic[0].id,
+          key: parsed.anthropic?.key || localStorage.getItem('anthropic_api_key') || '',
+          models: parsed.anthropic?.models || DEFAULT_MODELS.anthropic,
+          selectedModel: parsed.anthropic?.selectedModel || localStorage.getItem('anthropic_model') || DEFAULT_MODELS.anthropic[0].id,
+        },
+        gemini: {
+          key: parsed.gemini?.key || localStorage.getItem('gemini_api_key') || '',
+          models: parsed.gemini?.models || DEFAULT_MODELS.gemini,
+          selectedModel: parsed.gemini?.selectedModel || localStorage.getItem('gemini_model') || DEFAULT_MODELS.gemini[0].id,
         }
-      });
+      };
+      setProviders(updatedSettings);
     }
   }, []);
 
@@ -94,12 +108,16 @@ const ApiKeyInput = ({ open, onClose }) => {
       localStorage.setItem('anthropic_api_key', providers.anthropic.key);
       localStorage.setItem('anthropic_model', providers.anthropic.selectedModel);
     }
+    if (providers.gemini.key) {
+      localStorage.setItem('gemini_api_key', providers.gemini.key);
+      localStorage.setItem('gemini_model', providers.gemini.selectedModel);
+    }
     
     onClose();
   };
 
   const getCurrentProvider = () => {
-    return activeTab === 0 ? 'openai' : 'anthropic';
+    return activeTab === 0 ? 'openai' : activeTab === 1 ? 'anthropic' : 'gemini';
   };
 
   const handleAddModel = () => {
@@ -125,6 +143,13 @@ const ApiKeyInput = ({ open, onClose }) => {
 
   const handleSaveModel = (model) => {
     const provider = getCurrentProvider();
+    if (!provider) return;
+
+    // For Gemini, validate model ID format
+    if (provider === 'gemini' && !model.id.startsWith('gemini-')) {
+      model.id = `gemini-${model.id}`;
+    }
+
     setProviders(prev => ({
       ...prev,
       [provider]: {
@@ -253,11 +278,13 @@ const ApiKeyInput = ({ open, onClose }) => {
         >
           <Tab label="OpenAI" />
           <Tab label="Anthropic" />
+          <Tab label="Gemini" />
         </Tabs>
 
         <DialogContent>
           {activeTab === 0 && <ProviderContent provider="openai" />}
           {activeTab === 1 && <ProviderContent provider="anthropic" />}
+          {activeTab === 2 && <ProviderContent provider="gemini" />}
 
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
@@ -274,7 +301,7 @@ const ApiKeyInput = ({ open, onClose }) => {
           <Button
             onClick={handleSave}
             variant="contained"
-            disabled={!providers.openai.key && !providers.anthropic.key}
+            disabled={!providers.openai.key && !providers.anthropic.key && !providers.gemini.key}
           >
             Save
           </Button>

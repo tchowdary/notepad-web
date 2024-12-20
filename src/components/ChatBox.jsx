@@ -42,6 +42,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import {
   sendOpenAIMessage,
   sendAnthropicMessage,
+  sendGeminiMessage,
   getAvailableProviders,
 } from '../services/aiService';
 import { chatStorage } from '../services/chatStorageService';
@@ -271,9 +272,20 @@ const ChatBox = () => {
         throw new Error(`No API key found for ${providerName}`);
       }
 
-      const response = providerName === 'openai'
-        ? await sendOpenAIMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction)
-        : await sendAnthropicMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction);
+      let response;
+      switch (providerName) {
+        case 'openai':
+          response = await sendOpenAIMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction);
+          break;
+        case 'anthropic':
+          response = await sendAnthropicMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction);
+          break;
+        case 'gemini':
+          response = await sendGeminiMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction);
+          break;
+        default:
+          throw new Error(`Unknown provider: ${providerName}`);
+      }
 
       setMessages(prev => [...prev, response]);
       
