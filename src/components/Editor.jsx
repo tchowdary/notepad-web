@@ -35,13 +35,22 @@ const Editor = forwardRef(({
   showLineNumbers = true,
   showPreview,
   focusMode,
-  editorType = 'codemirror'
+  editorType = 'codemirror',
+  cursorPosition = null,
+  onCursorChange
 }, ref) => {
   const [editorInstance, setEditorInstance] = useState(null);
   const [improving, setImproving] = useState(false);
   const [converterAnchor, setConverterAnchor] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isJsonMode, setIsJsonMode] = useState(false);
+
+  // Restore cursor position when editor instance or cursorPosition changes
+  useEffect(() => {
+    if (editorInstance && cursorPosition) {
+      editorInstance.setCursor(cursorPosition);
+    }
+  }, [editorInstance, cursorPosition]);
 
   useImperativeHandle(ref, () => ({
     setConverterMenuAnchor: (anchor) => {
@@ -185,9 +194,20 @@ const Editor = forwardRef(({
             setEditorInstance(editor);
             const timeoutId = setTimeout(() => {
               editor.focus();
-              editor.setCursor(editor.lineCount(), 0);
+              // Add cursor change handler
+              editor.on('cursorActivity', () => {
+                const cursor = editor.getCursor();
+                if (onCursorChange) {
+                  onCursorChange(cursor);
+                }
+              });
             }, 100);
-            return () => clearTimeout(timeoutId);
+            return () => {
+              clearTimeout(timeoutId);
+              if (editor) {
+                editor.off('cursorActivity');
+              }
+            };
           }}
         />
       ) : (
@@ -195,6 +215,8 @@ const Editor = forwardRef(({
           content={content}
           onChange={onChange}
           darkMode={darkMode}
+          cursorPosition={cursorPosition}
+          onCursorChange={onCursorChange}
         />
       )}
       

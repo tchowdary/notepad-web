@@ -339,7 +339,20 @@ function App() {
   };
 
   const handleTabSelect = (id) => {
+    // Save cursor position of current tab before switching
+    if (activeTab && editorRef.current?.editorInstance) {
+      const cursor = editorRef.current.editorInstance.getCursor();
+      setTabs(prevTabs => prevTabs.map(tab => 
+        tab.id === activeTab ? { ...tab, cursorPosition: cursor } : tab
+      ));
+    }
     setActiveTab(id);
+  };
+
+  const handleCursorChange = (tabId, cursor) => {
+    setTabs(prevTabs => prevTabs.map(tab =>
+      tab.id === tabId ? { ...tab, cursorPosition: cursor } : tab
+    ));
   };
 
   const handleContentChange = (id, newContent) => {
@@ -603,6 +616,8 @@ function App() {
         focusMode={focusMode}
         ref={editorRef}
         editorType={tab.editorType}
+        cursorPosition={tab.cursorPosition}
+        onCursorChange={(cursor) => handleCursorChange(tab.id, cursor)}
       />
     );
   };

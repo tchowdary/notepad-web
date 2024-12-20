@@ -174,11 +174,12 @@ const getEditorStyles = (darkMode) => ({
   },
 });
 
-const TipTapEditor = ({ content, onChange, darkMode }) => {
+const TipTapEditor = ({ content, onChange, darkMode, cursorPosition, onCursorChange }) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const editorRef = React.useRef(null);
   const menuRef = React.useRef(null);
+  const isRestoringCursor = React.useRef(false);
 
   const handleImproveText = async () => {
     if (improving) return;
@@ -217,23 +218,21 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        horizontalRule: false,
+      }),
       TextStyle,
       Color,
       Link.configure({
-        openOnClick: true,
-        HTMLAttributes: {
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
+        openOnClick: false,
       }),
       HorizontalRule,
       Table.configure({
         resizable: true,
       }),
       TableRow,
-      TableCell,
       TableHeader,
+      TableCell,
       TaskList,
       TaskItem.configure({
         nested: true,
@@ -243,37 +242,81 @@ const TipTapEditor = ({ content, onChange, darkMode }) => {
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
-    editorProps: {
-      handlePaste: (view, event) => {
-        const text = event.clipboardData?.getData('text/plain');
-        if (text) {
-          try {
-            const html = marked.parse(text);
-            editor.commands.insertContent(html);
-            return true;
-          } catch (e) {
-            console.error('Error parsing markdown:', e);
-          }
-        }
-        return false;
-      },
-      attributes: {
-        class: 'focus-visible:outline-none',
-      },
-    },
-    autofocus: true,
+    autofocus: false,
   });
 
-  // Focus editor when mounted or when tab becomes active
+  // Store cursor position in editor state
+  useEffect(() => {
+    if (editor) {
+      editor.storage.cursorPosition = cursorPosition;
+    }
+  }, [editor, cursorPosition]);
+
+  useEffect(() => {
+    if (editor && editor.storage.cursorPosition) {
+      const pos = editor.storage.cursorPosition;
+      
+      // Delay to ensure editor is ready
+      setTimeout(() => {
+        editor.commands.focus();
+        
+        if (typeof pos === 'number') {
+          editor.commands.setTextSelection(pos);
+        } else {
+          editor.commands.setTextSelection({ from: pos.from, to: pos.to });
+        }
+
+        // Get the current selection
+        const selection = editor.state.selection;
+        const end = typeof pos === 'number' ? pos : pos.from;
+        
+        // Create a text selection at the target position
+        const transaction = editor.state.tr.setSelection(
+          editor.state.selection.constructor.near(editor.state.doc.resolve(end))
+        );
+        
+        // Dispatch the transaction and ensure it's visible
+        editor.view.dispatch(transaction);
+        editor.view.dispatch(editor.state.tr.scrollIntoView());
+
+        // Additional scroll to make sure it's in view
+        const editorElement = editor.view.dom.closest('.ProseMirror');
+        if (editorElement) {
+          const rect = editor.view.coordsAtPos(end);
+          const containerRect = editorElement.getBoundingClientRect();
+          const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
+          editorElement.scrollTo({
+            top: scrollTop,
+            behavior: 'auto'
+          });
+        }
+      }, 100);
+    }
+  }, [editor]);
+
+  // Track cursor position changes
+  useEffect(() => {
+    if (editor && onCursorChange) {
+      const handleSelectionUpdate = () => {
+        if (isRestoringCursor.current) return;
+        
+        const { from, to } = editor.state.selection;
+        const position = from === to ? from : { from, to };
+        onCursorChange(position);
+      };
+      
+      editor.on('selectionUpdate', handleSelectionUpdate);
+      return () => editor.off('selectionUpdate', handleSelectionUpdate);
+    }
+  }, [editor, onCursorChange]);
+
   useEffect(() => {
     if (editor) {
       const focusEditor = () => {
-        editor.commands.focus('end');
+        editor.commands.focus();
       };
       focusEditor();
-      // Also focus when the window regains focus
-      window.addEventListener('focus', focusEditor);
-      return () => window.removeEventListener('focus', focusEditor);
+      return () => {};
     }
   }, [editor]);
 
