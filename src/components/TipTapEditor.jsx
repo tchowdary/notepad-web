@@ -213,6 +213,24 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     onCreate: ({ editor }) => {
       isEditorReady.current = true;
     },
+    editorProps: {
+      handlePaste: (view, event) => {
+        const text = event.clipboardData?.getData('text/plain');
+        if (text && text.trim()) {
+          try {
+            // Convert markdown to HTML
+            const html = marked.parse(text);
+            // Insert the HTML content using editor commands
+            editor.commands.insertContent(html);
+            return true;
+          } catch (error) {
+            console.error('Error parsing markdown:', error);
+            return false;
+          }
+        }
+        return false;
+      }
+    }
   });
 
   // Only restore cursor position when switching between tabs
@@ -550,8 +568,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           outline: 'none',
           backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
           color: darkMode ? '#e6edf3' : '#24292f',
-          fontFamily: '"Rubik", sans-serif',
-          fontSize: '17px',
+          fontFamily: '"Geist", sans-serif',
+          fontSize: '18px',
           lineHeight: '1.8',
           position: 'relative',
           height: '100%',
