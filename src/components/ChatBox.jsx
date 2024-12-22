@@ -39,6 +39,9 @@ import {
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
   Key as KeyIcon,
+  AttachFile as AttachFileIcon,
+  PictureAsPdf as PdfIcon,
+  Description as MarkdownIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -72,7 +75,7 @@ const ChatBox = () => {
   const [newInstructionName, setNewInstructionName] = useState('');
   const [newInstructionContent, setNewInstructionContent] = useState('');
   const [instructionMenuAnchorEl, setInstructionMenuAnchorEl] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const theme = useTheme();
@@ -223,88 +226,147 @@ const ChatBox = () => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const handleImageSelect = async (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
-    if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64Data = reader.result.split(',')[1];
-        setSelectedImage({
-          data: base64Data,
-          type: file.type
-        });
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target.result.split(',')[1];
+      
+      switch (file.type) {
+        case 'application/pdf':
+          setSelectedFile({
+            type: 'pdf',
+            name: file.name,
+            data: base64Data
+          });
+          break;
+        case 'text/markdown':
+          const text = atob(base64Data);
+          setSelectedFile({
+            type: 'markdown',
+            name: file.name,
+            content: text
+          });
+          break;
+        case 'image/jpeg':
+        case 'image/png':
+        case 'image/gif':
+          setSelectedFile({
+            type: 'image',
+            name: file.name,
+            data: base64Data,
+            mediaType: file.type
+          });
+          break;
+        default:
+          setError('Unsupported file type');
+          return;
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSendMessage = async () => {
-    if ((!input.trim() && !selectedImage) || !selectedProvider || isLoading) return;
-
-    const [providerName, model] = selectedProvider.split('|');
-    const newMessage = {
-      role: 'user',
-      content: input,
-      timestamp: new Date().toISOString(),
-    };
-
-    if (selectedImage) {
-      newMessage.content = [
-        {
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: selectedImage.type,
-            data: selectedImage.data
-          }
-        },
-        {
-          type: "text",
-          text: input || "What's in this image?"
-        }
-      ];
-    }
-
-    setMessages(prev => [...prev, newMessage]);
-    setInput('');
-    setSelectedImage(null);
-    if (inputRef.current) {
-      inputRef.current.value = '';
-    }
+    if ((!input.trim() && !selectedFile) || !selectedProvider || isLoading) return;
+    setError('');
+    setIsLoading(true);
 
     try {
-      setIsLoading(true);
-      setError('');
-      const apiKey = localStorage.getItem(`${providerName}_api_key`);
-      if (!apiKey) {
-        throw new Error(`No API key found for ${providerName}`);
+      const [providerName, modelId] = selectedProvider.split('|');
+      const messageContent = [];
+
+      if (selectedFile) {
+        switch (selectedFile.type) {
+          case 'pdf':
+            messageContent.push({
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: selectedFile.data
+              },
+              cache_control: {
+                type: 'ephemeral'
+              }
+            });
+            break;
+          case 'markdown':
+            messageContent.push({
+              type: 'text',
+              text: selectedFile.content
+            });
+            break;
+          case 'image':
+            messageContent.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: selectedFile.mediaType,
+                data: selectedFile.data
+              }
+            });
+            break;
+        }
       }
 
-      let response;
-      switch (providerName) {
-        case 'openai':
-          response = await sendOpenAIMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction);
-          break;
-        case 'anthropic':
-          response = await sendAnthropicMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction);
-          break;
-        case 'gemini':
-          response = await sendGeminiMessage(messages.concat([newMessage]), model, apiKey, selectedInstruction);
-          break;
-        default:
-          throw new Error(`Unknown provider: ${providerName}`);
-      }
-
-      setMessages(prev => [...prev, response]);
-      
-      if (activeSessionId) {
-        await chatStorage.saveSession({
-          id: activeSessionId,
-          messages: messages.concat([newMessage, response]),
+      if (input.trim()) {
+        messageContent.push({
+          type: 'text',
+          text: input.trim()
         });
       }
-    } catch (err) {
-      setError(err.message);
+
+      const newMessage = {
+        role: 'user',
+        content: messageContent,
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, newMessage]);
+      setInput('');
+      setSelectedFile(null);
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
+
+      try {
+        const apiKey = localStorage.getItem(`${providerName}_api_key`);
+        if (!apiKey) {
+          throw new Error(`No API key found for ${providerName}`);
+        }
+
+        let response;
+        switch (providerName) {
+          case 'openai':
+            response = await sendOpenAIMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
+            break;
+          case 'anthropic':
+            response = await sendAnthropicMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
+            break;
+          case 'gemini':
+            response = await sendGeminiMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
+            break;
+          default:
+            throw new Error(`Unknown provider: ${providerName}`);
+        }
+
+        setMessages(prev => [...prev, response]);
+        
+        if (activeSessionId) {
+          await chatStorage.saveSession({
+            id: activeSessionId,
+            messages: messages.concat([newMessage, response]),
+          });
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    } catch (error) {
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -398,6 +460,17 @@ const ChatBox = () => {
                 src={`data:${item.source.media_type};base64,${item.source.data}`}
                 alt="User uploaded image"
                 style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
+              />
+            </Box>
+          );
+        } else if (item.type === 'pdf') {
+          return (
+            <Box key={index} sx={{ my: 2 }}>
+              <embed 
+                src={`data:application/pdf;base64,${item.data}`}
+                type="application/pdf"
+                width="100%"
+                height="500"
               />
             </Box>
           );
@@ -580,22 +653,22 @@ const ChatBox = () => {
                   disabled={isLoading}
                 />
 
-                <label htmlFor="image-input">
+                <label htmlFor="file-upload">
                   <Input
-                    id="image-input"
+                    id="file-upload"
                     type="file"
-                    accept="image/jpeg,image/png"
-                    onChange={handleImageSelect}
+                    accept="image/*,.pdf,.md"
+                    onChange={handleFileUpload}
                     sx={{ display: 'none' }}
                   />
                   <IconButton component="span" disabled={isLoading}>
-                    <ImageIcon />
+                    <AttachFileIcon />
                   </IconButton>
                 </label>
 
                 <IconButton
                   onClick={handleSendMessage}
-                  disabled={(!input.trim() && !selectedImage) || isLoading}
+                  disabled={!selectedProvider || (!input.trim() && !selectedFile) || isLoading}
                 >
                   {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
                 </IconButton>
@@ -781,16 +854,21 @@ const ChatBox = () => {
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', p: 2 }}>
               <input
                 type="file"
-                accept="image/jpeg,image/png"
+                accept="image/*,.pdf,.md"
                 style={{ display: 'none' }}
-                id="image-upload"
-                onChange={handleImageSelect}
+                id="file-upload"
+                onChange={handleFileUpload}
               />
-              <label htmlFor="image-upload">
-                <IconButton component="span" color={selectedImage ? "primary" : "default"}>
-                  <ImageIcon />
+              <label htmlFor="file-upload">
+                <IconButton component="span" color={selectedFile ? "primary" : "default"}>
+                  <AttachFileIcon />
                 </IconButton>
               </label>
+              {selectedFile && (
+                <Typography variant="body2" color="textSecondary">
+                  {selectedFile.name}
+                </Typography>
+              )}
               <TextField
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -829,7 +907,7 @@ const ChatBox = () => {
               <IconButton 
                 onClick={handleSendMessage} 
                 color="primary"
-                disabled={!selectedProvider || (!input.trim() && !selectedImage) || isLoading}
+                disabled={!selectedProvider || (!input.trim() && !selectedFile) || isLoading}
                 sx={{ height: 40, width: 40 }}
               >
                 {isLoading ? <CircularProgress size={24} /> : <SendIcon />}

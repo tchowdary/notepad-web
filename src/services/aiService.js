@@ -32,6 +32,38 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction) => 
 
 const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) => {
   try {
+    const formattedMessages = messages.map(({ role, content }) => {
+      const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
+      
+      // Handle PDF files in content
+      if (Array.isArray(content)) {
+        return {
+          role: role === 'assistant' ? 'assistant' : 'user',
+          content: content.map(item => {
+            if (item.type === 'pdf') {
+              return {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: item.data
+                },
+                cache_control: {
+                  type: 'ephemeral'
+                }
+              };
+            }
+            return item;
+          })
+        };
+      }
+      
+      return {
+        role: role === 'assistant' ? 'assistant' : 'user',
+        content: formattedContent
+      };
+    });
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -42,10 +74,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) 
       },
       body: JSON.stringify({
         model,
-        messages: messages.map(({ role, content }) => ({
-          role: role === 'assistant' ? 'assistant' : 'user',
-          content: Array.isArray(content) ? content : [{ type: 'text', text: content }]
-        })),
+        messages: formattedMessages,
         system: customInstruction ? customInstruction.content : undefined,
         max_tokens: 1024,
         temperature: 0
