@@ -231,41 +231,38 @@ const ChatBox = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Data = e.target.result.split(',')[1];
-      
-      switch (file.type) {
-        case 'application/pdf':
-          setSelectedFile({
-            type: 'pdf',
-            name: file.name,
-            data: base64Data
-          });
-          break;
-        case 'text/markdown':
-          const text = atob(base64Data);
-          setSelectedFile({
-            type: 'markdown',
-            name: file.name,
-            content: text
-          });
-          break;
-        case 'image/jpeg':
-        case 'image/png':
-        case 'image/gif':
-          setSelectedFile({
-            type: 'image',
-            name: file.name,
-            data: base64Data,
-            mediaType: file.type
-          });
-          break;
-        default:
-          setError('Unsupported file type');
-          return;
-      }
-    };
-    reader.readAsDataURL(file);
+    
+    if (file.type === 'application/pdf') {
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const base64Data = e.target.result.split(',')[1];
+        setSelectedFile({
+          type: 'pdf',
+          name: file.name,
+          data: base64Data
+        });
+      };
+    } else if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
+      reader.readAsText(file);
+      reader.onload = (e) => {
+        setSelectedFile({
+          type: 'markdown',
+          name: file.name,
+          content: e.target.result
+        });
+      };
+    } else if (file.type.startsWith('image/')) {
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const base64Data = e.target.result.split(',')[1];
+        setSelectedFile({
+          type: 'image',
+          name: file.name,
+          data: base64Data,
+          mediaType: file.type
+        });
+      };
+    }
   };
 
   const handleSendMessage = async () => {
@@ -410,21 +407,59 @@ const ChatBox = () => {
   const renderMessageContent = (content) => {
     if (Array.isArray(content)) {
       return content.map((item, index) => {
-        if (item.type === 'text') {
+        if (item.type === 'text' || item.type === 'markdown') {
           return (
             <Typography 
               key={index} 
               variant="body1" 
               component="div"
               sx={{ 
-                fontFamily: 'Rubik, sans-serif',
+                fontFamily: 'Geist Mono, sans-serif',
                 lineHeight: 1.8,
                 '& p': {
                   marginBottom: '1em',
                   marginTop: 0
                 },
                 '& pre': {
-                  marginBottom: '1.5em'
+                  marginBottom: '1.5em',
+                  '& code': {
+                    fontFamily: 'Geist Mono, monospace',
+                    fontSize: '0.9em'
+                  }
+                },
+                '& ul, & ol': {
+                  marginTop: '0.5em',
+                  marginBottom: '1em',
+                  paddingLeft: '2em'
+                },
+                '& li': {
+                  marginBottom: '0.5em',
+                  '& p': {
+                    marginBottom: '0.5em'
+                  },
+                  '& > ul, & > ol': {
+                    marginTop: '0.5em',
+                    marginBottom: '0.5em'
+                  }
+                },
+                '& ul > li': {
+                  listStyle: 'disc'
+                },
+                '& ul > li > ul > li': {
+                  listStyle: 'circle'
+                },
+                '& ul > li > ul > li > ul > li': {
+                  listStyle: 'square'
+                },
+                '& ol > li': {
+                  listStyle: 'decimal'
+                },
+                '& code': {
+                  fontFamily: 'Geist Mono, monospace',
+                  fontSize: '0.9em',
+                  padding: '0.2em 0.4em',
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.1)'
                 }
               }}
             >
@@ -449,11 +484,12 @@ const ChatBox = () => {
                   },
                 }}
               >
-                {item.text}
+                {item.text || item.content}
               </ReactMarkdown>
             </Typography>
           );
-        } else if (item.type === 'image') {
+        }
+        if (item.type === 'image') {
           return (
             <Box key={index} sx={{ my: 2 }}>
               <img 
@@ -484,7 +520,8 @@ const ChatBox = () => {
         variant="body1" 
         component="div"
         sx={{ 
-          fontFamily: 'Rubik, sans-serif',
+          fontFamily: 'Geist, sans-serif',
+          fontSize: '17px',
           lineHeight: 1.8,
           '& p': {
             marginBottom: '1em',
@@ -492,6 +529,33 @@ const ChatBox = () => {
           },
           '& pre': {
             marginBottom: '1.5em'
+          },
+          '& ul, & ol': {
+            marginTop: '0.5em',
+            marginBottom: '1em',
+            paddingLeft: '2em'
+          },
+          '& li': {
+            marginBottom: '0.5em',
+            '& p': {
+              marginBottom: '0.5em'
+            },
+            '& > ul, & > ol': {
+              marginTop: '0.5em',
+              marginBottom: '0.5em'
+            }
+          },
+          '& ul > li': {
+            listStyle: 'disc'
+          },
+          '& ul > li > ul > li': {
+            listStyle: 'circle'
+          },
+          '& ul > li > ul > li > ul > li': {
+            listStyle: 'square'
+          },
+          '& ol > li': {
+            listStyle: 'decimal'
           }
         }}
       >
