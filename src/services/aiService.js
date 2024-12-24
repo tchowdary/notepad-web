@@ -103,7 +103,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
     // Convert messages to Gemini format
     const messagePayload = messages.map(({ role, content }) => ({
       role: role === 'assistant' ? 'model' : 'user',
-      parts: Array.isArray(content) ? content : [{ text: content }]
+      parts: [{ text: Array.isArray(content) ? content[0].text : content }]
     }));
 
     if (customInstruction) {
