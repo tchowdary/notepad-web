@@ -665,6 +665,16 @@ const ChatBox = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 3,
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: 'transparent',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: theme.palette.divider,
+                  borderRadius: '4px',
+                },
               }}
             >
               {messages.map((message, index) => (
@@ -676,6 +686,7 @@ const ChatBox = () => {
                     alignItems: 'flex-start',
                     maxWidth: '100%',
                     wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
                   }}
                 >
                   <Paper
@@ -686,6 +697,8 @@ const ChatBox = () => {
                       bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.background.paper,
                       color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
                       borderRadius: 2,
+                      overflow: 'auto',
+                      maxHeight: '80vh',
                     }}
                   >
                     <Box sx={{ position: 'relative' }}>
@@ -818,6 +831,11 @@ const ChatBox = () => {
             '@media (max-width: 960px)': {
               height: '100vh',
               width: '100vw',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
             }
           }}
         >
@@ -826,8 +844,6 @@ const ChatBox = () => {
               {error}
             </Alert>
           )}
-
-          
 
           {/* Messages Container */}
           <Box
@@ -840,10 +856,20 @@ const ChatBox = () => {
               flexDirection: 'column',
               gap: 3,
               '@media (max-width: 960px)': {
-                pb: 8, // Add padding at bottom for mobile to account for input
-                height: 'calc(100vh - 120px)', // Account for header and input height
-                WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
-              }
+                flex: 1,
+                height: 'auto',
+                pb: '140px', // Increased bottom padding to account for input box
+              },
+              '&::-webkit-scrollbar': {
+                width: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: theme.palette.divider,
+                borderRadius: '4px',
+              },
             }}
           >
             {messages.map((message, index) => (
@@ -855,6 +881,7 @@ const ChatBox = () => {
                   alignItems: 'flex-start',
                   maxWidth: '100%',
                   wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
                 }}
               >
                 <Paper
@@ -865,6 +892,8 @@ const ChatBox = () => {
                     bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.background.paper,
                     color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
                     borderRadius: 2,
+                    overflow: 'auto',
+                    maxHeight: '80vh',
                   }}
                 >
                   <Box sx={{ position: 'relative' }}>
@@ -959,15 +988,13 @@ const ChatBox = () => {
               borderTop: 1,
               borderColor: 'divider',
               bgcolor: 'background.paper',
-              position: { xs: 'fixed', md: 'sticky' },
-              bottom: { xs: 0, md: 'auto' },
-              left: { xs: 0, md: 'auto' },
-              right: { xs: 0, md: 'auto' },
-              width: '100%',
-              zIndex: 2,
               '@media (max-width: 960px)': {
-                pb: 7, // Increased bottom padding for mobile to avoid overlap with responsive toolbar
-              }
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 1000,
+              },
             }}
           >
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
