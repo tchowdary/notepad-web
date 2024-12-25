@@ -713,10 +713,28 @@ const ChatBox = () => {
                   fullWidth
                   placeholder="Type your message..."
                   variant="outlined"
-                  size="small"
-                  disabled={isLoading}
+                  size="medium"
+                  InputProps={{
+                    sx: { fontSize: '1rem', minHeight: '56px' },
+                    startAdornment: (
+                      <Tooltip title={selectedInstruction ? `Custom Instruction: ${selectedInstruction.name}` : "Select Custom Instruction"}>
+                        <IconButton
+                          onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
+                          color={selectedInstruction ? "primary" : "default"}
+                          size="small"
+                          sx={{ mr: 1 }}
+                        >
+                          <AutoFixHighIcon />
+                        </IconButton>
+                      </Tooltip>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      paddingRight: '14px',
+                    }
+                  }}
                 />
-
                 <label htmlFor="file-upload">
                   <Input
                     id="file-upload"
@@ -871,11 +889,11 @@ const ChatBox = () => {
               width: '100%',
               zIndex: 2,
               '@media (max-width: 960px)': {
-                pb: 4, // Extra padding at bottom for mobile to avoid overlap with responsive toolbar
+                pb: 7, // Increased bottom padding for mobile to avoid overlap with responsive toolbar
               }
             }}
           >
-            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <Tooltip title="Model Settings">
                 <IconButton 
                   size="small"
@@ -915,7 +933,7 @@ const ChatBox = () => {
             </Tooltip>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', p: 2 }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', p: 2, pt: 0 }}>
               <input
                 type="file"
                 accept="image/*,.pdf,.md"
@@ -947,8 +965,9 @@ const ChatBox = () => {
                 fullWidth
                 placeholder="Type your message..."
                 variant="outlined"
-                size="small"
+                size="medium"
                 InputProps={{
+                  sx: { fontSize: '1rem', minHeight: '56px' },
                   startAdornment: (
                     <Tooltip title={selectedInstruction ? `Custom Instruction: ${selectedInstruction.name}` : "Select Custom Instruction"}>
                       <IconButton
