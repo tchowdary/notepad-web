@@ -32,7 +32,7 @@ const ResponsiveToolbar = ({
     <AppBar
       position="fixed"
       color="default"
-      elevation={0}
+      elevation={1}
       className={className}
       sx={{
         top: "auto",
@@ -44,9 +44,18 @@ const ResponsiveToolbar = ({
         left: 0,
         right: 0,
         width: "100%",
+        height: '56px', // Fixed height
       }}
     >
-      <MuiToolbar variant="dense" sx={{ justifyContent: "space-around" }}>
+      <MuiToolbar 
+        variant="dense" 
+        sx={{ 
+          justifyContent: "space-around",
+          minHeight: '56px !important',
+          width: '100%',
+          position: 'relative',
+        }}
+      >
         <IconButton
           onClick={onSidebarToggle}
           size="small"

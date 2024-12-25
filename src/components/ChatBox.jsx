@@ -835,7 +835,8 @@ const ChatBox = () => {
               top: 0,
               left: 0,
               right: 0,
-              bottom: 0,
+              bottom: '56px', // Match ResponsiveToolbar height
+              paddingBottom: '56px', // Add padding to prevent content from being hidden
             }
           }}
         >
@@ -857,8 +858,10 @@ const ChatBox = () => {
               gap: 3,
               '@media (max-width: 960px)': {
                 flex: 1,
-                height: 'auto',
-                pb: '140px', // Increased bottom padding to account for input box
+                height: 'calc(100vh - 170px)', // Account for input box and toolbar
+                pb: '80px', // Add padding to prevent content from being hidden
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
               },
               '&::-webkit-scrollbar': {
                 width: '8px',
@@ -990,10 +993,11 @@ const ChatBox = () => {
               bgcolor: 'background.paper',
               '@media (max-width: 960px)': {
                 position: 'fixed',
-                bottom: 0,
+                bottom: '56px', // Position above the ResponsiveToolbar
                 left: 0,
                 right: 0,
                 zIndex: 1000,
+                borderBottom: 1,
               },
             }}
           >
