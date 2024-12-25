@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   AppBar,
   Toolbar as MuiToolbar,
@@ -27,34 +27,6 @@ const ResponsiveToolbar = ({
   className,
 }) => {
   const theme = useTheme();
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-
-  useEffect(() => {
-    let ticking = false;
-    const SCROLL_THRESHOLD = 5;
-
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const currentScrollY = window.scrollY;
-          const scrollDifference = currentScrollY - lastScrollY;
-
-          // Show toolbar when scrolling up, hide when scrolling down
-          if (Math.abs(scrollDifference) > SCROLL_THRESHOLD) {
-            setIsVisible(scrollDifference < 0);
-            setLastScrollY(currentScrollY);
-          }
-
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
 
   return (
     <AppBar
@@ -67,16 +39,11 @@ const ResponsiveToolbar = ({
         bottom: 0,
         borderTop: `1px solid ${theme.palette.divider}`,
         bgcolor: theme.palette.background.paper,
-        display: { xs: "block", sm: "block", md: "none" },
+        display: { xs: "block", sm: "block", md: "none" }, // Only show on mobile and tablet
         zIndex: (theme) => theme.zIndex.drawer + 2,
         left: 0,
         right: 0,
         width: "100%",
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'transform 0.3s ease, opacity 0.2s ease',
-        visibility: isVisible ? 'visible' : 'hidden',
-        pointerEvents: isVisible ? 'auto' : 'none',
       }}
     >
       <MuiToolbar variant="dense" sx={{ justifyContent: "space-around" }}>

@@ -85,8 +85,6 @@ const ChatBox = () => {
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
     const availableProviders = getAvailableProviders();
@@ -176,25 +174,6 @@ const ChatBox = () => {
       }
     };
     loadCustomInstructions();
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrolled = window.scrollY > 50;
-      setIsScrolled(scrolled);
-    };
-
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-    };
   }, []);
 
   const createNewSession = async () => {
@@ -458,9 +437,6 @@ const ChatBox = () => {
               sx={{ 
                 fontFamily: 'Geist Mono, sans-serif',
                 lineHeight: 1.8,
-                opacity: isMobile ? (isScrolled ? 0 : 1) : 1,
-                transition: 'opacity 0.3s ease',
-                visibility: isMobile ? (isScrolled ? 'hidden' : 'visible') : 'visible',
                 '& p': {
                   marginBottom: '1em',
                   marginTop: 0
@@ -568,9 +544,6 @@ const ChatBox = () => {
           fontFamily: 'Geist, sans-serif',
           fontSize: '17px',
           lineHeight: 1.8,
-          opacity: isMobile ? (isScrolled ? 0 : 1) : 1,
-          transition: 'opacity 0.3s ease',
-          visibility: isMobile ? (isScrolled ? 'hidden' : 'visible') : 'visible',
           '& p': {
             marginBottom: '1em',
             marginTop: 0
@@ -686,23 +659,12 @@ const ChatBox = () => {
             <Box
               ref={messagesContainerRef}
               sx={{
-                flexGrow: 1,
+                flex: 1,
                 overflowY: 'auto',
-                overflowX: 'hidden',
-                height: '100%',
-                maxHeight: 'calc(100vh - 120px)',
-                px: { xs: 2, sm: 3 },
-                py: 2,
-                '&::-webkit-scrollbar': {
-                  width: '8px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: 'transparent',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  background: theme.palette.mode === 'dark' ? '#555' : '#ccc',
-                  borderRadius: '4px',
-                },
+                p: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
               }}
             >
               {messages.map((message, index) => (
@@ -871,23 +833,12 @@ const ChatBox = () => {
           <Box
             ref={messagesContainerRef}
             sx={{
-              flexGrow: 1,
+              flex: 1,
               overflowY: 'auto',
-              overflowX: 'hidden',
-              height: '100%',
-              maxHeight: 'calc(100vh - 120px)',
-              px: { xs: 2, sm: 3 },
-              py: 2,
-              '&::-webkit-scrollbar': {
-                width: '8px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: 'transparent',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: theme.palette.mode === 'dark' ? '#555' : '#ccc',
-                borderRadius: '4px',
-              },
+              p: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 3,
               '@media (max-width: 960px)': {
                 pb: 8, // Add padding at bottom for mobile to account for input
                 height: 'calc(100vh - 120px)', // Account for header and input height
