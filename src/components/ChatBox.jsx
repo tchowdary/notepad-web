@@ -78,6 +78,9 @@ const ChatBox = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const streamingContentRef = useRef('');
   const theme = useTheme();
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -334,38 +337,56 @@ const ChatBox = () => {
           throw new Error(`No API key found for ${providerName}`);
         }
 
-        let response;
-        switch (providerName) {
-          case 'openai':
-            response = await sendOpenAIMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
-            break;
-          case 'anthropic':
-            response = await sendAnthropicMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
-            break;
-          case 'gemini':
-            response = await sendGeminiMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
-            break;
-          default:
-            throw new Error(`Unknown provider: ${providerName}`);
-        }
+        let finalResponse;
+        if (providerName === 'gemini') {
+          // Handle Gemini without streaming
+          const response = await sendGeminiMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
+          finalResponse = response;
+          setMessages(prev => [...prev, finalResponse]);
+        } else {
+          // Handle OpenAI and Anthropic with streaming
+          setIsStreaming(true);
+          setStreamingContent('');
+          streamingContentRef.current = '';
+          
+          const handleStream = (content) => {
+            streamingContentRef.current += content;
+            setStreamingContent(streamingContentRef.current);
+          };
 
-        setMessages(prev => [...prev, response]);
+          await (providerName === 'openai' 
+            ? sendOpenAIMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
+            : sendAnthropicMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream));
+
+          finalResponse = {
+            role: 'assistant',
+            content: streamingContentRef.current,
+            timestamp: new Date().toISOString()
+          };
+
+          setIsStreaming(false);
+          setStreamingContent('');
+          setMessages(prev => [...prev, finalResponse]);
+        }
         
         if (activeSessionId) {
           await chatStorage.saveSession({
             id: activeSessionId,
-            messages: messages.concat([newMessage, response]),
+            messages: messages.concat([newMessage, finalResponse]),
+            lastUpdated: new Date().toISOString()
           });
         }
       } catch (err) {
         setError(err.message);
       } finally {
         setIsLoading(false);
+        setIsStreaming(false);
       }
     } catch (error) {
       setError(error.message);
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
     }
   };
 
@@ -685,6 +706,34 @@ const ChatBox = () => {
                   </Paper>
                 </Box>
               ))}
+              {isStreaming && streamingContent && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    maxWidth: '100%',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 3,
+                      width: '100%',
+                      bgcolor: theme.palette.background.paper,
+                      color: theme.palette.text.primary,
+                      borderRadius: 2,
+                    }}
+                  >
+                    <Box sx={{ position: 'relative' }}>
+                      <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
+                        {streamingContent}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Box>
+              )}
               <div ref={messagesEndRef} />
             </Box>
 
@@ -872,6 +921,34 @@ const ChatBox = () => {
                 </Paper>
               </Box>
             ))}
+            {isStreaming && streamingContent && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  maxWidth: '100%',
+                  wordBreak: 'break-word',
+                }}
+              >
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 3,
+                    width: '100%',
+                    bgcolor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
+                    borderRadius: 2,
+                  }}
+                >
+                  <Box sx={{ position: 'relative' }}>
+                    <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
+                      {streamingContent}
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Box>
+            )}
             <div ref={messagesEndRef} />
           </Box>
 

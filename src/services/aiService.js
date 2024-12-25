@@ -1,4 +1,4 @@
-const sendOpenAIMessage = async (messages, model, apiKey, customInstruction) => {
+const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
     const messagePayload = [...messages];
     if (customInstruction) {
@@ -14,12 +14,40 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction) => 
       body: JSON.stringify({
         model,
         messages: messagePayload.map(({ role, content }) => ({ role, content })),
-        stream: false,
+        stream: Boolean(onStream),
       }),
     });
 
     if (!response.ok) {
       throw new Error(`OpenAI API error: ${response.statusText}`);
+    }
+
+    if (onStream) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value);
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const json = JSON.parse(line.slice(5));
+              const content = json.choices[0]?.delta?.content;
+              if (content) onStream(content);
+            } catch (e) {
+              console.error('Error parsing stream:', e);
+            }
+          }
+        }
+      }
+      return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
@@ -30,12 +58,11 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction) => 
   }
 };
 
-const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) => {
+const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
     const formattedMessages = messages.map(({ role, content }) => {
       const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
       
-      // Handle PDF files in content
       if (Array.isArray(content)) {
         return {
           role: role === 'assistant' ? 'assistant' : 'user',
@@ -70,20 +97,50 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) 
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
-        "anthropic-dangerous-direct-browser-access": "true"
+        'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
         model,
         messages: formattedMessages,
         system: customInstruction ? customInstruction.content : undefined,
         max_tokens: 1024,
-        temperature: 0
+        temperature: 0,
+        stream: Boolean(onStream),
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error?.message || `Anthropic API error: ${response.statusText}`);
+    }
+
+    if (onStream) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value);
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(line.slice(5));
+              if (json.type === 'content_block_delta' && json.delta?.text) {
+                onStream(json.delta.text);
+              }
+            } catch (e) {
+              console.error('Error parsing stream:', e);
+            }
+          }
+        }
+      }
+      return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
@@ -100,7 +157,6 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction) 
 
 const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => {
   try {
-    // Convert messages to Gemini format
     const messagePayload = messages.map(({ role, content }) => ({
       role: role === 'assistant' ? 'model' : 'user',
       parts: [{ text: Array.isArray(content) ? content[0].text : content }]
@@ -121,7 +177,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 2048,
-        },
+        }
       }),
     });
 
