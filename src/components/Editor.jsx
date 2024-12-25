@@ -12,6 +12,8 @@ import 'codemirror/mode/yaml/yaml';
 import 'codemirror/addon/edit/continuelist';
 import 'codemirror/addon/edit/closebrackets';
 import 'codemirror/addon/selection/active-line';
+import 'codemirror/addon/selection/mark-selection';
+import 'codemirror/addon/selection/selection-pointer';
 import 'codemirror/addon/fold/foldcode';
 import 'codemirror/addon/fold/foldgutter';
 import 'codemirror/addon/fold/brace-fold';
@@ -47,7 +49,7 @@ const Editor = forwardRef(({
 
   // Restore cursor position when editor instance or cursorPosition changes
   useEffect(() => {
-    if (editorInstance && cursorPosition) {
+    if (editorInstance && cursorPosition && !editorInstance.somethingSelected()) {
       editorInstance.setCursor(cursorPosition);
     }
   }, [editorInstance, cursorPosition]);
@@ -149,9 +151,13 @@ const Editor = forwardRef(({
     autofocus: true,
     matchBrackets: true,
     autoCloseBrackets: true,
+    styleSelectedText: true,
+    selectionPointer: true,
+    dragDrop: true,
     styleActiveLine: true,
     foldGutter: true,
     gutters:  !focusMode && ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    readOnly: false,
     extraKeys: {
       "Ctrl-Q": function(cm) {
         cm.foldCode(cm.getCursor());
@@ -186,30 +192,25 @@ const Editor = forwardRef(({
       }}
     >
       {editorType === 'codemirror' ? (
-        <CodeMirror
-          value={content}
-          options={options}
-          onBeforeChange={handleChange}
-          editorDidMount={(editor) => {
-            setEditorInstance(editor);
-            const timeoutId = setTimeout(() => {
-              editor.focus();
-              // Add cursor change handler
+        <Box sx={{ position: 'relative', height: '100%' }}>
+          <CodeMirror
+            value={content}
+            options={{
+              ...options,
+              inputStyle: 'contenteditable',
+              configureMouse: () => ({ addNew: false })
+            }}
+            onBeforeChange={handleChange}
+            editorDidMount={editor => {
+              setEditorInstance(editor);
               editor.on('cursorActivity', () => {
-                const cursor = editor.getCursor();
-                if (onCursorChange) {
-                  onCursorChange(cursor);
+                if (onCursorChange && !editor.somethingSelected()) {
+                  onCursorChange(editor.getCursor());
                 }
               });
-            }, 100);
-            return () => {
-              clearTimeout(timeoutId);
-              if (editor) {
-                editor.off('cursorActivity');
-              }
-            };
-          }}
-        />
+            }}
+          />
+        </Box>
       ) : (
         <TipTapEditor
           content={content}
