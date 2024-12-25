@@ -289,6 +289,55 @@ class GitHubService {
     }
   }
 
+  getChatFilePath(sessionId) {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `chats/${year}/${month}/chat-${sessionId}.md`;
+  }
+
+  async syncChats() {
+    if (!this.isConfigured()) return;
+
+    try {
+      // Open chatDB instead of notepadDB
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('chatDB', 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+
+      const tx = db.transaction('chatSessions', 'readonly');
+      const store = tx.objectStore('chatSessions');
+      const sessions = await new Promise((resolve, reject) => {
+        const request = store.getAll();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+
+      for (const session of sessions) {
+        if (!session.messages || session.messages.length === 0) continue;
+
+        // Format chat content in markdown
+        const content = session.messages.map(msg => {
+          const messageContent = typeof msg.content === 'string' 
+            ? msg.content 
+            : msg.content.type === 'text' 
+              ? msg.content.text
+              : `[${msg.content.type} content]`;
+              
+          return `### ${msg.role === 'user' ? 'User' : 'Assistant'}\n\n${messageContent}\n\n---\n`;
+        }).join('\n');
+
+        const path = this.getChatFilePath(session.id);
+        await this.uploadFile(path, content);
+      }
+    } catch (error) {
+      console.error('Error syncing chats:', error);
+      throw error;
+    }
+  }
+
   // Method to sync all files
   async syncAllFiles() {
     if (!this.isConfigured()) {
@@ -332,9 +381,11 @@ class GitHubService {
           }
         }
       }
+
+      // Sync chats
+      await this.syncChats();
     } catch (error) {
-      console.error('Error syncing files:', error);
-      throw error; // Re-throw to be caught by the toolbar handler
+      console.error('Error in syncAllFiles:', error);
     }
   }
 
