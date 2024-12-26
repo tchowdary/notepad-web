@@ -62,7 +62,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
   try {
     const formattedMessages = messages.map(({ role, content }) => {
       const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
-      
+
       if (Array.isArray(content)) {
         return {
           role: role === 'assistant' ? 'assistant' : 'user',
@@ -84,7 +84,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
           })
         };
       }
-      
+
       return {
         role: role === 'assistant' ? 'assistant' : 'user',
         content: formattedContent
@@ -166,19 +166,33 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
       messagePayload.unshift({ role: 'user', parts: [{ text: customInstruction.content }] });
     }
 
+    const generateRequestBody = (model, messagePayload) => {
+      const baseConfig = {
+        contents: messagePayload,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        }
+      };
+    
+      // Only add tools for the specific model
+      if (model === 'gemini-2.0-flash-exp') {
+        baseConfig.tools = {
+          "google_search": {}
+        };
+        baseConfig.generationConfig.response_modalities = ["TEXT"];
+      }
+    
+      return baseConfig;
+    };
+
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': apiKey,
       },
-      body: JSON.stringify({
-        contents: messagePayload,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        }
-      }),
+      body: JSON.stringify(generateRequestBody(model, messagePayload)),
     });
 
     if (!response.ok) {
@@ -187,7 +201,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
     }
 
     const data = await response.json();
-    
+
     if (!data.candidates || data.candidates.length === 0) {
       throw new Error('No response from Gemini API');
     }
