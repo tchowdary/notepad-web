@@ -215,13 +215,23 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     },
     editorProps: {
       handlePaste: (view, event) => {
-        if (event.clipboardData && event.clipboardData.getData('text/html')) {
+        if (event.clipboardData) {
           event.preventDefault();
-          const html = event.clipboardData.getData('text/html');
           
-          // Insert HTML content directly using editor commands
-          editor.commands.insertContent(html);
-          return true;
+          // Try to get HTML content first
+          const html = event.clipboardData.getData('text/html');
+          if (html) {
+            editor.commands.insertContent(html);
+            return true;
+          }
+          
+          // If no HTML, try plain text and convert from markdown
+          const text = event.clipboardData.getData('text/plain');
+          if (text) {
+            const html = marked.parse(text);
+            editor.commands.insertContent(html);
+            return true;
+          }
         }
         return false;
       },

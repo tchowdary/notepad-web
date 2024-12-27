@@ -437,6 +437,30 @@ const ChatBox = () => {
               sx={{ 
                 fontFamily: 'Geist Mono, sans-serif',
                 lineHeight: 1.8,
+                '& h1, & h2, & h3, & h4, & h5, & h6': {
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                  marginTop: '1.5em',
+                  marginBottom: '0.5em'
+                },
+                '& h1': {
+                  fontSize: '2em',
+                },
+                '& h2': {
+                  fontSize: '1.5em',
+                },
+                '& h3': {
+                  fontSize: '1.25em',
+                },
+                '& h4': {
+                  fontSize: '1.1em',
+                },
+                '& h5': {
+                  fontSize: '1em',
+                },
+                '& h6': {
+                  fontSize: '0.875em',
+                },
                 '& p': {
                   marginBottom: '1em',
                   marginTop: 0
@@ -544,6 +568,30 @@ const ChatBox = () => {
           fontFamily: 'Geist, sans-serif',
           fontSize: '17px',
           lineHeight: 1.8,
+          '& h1, & h2, & h3, & h4, & h5, & h6': {
+            fontWeight: 600,
+            lineHeight: 1.3,
+            marginTop: '1.5em',
+            marginBottom: '0.5em'
+          },
+          '& h1': {
+            fontSize: '2em',
+          },
+          '& h2': {
+            fontSize: '1.5em',
+          },
+          '& h3': {
+            fontSize: '1.25em',
+          },
+          '& h4': {
+            fontSize: '1.1em',
+          },
+          '& h5': {
+            fontSize: '1em',
+          },
+          '& h6': {
+            fontSize: '0.875em',
+          },
           '& p': {
             marginBottom: '1em',
             marginTop: 0
