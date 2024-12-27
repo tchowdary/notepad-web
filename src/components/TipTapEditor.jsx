@@ -215,20 +215,48 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     },
     editorProps: {
       handlePaste: (view, event) => {
-        const text = event.clipboardData?.getData('text/plain');
-        if (text && text.trim()) {
-          try {
-            // Convert markdown to HTML
-            const html = marked.parse(text);
-            // Insert the HTML content using editor commands
-            editor.commands.insertContent(html);
-            return true;
-          } catch (error) {
-            console.error('Error parsing markdown:', error);
-            return false;
-          }
+        if (event.clipboardData && event.clipboardData.getData('text/html')) {
+          event.preventDefault();
+          const html = event.clipboardData.getData('text/html');
+          
+          // Insert HTML content directly using editor commands
+          editor.commands.insertContent(html);
+          return true;
         }
         return false;
+      },
+      handleCopy: (view, event) => {
+        const { state, dispatch } = view;
+        const { empty, content } = state.selection;
+        
+        if (!empty) {
+          // Get HTML and plain text versions
+          const html = content().content.toHTML();
+          const text = content().content.textBetween(0, content().content.size, '\n');
+          
+          // Set clipboard data
+          event.clipboardData.setData('text/html', html);
+          event.clipboardData.setData('text/plain', text);
+          event.preventDefault();
+        }
+      },
+      handleCut: (view, event) => {
+        const { state, dispatch } = view;
+        const { empty, content } = state.selection;
+        
+        if (!empty) {
+          // Get HTML and plain text versions
+          const html = content().content.toHTML();
+          const text = content().content.textBetween(0, content().content.size, '\n');
+          
+          // Set clipboard data
+          event.clipboardData.setData('text/html', html);
+          event.clipboardData.setData('text/plain', text);
+          
+          // Remove selected content
+          dispatch(state.tr.deleteSelection());
+          event.preventDefault();
+        }
       }
     }
   });
