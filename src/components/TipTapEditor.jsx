@@ -24,6 +24,7 @@ import {
   DeleteForever,
   TextFields,
   CheckBox,
+  ContentCopy,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
@@ -390,7 +391,23 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     }
   };
 
+  const handleCopyPlainText = () => {
+    if (!editor) return;
+    
+    const selection = editor.state.selection;
+    if (!selection.empty) {
+      const text = editor.state.doc.textBetween(selection.from, selection.to, '\n');
+      navigator.clipboard.writeText(text);
+    }
+    handleClose();
+  };
+
   const formatOptions = [
+    {
+      title: 'Copy as Plain Text',
+      icon: <ContentCopy />,
+      action: handleCopyPlainText,
+    },
     {
       title: 'H2',
       icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>H2</Typography>,
