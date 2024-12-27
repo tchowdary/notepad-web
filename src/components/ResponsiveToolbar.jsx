@@ -3,7 +3,6 @@ import {
   AppBar,
   Toolbar as MuiToolbar,
   IconButton,
-  Tooltip,
   useTheme,
 } from "@mui/material";
 import {
@@ -44,30 +43,39 @@ const ResponsiveToolbar = ({
         left: 0,
         right: 0,
         width: "100%",
+        minHeight: '30px', // Reduced height
       }}
     >
-      <MuiToolbar variant="dense" sx={{ justifyContent: "space-around" }}>
+      <MuiToolbar 
+        variant="dense" 
+        sx={{ 
+          justifyContent: "space-around",
+          minHeight: '30px !important', // Override default height
+          padding: '0 8px', // Reduced padding
+        }}
+      >
         <IconButton
           onClick={onSidebarToggle}
           size="small"
           color={showSidebar ? "primary" : "default"}
+          sx={{ padding: '4px' }} // Reduced padding for icons
         >
           <MenuIcon />
         </IconButton>
 
-        <IconButton onClick={onDarkModeChange} size="small">
+        <IconButton onClick={onDarkModeChange} size="small" sx={{ padding: '4px' }}>
           {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
         </IconButton>
 
-        <IconButton onClick={onCopy} size="small">
+        <IconButton onClick={onCopy} size="small" sx={{ padding: '4px' }}>
           <CopyIcon />
         </IconButton>
 
-        <IconButton onClick={onClear} size="small">
+        <IconButton onClick={onClear} size="small" sx={{ padding: '4px' }}>
           <ClearIcon />
         </IconButton>
 
-        <IconButton onClick={onChatToggle} size="small">
+        <IconButton onClick={onChatToggle} size="small" sx={{ padding: '4px' }}>
           <ChatIcon color={showChat ? "primary" : "inherit"} />
         </IconButton>
       </MuiToolbar>
