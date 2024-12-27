@@ -609,10 +609,12 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       ref={editorRef}
       onContextMenu={handleContextMenu}
       sx={{
-        height: '100%',
+        height: { xs: 'calc(100vh - 30px)', sm: 'calc(100vh - 30px)', md: '100%' },
         width: '100%',
         position: 'relative',
         overflow: 'auto',
+        mb: { xs: '30px', sm: '30px', md: 0 },
+        py: 3,
       }}
     >
       <Box
@@ -627,7 +629,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           fontSize: '17px',
           lineHeight: '1.8',
           position: 'relative',
-          height: '100%',
+          minHeight: '100%',
           ...getEditorStyles(darkMode),
         }}
       >
