@@ -48,10 +48,6 @@ function App() {
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
-  const [sidebarHoverEnabled, setSidebarHoverEnabled] = useState(() => {
-    // Only enable hover on desktop
-    return !window.matchMedia('(max-width: 960px)').matches;
-  });
 
   const theme = createTheme({
     palette: {
@@ -91,9 +87,6 @@ function App() {
               backgroundColor: theme.palette.mode === 'dark' ? '#1e1e1e' : '#ffffff',
               color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
             },
-            '&:hover': {
-              backgroundColor: theme.palette.mode === 'dark' ? '#2d2d2d' : '#eeeeee',
-            },
           }),
         },
       },
@@ -105,35 +98,6 @@ function App() {
     if (isPWA()) {
       setShowSidebar(false);
     }
-  }, []);
-
-  // Handle mouse movement to show/hide sidebar in PWA mode
-  useEffect(() => {
-    if (!isPWA()) return;
-
-    const handleMouseMove = (e) => {
-      if (e.clientX <= 20) { // Show sidebar when mouse is near the left edge
-        setShowSidebar(true);
-        if (sidebarTimeoutRef.current) {
-          clearTimeout(sidebarTimeoutRef.current);
-        }
-      } else if (e.clientX > 250) { // Hide sidebar when mouse moves away
-        if (sidebarTimeoutRef.current) {
-          clearTimeout(sidebarTimeoutRef.current);
-        }
-        sidebarTimeoutRef.current = setTimeout(() => {
-          setShowSidebar(false);
-        }, 1000);
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (sidebarTimeoutRef.current) {
-        clearTimeout(sidebarTimeoutRef.current);
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -273,15 +237,6 @@ function App() {
     };
     saveTodoState();
   }, [todoData]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 960px)');
-    const handleResize = (e) => {
-      setSidebarHoverEnabled(!e.matches);
-    };
-    mediaQuery.addEventListener('change', handleResize);
-    return () => mediaQuery.removeEventListener('change', handleResize);
-  }, []);
 
   const handleNewTab = () => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
@@ -594,21 +549,6 @@ function App() {
     }
   };
 
-  const handleSidebarMouseEnter = () => {
-    if (sidebarHoverEnabled && !isPWA()) {
-      clearTimeout(sidebarTimeoutRef.current);
-      setShowSidebar(true);
-    }
-  };
-
-  const handleSidebarMouseLeave = () => {
-    if (sidebarHoverEnabled && !isPWA()) {
-      sidebarTimeoutRef.current = setTimeout(() => {
-        setShowSidebar(false);
-      }, 300);
-    }
-  };
-
   const handleEditorClick = (event) => {
     // Only handle clicks in responsive mode
     if (window.innerWidth <= 960) {
@@ -880,8 +820,7 @@ function App() {
               {/* Right Sidebar */}
               {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && (
                 <Box
-                  onMouseEnter={handleSidebarMouseEnter}
-                  onMouseLeave={handleSidebarMouseLeave}
+              
                   sx={{
                     width: 250,
                     flexShrink: 0,
