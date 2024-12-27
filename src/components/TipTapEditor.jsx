@@ -192,7 +192,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       TextStyle,
       Color,
       Link.configure({
-        openOnClick: false,
+        openOnClick: true,
       }),
       HorizontalRule,
       Table.configure({
