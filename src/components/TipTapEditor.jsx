@@ -291,16 +291,18 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   // Restore cursor and scroll position when editor instance changes or cursorPosition changes
   useEffect(() => {
-    if (editor?.isDestroyed) return;
-    if (editor && cursorPosition !== null && cursorPosition !== lastKnownPosition.current) {
-      const pos = cursorPosition;
-      lastKnownPosition.current = pos;
-      
+    if (!editor || editor?.isDestroyed || !cursorPosition) return;
+    
+    // Skip if we're already restoring or position hasn't changed
+    if (isRestoringCursor.current || cursorPosition === lastKnownPosition.current) return;
+
+    const restorePosition = () => {
       try {
         isRestoringCursor.current = true;
-        const docLength = editor.state.doc.content.size;
+        const pos = cursorPosition;
+        lastKnownPosition.current = pos;
         
-        // Ensure position is within valid range
+        const docLength = editor.state.doc.content.size;
         let targetPos;
         if (typeof pos === 'number') {
           targetPos = Math.min(Math.max(0, pos), docLength);
@@ -311,27 +313,20 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           };
         }
 
-        // Set selection
         editor.commands.setTextSelection(targetPos);
 
-        // Get the current selection end position
         const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
-        
-        // Only scroll if the position is valid
         if (end <= docLength) {
           const resolvedPos = editor.state.doc.resolve(end);
           editor.view.dispatch(editor.state.tr.setSelection(
             editor.state.selection.constructor.near(resolvedPos)
           ));
-          
-          // Restore scroll position
+
           const editorElement = editor.view.dom.closest('.ProseMirror');
           if (editorElement) {
             requestAnimationFrame(() => {
-              // First restore the saved scroll position
               editorElement.scrollTop = scrollPosition.current;
               
-              // Then ensure cursor is visible if we have a position
               if (end <= docLength) {
                 const rect = editor.view.coordsAtPos(end);
                 if (rect) {
@@ -340,13 +335,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
                   const cursorBottom = rect.bottom - containerRect.top;
                   const viewportHeight = editorElement.clientHeight;
                   
-                  // If cursor is above viewport
                   if (cursorTop < 0) {
-                    editorElement.scrollTop += cursorTop - 20; // Add some padding
-                  }
-                  // If cursor is below viewport
-                  else if (cursorBottom > viewportHeight) {
-                    editorElement.scrollTop += cursorBottom - viewportHeight + 20; // Add some padding
+                    editorElement.scrollTop += cursorTop - 20;
+                  } else if (cursorBottom > viewportHeight) {
+                    editorElement.scrollTop += cursorBottom - viewportHeight + 20;
                   }
                 }
               }
@@ -358,28 +350,35 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       } finally {
         isRestoringCursor.current = false;
       }
-    }
+    };
+
+    // Use a timeout to batch updates
+    const timeoutId = setTimeout(restorePosition, 0);
+    return () => clearTimeout(timeoutId);
   }, [editor, cursorPosition]);
 
   // Track cursor position changes
   useEffect(() => {
-    if (editor && onCursorChange && isEditorReady.current) {
-      const handleSelectionUpdate = () => {
-        if (isRestoringCursor.current) return;
-        
-        const { from, to } = editor.state.selection;
-        const position = from === to ? from : { from, to };
-        
-        // Only update if position has actually changed
-        if (lastKnownPosition.current !== position) {
-          lastKnownPosition.current = position;
-          onCursorChange(position);
-        }
-      };
+    if (!editor || !onCursorChange || !isEditorReady.current) return;
+
+    const handleSelectionUpdate = () => {
+      if (isRestoringCursor.current) return;
       
-      editor.on('selectionUpdate', handleSelectionUpdate);
-      return () => editor.off('selectionUpdate', handleSelectionUpdate);
-    }
+      const { from, to } = editor.state.selection;
+      const position = from === to ? from : { from, to };
+      
+      // Debounce position updates
+      if (lastKnownPosition.current !== position) {
+        lastKnownPosition.current = position;
+        // Use requestAnimationFrame to batch updates
+        requestAnimationFrame(() => {
+          onCursorChange(position);
+        });
+      }
+    };
+    
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    return () => editor.off('selectionUpdate', handleSelectionUpdate);
   }, [editor, onCursorChange]);
 
   // Cleanup on unmount
