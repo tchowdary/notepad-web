@@ -272,7 +272,20 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     }
   });
 
-  // Restore cursor position when editor instance changes or cursorPosition changes
+  // Track scroll position
+  const scrollPosition = useRef(0);
+
+  // Save scroll position when tab changes
+  useEffect(() => {
+    const editorElement = editor?.view.dom.closest('.ProseMirror');
+    if (editorElement) {
+      return () => {
+        scrollPosition.current = editorElement.scrollTop;
+      };
+    }
+  }, [editor]);
+
+  // Restore cursor and scroll position when editor instance changes or cursorPosition changes
   useEffect(() => {
     if (editor && cursorPosition !== null && cursorPosition !== lastKnownPosition.current) {
       const pos = cursorPosition;
@@ -306,17 +319,22 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             editor.state.selection.constructor.near(resolvedPos)
           ));
           
-          // Scroll into view without animation
+          // Restore scroll position
           const editorElement = editor.view.dom.closest('.ProseMirror');
           if (editorElement) {
-            const rect = editor.view.coordsAtPos(end);
-            if (rect) {
-              const containerRect = editorElement.getBoundingClientRect();
-              const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
-              requestAnimationFrame(() => {
-                editorElement.scrollTop = scrollTop;
-              });
-            }
+            requestAnimationFrame(() => {
+              editorElement.scrollTop = scrollPosition.current;
+              
+              // If we have a cursor position, ensure it's visible
+              if (end <= docLength) {
+                const rect = editor.view.coordsAtPos(end);
+                if (rect) {
+                  const containerRect = editorElement.getBoundingClientRect();
+                  const cursorScrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
+                  editorElement.scrollTop = cursorScrollTop;
+                }
+              }
+            });
           }
         }
       } catch (error) {

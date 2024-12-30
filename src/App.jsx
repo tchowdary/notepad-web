@@ -313,11 +313,20 @@ function App() {
 
   const handleTabSelect = (id) => {
     // Save cursor position of current tab before switching
-    if (activeTab && editorRef.current?.editorInstance) {
-      const cursor = editorRef.current.editorInstance.getCursor();
-      setTabs(prevTabs => prevTabs.map(tab => 
-        tab.id === activeTab ? { ...tab, cursorPosition: cursor } : tab
-      ));
+    if (activeTab) {
+      let cursor = null;
+      if (editorRef.current?.editorInstance) {
+        cursor = editorRef.current.editorInstance.getCursor();
+      } else if (tipTapEditorRef.current?.editor) {
+        const { from, to } = tipTapEditorRef.current.editor.state.selection;
+        cursor = from === to ? from : { from, to };
+      }
+      
+      if (cursor !== null) {
+        setTabs(prevTabs => prevTabs.map(tab => 
+          tab.id === activeTab ? { ...tab, cursorPosition: cursor } : tab
+        ));
+      }
     }
     setActiveTab(id);
   };
