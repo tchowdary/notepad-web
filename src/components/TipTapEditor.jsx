@@ -272,9 +272,9 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     }
   });
 
-  // Only restore cursor position when switching between tabs
+  // Restore cursor position when editor instance changes or cursorPosition changes
   useEffect(() => {
-    if (editor && isEditorReady.current && cursorPosition && cursorPosition !== lastKnownPosition.current) {
+    if (editor && cursorPosition !== null && cursorPosition !== lastKnownPosition.current) {
       const pos = cursorPosition;
       lastKnownPosition.current = pos;
       
@@ -294,11 +294,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         }
 
         // Set selection
-        if (typeof targetPos === 'number') {
-          editor.commands.setTextSelection(targetPos);
-        } else {
-          editor.commands.setTextSelection(targetPos);
-        }
+        editor.commands.setTextSelection(targetPos);
 
         // Get the current selection end position
         const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
@@ -339,8 +335,12 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         
         const { from, to } = editor.state.selection;
         const position = from === to ? from : { from, to };
-        lastKnownPosition.current = position;
-        onCursorChange(position);
+        
+        // Only update if position has actually changed
+        if (lastKnownPosition.current !== position) {
+          lastKnownPosition.current = position;
+          onCursorChange(position);
+        }
       };
       
       editor.on('selectionUpdate', handleSelectionUpdate);
@@ -352,7 +352,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   useEffect(() => {
     return () => {
       isEditorReady.current = false;
-      lastKnownPosition.current = null;
+      // Don't reset lastKnownPosition on unmount
     };
   }, []);
 
