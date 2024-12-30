@@ -323,15 +323,26 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           const editorElement = editor.view.dom.closest('.ProseMirror');
           if (editorElement) {
             requestAnimationFrame(() => {
+              // First restore the saved scroll position
               editorElement.scrollTop = scrollPosition.current;
               
-              // If we have a cursor position, ensure it's visible
+              // Then ensure cursor is visible if we have a position
               if (end <= docLength) {
                 const rect = editor.view.coordsAtPos(end);
                 if (rect) {
                   const containerRect = editorElement.getBoundingClientRect();
-                  const cursorScrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
-                  editorElement.scrollTop = cursorScrollTop;
+                  const cursorTop = rect.top - containerRect.top;
+                  const cursorBottom = rect.bottom - containerRect.top;
+                  const viewportHeight = editorElement.clientHeight;
+                  
+                  // If cursor is above viewport
+                  if (cursorTop < 0) {
+                    editorElement.scrollTop += cursorTop - 20; // Add some padding
+                  }
+                  // If cursor is below viewport
+                  else if (cursorBottom > viewportHeight) {
+                    editorElement.scrollTop += cursorBottom - viewportHeight + 20; // Add some padding
+                  }
                 }
               }
             });
