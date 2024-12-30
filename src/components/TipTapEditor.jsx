@@ -289,12 +289,15 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     }
   }, [editor]);
 
-  // Restore cursor and scroll position when editor instance changes or cursorPosition changes
+  // Restore cursor and scroll position with optimized updates
   useEffect(() => {
     if (!editor || editor?.isDestroyed || !cursorPosition) return;
     
     // Skip if we're already restoring or position hasn't changed
     if (isRestoringCursor.current || cursorPosition === lastKnownPosition.current) return;
+
+    let animationFrameId = null;
+    let timeoutId = null;
 
     const restorePosition = () => {
       try {
@@ -313,6 +316,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           };
         }
 
+        // Batch the selection update
         editor.commands.setTextSelection(targetPos);
 
         const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
@@ -324,7 +328,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
           const editorElement = editor.view.dom.closest('.ProseMirror');
           if (editorElement) {
-            requestAnimationFrame(() => {
+            // Use animation frame for scroll position
+            animationFrameId = requestAnimationFrame(() => {
               editorElement.scrollTop = scrollPosition.current;
               
               if (end <= docLength) {
@@ -353,32 +358,48 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     };
 
     // Use a timeout to batch updates
-    const timeoutId = setTimeout(restorePosition, 0);
-    return () => clearTimeout(timeoutId);
+    timeoutId = setTimeout(restorePosition, 0);
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
   }, [editor, cursorPosition]);
 
-  // Track cursor position changes
+  // Track cursor position changes with debouncing
   useEffect(() => {
     if (!editor || !onCursorChange || !isEditorReady.current) return;
 
+    let timeoutId = null;
     const handleSelectionUpdate = () => {
       if (isRestoringCursor.current) return;
       
       const { from, to } = editor.state.selection;
       const position = from === to ? from : { from, to };
       
-      // Debounce position updates
+      // Only update if position has changed
       if (lastKnownPosition.current !== position) {
         lastKnownPosition.current = position;
-        // Use requestAnimationFrame to batch updates
-        requestAnimationFrame(() => {
+        
+        // Clear any pending updates
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        // Debounce updates to once per animation frame
+        timeoutId = requestAnimationFrame(() => {
           onCursorChange(position);
         });
       }
     };
     
     editor.on('selectionUpdate', handleSelectionUpdate);
-    return () => editor.off('selectionUpdate', handleSelectionUpdate);
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      if (timeoutId) {
+        cancelAnimationFrame(timeoutId);
+      }
+    };
   }, [editor, onCursorChange]);
 
   // Cleanup on unmount

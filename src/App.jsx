@@ -311,25 +311,28 @@ function App() {
     }));
   };
 
-  const handleTabSelect = (id) => {
-    // Save cursor position of current tab before switching
-    if (activeTab) {
-      let cursor = null;
-      if (editorRef.current?.editorInstance) {
-        cursor = editorRef.current.editorInstance.getCursor();
-      } else if (tipTapEditorRef.current?.editor) {
-        const { from, to } = tipTapEditorRef.current.editor.state.selection;
-        cursor = from === to ? from : { from, to };
+  const handleTabSelect = React.useCallback((id) => {
+    // Use requestAnimationFrame to batch updates
+    requestAnimationFrame(() => {
+      // Save cursor position of current tab before switching
+      if (activeTab) {
+        let cursor = null;
+        if (editorRef.current?.editorInstance) {
+          cursor = editorRef.current.editorInstance.getCursor();
+        } else if (tipTapEditorRef.current?.editor && !tipTapEditorRef.current.editor.isDestroyed) {
+          const { from, to } = tipTapEditorRef.current.editor.state.selection;
+          cursor = from === to ? from : { from, to };
+        }
+        
+        if (cursor !== null) {
+          setTabs(prevTabs => prevTabs.map(tab => 
+            tab.id === activeTab ? { ...tab, cursorPosition: cursor } : tab
+          ));
+        }
       }
-      
-      if (cursor !== null) {
-        setTabs(prevTabs => prevTabs.map(tab => 
-          tab.id === activeTab ? { ...tab, cursorPosition: cursor } : tab
-        ));
-      }
-    }
-    setActiveTab(id);
-  };
+      setActiveTab(id);
+    });
+  }, [activeTab]);
 
   const handleCursorChange = (tabId, cursor) => {
     setTabs(prevTabs => prevTabs.map(tab =>
