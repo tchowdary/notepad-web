@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Tabs } from '@mui/material';
 import Tab from './Tab';
 
-const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabAreaDoubleClick }) => {
+const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabAreaDoubleClick, setRightTab }) => {
   // Find the index of the active tab
   const activeIndex = tabs.findIndex(tab => tab.id === activeTab);
 
@@ -55,6 +55,8 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
             onClose={onTabClose}
             onSelect={onTabSelect}
             onRename={onTabRename}
+            setRightTab={setRightTab}
+            splitView={splitView}
           />
         ))}
       </Tabs>

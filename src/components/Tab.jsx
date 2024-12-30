@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
 import { Close as CloseIcon, Edit as EditIcon } from '@mui/icons-material';
 
-const Tab = ({ id, label, active, onClose, onSelect, onRename }) => {
+const Tab = ({ id, label, active, onClose, onSelect, onRename, setRightTab }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(label);
 
@@ -15,7 +15,11 @@ const Tab = ({ id, label, active, onClose, onSelect, onRename }) => {
   const handleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    onSelect(id);
+    if (setRightTab && splitView) {
+      setRightTab(id);
+    } else {
+      onSelect(id);
+    }
   };
 
   return (

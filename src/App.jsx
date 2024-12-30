@@ -26,6 +26,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
+  const [splitView, setSplitView] = useState(false);
+  const [rightTab, setRightTab] = useState(null);
   const [wordWrap, setWordWrap] = useState(() => {
     const saved = localStorage.getItem('wordWrap');
     return saved !== null ? saved === 'true' : true;
@@ -549,6 +551,13 @@ function App() {
     }
   };
 
+  const handleSplitViewToggle = () => {
+    setSplitView(!splitView);
+    if (!splitView) {
+      setRightTab(null);
+    }
+  };
+
   const handleEditorClick = (event) => {
     // Only handle clicks in responsive mode
     if (window.innerWidth <= 960) {
@@ -720,6 +729,9 @@ function App() {
                 onQuickAddClick={handleQuickAddClick}
                 showChat={showChat}
                 onChatToggle={handleChatToggle}
+                onSplitViewToggle={handleSplitViewToggle}
+                setSplitView={setSplitView}
+                setRightTab={setRightTab}
               />
             </Box>
 
@@ -795,7 +807,18 @@ function App() {
                     }
                   }}
                 >
-                  {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
+                  {splitView ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'row', width: '100%', height: '100%' }}>
+                      <Box sx={{ flex: 1, overflow: 'auto' }}>
+                        {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
+                      </Box>
+                      <Box sx={{ flex: 1, overflow: 'auto', borderLeft: `1px solid ${theme.palette.divider}` }}>
+                        {rightTab && renderTab(tabs.find(tab => tab.id === rightTab))}
+                      </Box>
+                    </Box>
+                  ) : (
+                    activeTab && renderTab(tabs.find(tab => tab.id === activeTab))
+                  )}
                 </Box>
                 
                 {showChat && (
@@ -845,6 +868,8 @@ function App() {
                     onTabClose={handleTabClose}
                     onTabRename={handleTabRename}
                     onTabAreaDoubleClick={handleTabAreaDoubleClick}
+                    setRightTab={setRightTab}
+                    splitView={splitView}
                   />
                 </Box>
               )}
