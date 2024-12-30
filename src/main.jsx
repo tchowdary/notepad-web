@@ -14,8 +14,25 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+try {
+  const rootElement = document.getElementById('root');
+  if (!rootElement) {
+    throw new Error('Root element not found');
+  }
+  
+  createRoot(rootElement).render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+} catch (error) {
+  console.error('Failed to render React app:', error);
+  // Optionally show a user-friendly error message
+  document.body.innerHTML = `
+    <div style="padding: 20px; color: red;">
+      <h2>Application Error</h2>
+      <p>${error.message}</p>
+      <p>Please refresh the page or contact support.</p>
+    </div>
+  `;
+}
