@@ -58,7 +58,6 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
             setRightTab={setRightTab}
             splitView={splitView}
           />
-          />
         ))}
       </Tabs>
     </Box>
