@@ -366,13 +366,14 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     };
   }, [editor, cursorPosition]);
 
-  // Track cursor position changes with optimized debouncing
+  // Track cursor position changes with optimized debouncing and batching
   useEffect(() => {
     if (!editor || !onCursorChange || !isEditorReady.current) return;
 
     let timeoutId = null;
     let lastUpdateTime = 0;
     const DEBOUNCE_TIME = 100; // Only update cursor position every 100ms max
+    let pendingUpdate = null;
 
     const handleSelectionUpdate = () => {
       if (isRestoringCursor.current) return;
@@ -383,6 +384,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       // Only update if position has changed
       if (lastKnownPosition.current !== position) {
         lastKnownPosition.current = position;
+        pendingUpdate = position;
         
         const now = Date.now();
         if (now - lastUpdateTime >= DEBOUNCE_TIME) {
@@ -393,12 +395,16 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           }
           
           // Update immediately if enough time has passed
-          onCursorChange(position);
+          onCursorChange(pendingUpdate);
+          pendingUpdate = null;
           lastUpdateTime = now;
         } else if (!timeoutId) {
           // Schedule an update if we're within the debounce window
           timeoutId = setTimeout(() => {
-            onCursorChange(position);
+            if (pendingUpdate) {
+              onCursorChange(pendingUpdate);
+              pendingUpdate = null;
+            }
             lastUpdateTime = Date.now();
             timeoutId = null;
           }, DEBOUNCE_TIME - (now - lastUpdateTime));

@@ -345,11 +345,19 @@ function App() {
     });
   }, [activeTab]);
 
-  const handleCursorChange = (tabId, cursor) => {
-    setTabs(prevTabs => prevTabs.map(tab =>
-      tab.id === tabId ? { ...tab, cursorPosition: cursor } : tab
-    ));
-  };
+  const handleCursorChange = React.useCallback((tabId, cursor) => {
+    setTabs(prevTabs => {
+      const currentTab = prevTabs.find(tab => tab.id === tabId);
+      // Only update if cursor position has actually changed
+      if (!currentTab?.cursorPosition || 
+          JSON.stringify(currentTab.cursorPosition) !== JSON.stringify(cursor)) {
+        return prevTabs.map(tab =>
+          tab.id === tabId ? { ...tab, cursorPosition: cursor } : tab
+        );
+      }
+      return prevTabs;
+    });
+  }, []);
 
   const handleContentChange = (id, newContent) => {
     setTabs(prevTabs => {
