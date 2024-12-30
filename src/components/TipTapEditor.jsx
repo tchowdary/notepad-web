@@ -189,6 +189,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       StarterKit.configure({
         horizontalRule: false,
       }),
+      // Ensure editor is properly initialized
+      EditorContent.configure({
+        content: content,
+      }),
       TextStyle,
       Color,
       Link.configure({
@@ -287,6 +291,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   // Restore cursor and scroll position when editor instance changes or cursorPosition changes
   useEffect(() => {
+    if (editor?.isDestroyed) return;
     if (editor && cursorPosition !== null && cursorPosition !== lastKnownPosition.current) {
       const pos = cursorPosition;
       lastKnownPosition.current = pos;
