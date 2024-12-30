@@ -315,9 +315,8 @@ function App() {
     // Only proceed if the tab is actually changing
     if (id === activeTab) return;
 
-    // Use requestAnimationFrame to batch updates
-    requestAnimationFrame(() => {
-      // Save cursor position of current tab before switching
+    // Save cursor position of current tab before switching
+    const saveCursor = () => {
       if (activeTab) {
         let cursor = null;
         if (editorRef.current?.editorInstance) {
@@ -341,6 +340,11 @@ function App() {
           });
         }
       }
+    };
+
+    // Batch updates using requestAnimationFrame
+    requestAnimationFrame(() => {
+      saveCursor();
       setActiveTab(id);
     });
   }, [activeTab]);
