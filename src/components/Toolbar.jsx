@@ -244,7 +244,7 @@ const Toolbar = ({
 
         <Tooltip title="Split View">
           <IconButton onClick={() => {
-            onSplitViewToggle();
+            setSplitView(!splitView);
           }} size="small" color={splitView ? 'primary' : 'inherit'}>
             <SplitViewIcon />
           </IconButton>

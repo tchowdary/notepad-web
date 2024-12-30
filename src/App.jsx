@@ -729,9 +729,9 @@ function App() {
                 onQuickAddClick={handleQuickAddClick}
                 showChat={showChat}
                 onChatToggle={handleChatToggle}
-                onSplitViewToggle={handleSplitViewToggle}
                 setSplitView={setSplitView}
                 setRightTab={setRightTab}
+                splitView={splitView}
               />
             </Box>
 
