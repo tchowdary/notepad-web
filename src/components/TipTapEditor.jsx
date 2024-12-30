@@ -1,16 +1,22 @@
 import React, { useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import TextStyle from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
-import Link from '@tiptap/extension-link';
-import HorizontalRule from '@tiptap/extension-horizontal-rule';
-import Table from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableCell from '@tiptap/extension-table-cell';
-import TableHeader from '@tiptap/extension-table-header';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
+const { useEditor, EditorContent } = await import('@tiptap/react').catch(() => ({ 
+  useEditor: () => null,
+  EditorContent: () => <div>Failed to load editor</div>
+}));
+
+const extensions = await Promise.all([
+  import('@tiptap/starter-kit').catch(() => null),
+  import('@tiptap/extension-text-style').catch(() => null),
+  import('@tiptap/extension-color').catch(() => null),
+  import('@tiptap/extension-link').catch(() => null),
+  import('@tiptap/extension-horizontal-rule').catch(() => null),
+  import('@tiptap/extension-table').catch(() => null),
+  import('@tiptap/extension-table-row').catch(() => null),
+  import('@tiptap/extension-table-cell').catch(() => null),
+  import('@tiptap/extension-table-header').catch(() => null),
+  import('@tiptap/extension-task-list').catch(() => null),
+  import('@tiptap/extension-task-item').catch(() => null)
+]).then(results => results.filter(Boolean).map(m => m.default));
 import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
 import {
   FormatQuote,

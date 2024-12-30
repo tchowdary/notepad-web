@@ -3,20 +3,20 @@ import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
 // Lazy load components to improve initial load performance
 import { lazy, Suspense } from 'react';
 
-const Editor = lazy(() => import('./components/Editor'));
-const TabList = lazy(() => import('./components/TabList'));
-const Toolbar = lazy(() => import('./components/Toolbar'));
-const CommandBar = lazy(() => import('./components/CommandBar'));
-const ExcalidrawEditor = lazy(() => import('./components/ExcalidrawEditor'));
-const TLDrawEditor = lazy(() => import('./components/TLDrawEditor'));
-const GitHubSettingsModal = lazy(() => import('./components/GitHubSettingsModal'));
-const TodoManager = lazy(() => import('./components/TodoManager'));
-const QuickAddTask = lazy(() => import('./components/QuickAddTask'));
-const CommandPalette = lazy(() => import('./components/CommandPalette'));
-const ChatBox = lazy(() => import('./components/ChatBox'));
-const ApiKeyInput = lazy(() => import('./components/ApiKeyInput'));
-const ResponsiveToolbar = lazy(() => import('./components/ResponsiveToolbar'));
-const TipTapEditor = lazy(() => import('./components/TipTapEditor'));
+const Editor = lazy(() => import('./components/Editor').catch(() => ({ default: () => <div>Failed to load Editor</div> })));
+const TabList = lazy(() => import('./components/TabList').catch(() => ({ default: () => <div>Failed to load TabList</div> })));
+const Toolbar = lazy(() => import('./components/Toolbar').catch(() => ({ default: () => <div>Failed to load Toolbar</div> })));
+const CommandBar = lazy(() => import('./components/CommandBar').catch(() => ({ default: () => <div>Failed to load CommandBar</div> })));
+const ExcalidrawEditor = lazy(() => import('./components/ExcalidrawEditor').catch(() => ({ default: () => <div>Failed to load Excalidraw</div> })));
+const TLDrawEditor = lazy(() => import('./components/TLDrawEditor').catch(() => ({ default: () => <div>Failed to load TLDraw</div> })));
+const GitHubSettingsModal = lazy(() => import('./components/GitHubSettingsModal').catch(() => ({ default: () => <div>Failed to load GitHub Settings</div> })));
+const TodoManager = lazy(() => import('./components/TodoManager').catch(() => ({ default: () => <div>Failed to load Todo Manager</div> })));
+const QuickAddTask = lazy(() => import('./components/QuickAddTask').catch(() => ({ default: () => <div>Failed to load Quick Add</div> })));
+const CommandPalette = lazy(() => import('./components/CommandPalette').catch(() => ({ default: () => <div>Failed to load Command Palette</div> })));
+const ChatBox = lazy(() => import('./components/ChatBox').catch(() => ({ default: () => <div>Failed to load Chat</div> })));
+const ApiKeyInput = lazy(() => import('./components/ApiKeyInput').catch(() => ({ default: () => <div>Failed to load API Settings</div> })));
+const ResponsiveToolbar = lazy(() => import('./components/ResponsiveToolbar').catch(() => ({ default: () => <div>Failed to load Toolbar</div> })));
+const TipTapEditor = lazy(() => import('./components/TipTapEditor').catch(() => ({ default: () => <div>Failed to load Editor</div> })));
 
 // Keep GitHubService as regular import since it's a service
 import GitHubService from './services/githubService';
@@ -749,7 +749,7 @@ function App() {
       <CssBaseline />
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {!isLoading && (
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<div style={{ padding: 16 }}>Loading component...</div>}>
           <>
             <Box sx={{ 
               display: focusMode ? 'none' : 'block',
