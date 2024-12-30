@@ -377,9 +377,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     if (!editor || !onCursorChange || !isEditorReady.current) return;
 
     let animationFrameId = null;
-    let timeoutId = null;
+    let lastPosition = null;
     const THROTTLE_TIME = 50; // Throttle to 50ms
-    const lastPosition = useRef(null);
 
     const handleSelectionUpdate = () => {
       if (isRestoringCursor.current) return;
@@ -388,8 +387,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       const position = from === to ? from : { from, to };
       
       // Only proceed if position has changed
-      if (JSON.stringify(lastPosition.current) !== JSON.stringify(position)) {
-        lastPosition.current = position;
+      if (JSON.stringify(lastPosition) !== JSON.stringify(position)) {
+        lastPosition = position;
         
         // Use requestAnimationFrame for batching
         if (!animationFrameId) {
@@ -403,19 +402,18 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
     // Use a timeout to throttle updates
     const throttledSelectionUpdate = () => {
-      if (!timeoutId) {
-        timeoutId = setTimeout(() => {
-          handleSelectionUpdate();
-          timeoutId = null;
-        }, THROTTLE_TIME);
+      if (!animationFrameId) {
+        animationFrameId = setTimeout(handleSelectionUpdate, THROTTLE_TIME);
       }
     };
 
     editor.on('selectionUpdate', throttledSelectionUpdate);
     return () => {
       editor.off('selectionUpdate', throttledSelectionUpdate);
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      if (timeoutId) clearTimeout(timeoutId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        clearTimeout(animationFrameId);
+      }
     };
   }, [editor, onCursorChange]);
 
