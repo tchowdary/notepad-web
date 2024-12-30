@@ -312,6 +312,9 @@ function App() {
   };
 
   const handleTabSelect = React.useCallback((id) => {
+    // Only proceed if the tab is actually changing
+    if (id === activeTab) return;
+
     // Use requestAnimationFrame to batch updates
     requestAnimationFrame(() => {
       // Save cursor position of current tab before switching
@@ -325,9 +328,17 @@ function App() {
         }
         
         if (cursor !== null) {
-          setTabs(prevTabs => prevTabs.map(tab => 
-            tab.id === activeTab ? { ...tab, cursorPosition: cursor } : tab
-          ));
+          setTabs(prevTabs => {
+            const currentTab = prevTabs.find(tab => tab.id === activeTab);
+            // Only update if cursor position has actually changed
+            if (!currentTab?.cursorPosition || 
+                JSON.stringify(currentTab.cursorPosition) !== JSON.stringify(cursor)) {
+              return prevTabs.map(tab => 
+                tab.id === activeTab ? { ...tab, cursorPosition: cursor } : tab
+              );
+            }
+            return prevTabs;
+          });
         }
       }
       setActiveTab(id);

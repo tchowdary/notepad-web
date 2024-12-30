@@ -366,11 +366,14 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     };
   }, [editor, cursorPosition]);
 
-  // Track cursor position changes with debouncing
+  // Track cursor position changes with optimized debouncing
   useEffect(() => {
     if (!editor || !onCursorChange || !isEditorReady.current) return;
 
     let timeoutId = null;
+    let lastUpdateTime = 0;
+    const DEBOUNCE_TIME = 100; // Only update cursor position every 100ms max
+
     const handleSelectionUpdate = () => {
       if (isRestoringCursor.current) return;
       
@@ -381,15 +384,25 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       if (lastKnownPosition.current !== position) {
         lastKnownPosition.current = position;
         
-        // Clear any pending updates
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        
-        // Debounce updates to once per animation frame
-        timeoutId = requestAnimationFrame(() => {
+        const now = Date.now();
+        if (now - lastUpdateTime >= DEBOUNCE_TIME) {
+          // Clear any pending updates
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          
+          // Update immediately if enough time has passed
           onCursorChange(position);
-        });
+          lastUpdateTime = now;
+        } else if (!timeoutId) {
+          // Schedule an update if we're within the debounce window
+          timeoutId = setTimeout(() => {
+            onCursorChange(position);
+            lastUpdateTime = Date.now();
+            timeoutId = null;
+          }, DEBOUNCE_TIME - (now - lastUpdateTime));
+        }
       }
     };
     
@@ -397,7 +410,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     return () => {
       editor.off('selectionUpdate', handleSelectionUpdate);
       if (timeoutId) {
-        cancelAnimationFrame(timeoutId);
+        clearTimeout(timeoutId);
       }
     };
   }, [editor, onCursorChange]);
