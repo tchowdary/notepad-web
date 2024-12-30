@@ -1,20 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
-import Editor from './components/Editor';
-import TabList from './components/TabList';
-import Toolbar from './components/Toolbar';
-import CommandBar from './components/CommandBar';
-import ExcalidrawEditor from './components/ExcalidrawEditor';
-import TLDrawEditor from './components/TLDrawEditor';
-import GitHubSettingsModal from './components/GitHubSettingsModal';
-import TodoManager from './components/TodoManager';
-import QuickAddTask from './components/QuickAddTask';
-import CommandPalette from './components/CommandPalette';
+// Lazy load components to improve initial load performance
+import { lazy, Suspense } from 'react';
+
+const Editor = lazy(() => import('./components/Editor'));
+const TabList = lazy(() => import('./components/TabList'));
+const Toolbar = lazy(() => import('./components/Toolbar'));
+const CommandBar = lazy(() => import('./components/CommandBar'));
+const ExcalidrawEditor = lazy(() => import('./components/ExcalidrawEditor'));
+const TLDrawEditor = lazy(() => import('./components/TLDrawEditor'));
+const GitHubSettingsModal = lazy(() => import('./components/GitHubSettingsModal'));
+const TodoManager = lazy(() => import('./components/TodoManager'));
+const QuickAddTask = lazy(() => import('./components/QuickAddTask'));
+const CommandPalette = lazy(() => import('./components/CommandPalette'));
+const ChatBox = lazy(() => import('./components/ChatBox'));
+const ApiKeyInput = lazy(() => import('./components/ApiKeyInput'));
+const ResponsiveToolbar = lazy(() => import('./components/ResponsiveToolbar'));
+const TipTapEditor = lazy(() => import('./components/TipTapEditor'));
+
+// Keep GitHubService as regular import since it's a service
 import GitHubService from './services/githubService';
-import ChatBox from './components/ChatBox';
-import ApiKeyInput from './components/ApiKeyInput';
-import ResponsiveToolbar from './components/ResponsiveToolbar';
-import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
@@ -744,6 +749,7 @@ function App() {
       <CssBaseline />
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {!isLoading && (
+          <Suspense fallback={<div>Loading...</div>}>
           <>
             <Box sx={{ 
               display: focusMode ? 'none' : 'block',
@@ -920,7 +926,7 @@ function App() {
                 </Box>
               )}
             </Box>
-          </>
+          </Suspense>
         )}
       </Box>
       <input
