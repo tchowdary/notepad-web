@@ -366,14 +366,13 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     };
   }, [editor, cursorPosition]);
 
-  // Track cursor position changes with optimized debouncing and batching
+  // Track cursor position changes with optimized batching and throttling
   useEffect(() => {
     if (!editor || !onCursorChange || !isEditorReady.current) return;
 
-    let timeoutId = null;
-    let lastUpdateTime = 0;
-    const DEBOUNCE_TIME = 100; // Only update cursor position every 100ms max
-    let pendingUpdate = null;
+    let animationFrameId = null;
+    let lastPosition = null;
+    const THROTTLE_TIME = 50; // Throttle to 50ms
 
     const handleSelectionUpdate = () => {
       if (isRestoringCursor.current) return;
@@ -381,42 +380,33 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       const { from, to } = editor.state.selection;
       const position = from === to ? from : { from, to };
       
-      // Only update if position has changed
-      if (lastKnownPosition.current !== position) {
-        lastKnownPosition.current = position;
-        pendingUpdate = position;
+      // Only proceed if position has changed
+      if (JSON.stringify(lastPosition) !== JSON.stringify(position)) {
+        lastPosition = position;
         
-        const now = Date.now();
-        if (now - lastUpdateTime >= DEBOUNCE_TIME) {
-          // Clear any pending updates
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-          }
-          
-          // Update immediately if enough time has passed
-          onCursorChange(pendingUpdate);
-          pendingUpdate = null;
-          lastUpdateTime = now;
-        } else if (!timeoutId) {
-          // Schedule an update if we're within the debounce window
-          timeoutId = setTimeout(() => {
-            if (pendingUpdate) {
-              onCursorChange(pendingUpdate);
-              pendingUpdate = null;
-            }
-            lastUpdateTime = Date.now();
-            timeoutId = null;
-          }, DEBOUNCE_TIME - (now - lastUpdateTime));
+        // Use requestAnimationFrame for batching
+        if (!animationFrameId) {
+          animationFrameId = requestAnimationFrame(() => {
+            onCursorChange(position);
+            animationFrameId = null;
+          });
         }
       }
     };
-    
-    editor.on('selectionUpdate', handleSelectionUpdate);
+
+    // Use a timeout to throttle updates
+    const throttledSelectionUpdate = () => {
+      if (!animationFrameId) {
+        animationFrameId = setTimeout(handleSelectionUpdate, THROTTLE_TIME);
+      }
+    };
+
+    editor.on('selectionUpdate', throttledSelectionUpdate);
     return () => {
-      editor.off('selectionUpdate', handleSelectionUpdate);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      editor.off('selectionUpdate', throttledSelectionUpdate);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        clearTimeout(animationFrameId);
       }
     };
   }, [editor, onCursorChange]);

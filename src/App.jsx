@@ -346,16 +346,27 @@ function App() {
   }, [activeTab]);
 
   const handleCursorChange = React.useCallback((tabId, cursor) => {
-    setTabs(prevTabs => {
-      const currentTab = prevTabs.find(tab => tab.id === tabId);
-      // Only update if cursor position has actually changed
-      if (!currentTab?.cursorPosition || 
-          JSON.stringify(currentTab.cursorPosition) !== JSON.stringify(cursor)) {
-        return prevTabs.map(tab =>
-          tab.id === tabId ? { ...tab, cursorPosition: cursor } : tab
-        );
-      }
-      return prevTabs;
+    // Use a ref to track the last cursor position to avoid unnecessary state updates
+    const lastCursor = React.useRef(null);
+    
+    if (!cursor || JSON.stringify(lastCursor.current) === JSON.stringify(cursor)) {
+      return;
+    }
+    
+    lastCursor.current = cursor;
+    
+    // Batch the update with requestAnimationFrame
+    requestAnimationFrame(() => {
+      setTabs(prevTabs => {
+        const currentTab = prevTabs.find(tab => tab.id === tabId);
+        if (!currentTab?.cursorPosition || 
+            JSON.stringify(currentTab.cursorPosition) !== JSON.stringify(cursor)) {
+          return prevTabs.map(tab =>
+            tab.id === tabId ? { ...tab, cursorPosition: cursor } : tab
+          );
+        }
+        return prevTabs;
+      });
     });
   }, []);
 
