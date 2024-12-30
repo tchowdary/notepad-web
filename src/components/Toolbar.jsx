@@ -29,6 +29,7 @@ import {
   PlaylistAdd as QuickAddIcon,
   TaskAlt as TodoManagerIcon,
   Chat as ChatIcon,
+  ViewColumn as SplitViewIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import ApiKeyInput from './ApiKeyInput';
@@ -56,6 +57,9 @@ const Toolbar = ({
   onQuickAddClick,
   onChatToggle,
   showChat,
+  setSplitView,
+  setRightTab,
+  splitView,
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [convertAnchorEl, setConvertAnchorEl] = useState(null);
@@ -237,6 +241,14 @@ const Toolbar = ({
             <ChatIcon />
           </IconButton>
         </Tooltip> }
+
+        <Tooltip title="Split View">
+          <IconButton onClick={() => {
+            onSplitViewToggle();
+          }} size="small" color={splitView ? 'primary' : 'inherit'}>
+            <SplitViewIcon />
+          </IconButton>
+        </Tooltip>
 
         <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
           <IconButton onClick={handleGitHubSync} size="small">
