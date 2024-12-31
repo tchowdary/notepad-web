@@ -166,16 +166,21 @@ class GitHubService {
       const latestSHA = await this.getLatestFileSHA(existingPath);
       
       // Always use the existing path if we found a SHA, otherwise use current path
-      const uploadPath = existingPath;
+      const uploadPath = existingPath || currentPath;
       
       const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${uploadPath}`;
 
       // Ensure the directory exists before uploading
       await this.createDirectory(uploadPath);
 
+      // Convert content to UTF-8 encoded string, handling base64 images properly
+      const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+      const contentBytes = new TextEncoder().encode(contentStr);
+      const base64Content = btoa(String.fromCharCode(...contentBytes));
+
       const body = {
         message: `Update ${uploadPath}`,
-        content: btoa(unescape(encodeURIComponent(content))),
+        content: base64Content,
         branch: this.settings.branch
       };
 
