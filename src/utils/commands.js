@@ -18,6 +18,7 @@ import {
   GitHub as GitHubIcon,
   Chat as ChatIcon,
   ChatBubbleOutline as ChatBubbleOutlineIcon,
+  ViewKanban as KanbanIcon,
 } from '@mui/icons-material';
 import { converters } from './converters';
 import githubService from '../services/githubService';
@@ -144,6 +145,21 @@ export const createCommandList = ({
       description: 'Create a new TLDraw drawing',
       icon: TLDrawIcon,
       action: () => onNewDrawing('tldraw')
+    },
+    {
+      id: 'new-kanban',
+      label: 'New Kanban Board',
+      icon: KanbanIcon,
+      shortcut: 'Ctrl+Alt+K',
+      action: () => {
+        const id = Date.now().toString();
+        onNewTab({
+          id,
+          label: `Board-${id}.kanban`,
+          type: 'kanban',
+          content: id
+        });
+      }
     },
     {
       id: 'configure-ai',

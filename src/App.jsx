@@ -15,7 +15,8 @@ import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
 import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
-import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
+import KanbanBoard from './components/KanbanBoard';
+import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData, deleteKanbanBoard } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
 import { converters } from './utils/converters';
@@ -240,14 +241,14 @@ function App() {
     saveTodoState();
   }, [todoData]);
 
-  const handleNewTab = () => {
+  const handleNewTab = (options = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     const newTab = {
       id: newId,
-      name: `Code-${newId}.md`,
-      content: '',
-      type: 'markdown',
-      editorType: 'codemirror'
+      name: options.label || `Code-${newId}.md`,
+      content: options.content || '',
+      type: options.type || 'markdown',
+      editorType: options.type ? undefined : 'codemirror'
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
     // Use requestAnimationFrame for smoother focus handling
@@ -279,6 +280,12 @@ function App() {
         await deleteDrawing(id);
       } catch (error) {
         console.error('Error deleting drawing:', error);
+      }
+    } else if (tab?.type === 'kanban') {
+      try {
+        await deleteKanbanBoard(id);
+      } catch (error) {
+        console.error('Error deleting kanban board:', error);
       }
     }
     
@@ -632,6 +639,16 @@ function App() {
           tasks={todoData}
           onTasksChange={setTodoData}
         />
+      );
+    } else if (tab.type === 'kanban') {
+      return (
+        <Box sx={{ height: '100%', overflow: 'hidden' }}>
+          <KanbanBoard 
+            id={tab.id} 
+            content={tab.content}
+            onSave={(content) => handleContentChange(tab.id, content)}
+          />
+        </Box>
       );
     }
 

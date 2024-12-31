@@ -65,15 +65,7 @@ class GitHubService {
     if (filename === 'untitled.md' || filename.startsWith('Note') || filename.startsWith('Code')) {
       return false;
     }
-    
-    // Special case for todos file
-    if (filename === 'Todo') {
-      return true;
-    }
-    
-    // Include .md and .tldraw files
-    const shouldSync = filename.endsWith('.md') || filename.endsWith('.tldraw');
-    return shouldSync;
+    return true;
   }
 
   async getLatestFileSHA(path) {

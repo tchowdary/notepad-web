@@ -1,8 +1,9 @@
 export const DB_NAME = 'notepadDB';
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 export const TABS_STORE = 'tabs';
 export const DRAWINGS_STORE = 'drawings';
 export const TODO_STORE = 'todos';
+export const KANBAN_STORE = 'kanban';
 
 export const openDB = () => {
   return new Promise((resolve, reject) => {
@@ -22,6 +23,9 @@ export const openDB = () => {
       }
       if (!db.objectStoreNames.contains(TODO_STORE)) {
         db.createObjectStore(TODO_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(KANBAN_STORE)) {
+        db.createObjectStore(KANBAN_STORE, { keyPath: 'id' });
       }
     };
   });
@@ -178,4 +182,42 @@ export const loadTodoData = async () => {
       db.close();
     }
   }
+};
+
+export const saveKanbanBoard = async (id, content) => {
+  const db = await openDB();
+  const tx = db.transaction(KANBAN_STORE, 'readwrite');
+  const store = tx.objectStore(KANBAN_STORE);
+
+  return new Promise((resolve, reject) => {
+    const request = store.put({ id, content });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+};
+
+export const loadKanbanBoard = async (id) => {
+  const db = await openDB();
+  const tx = db.transaction(KANBAN_STORE, 'readonly');
+  const store = tx.objectStore(KANBAN_STORE);
+
+  return new Promise((resolve, reject) => {
+    const request = store.get(id);
+    request.onsuccess = () => resolve(request.result?.content || null);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const deleteKanbanBoard = async (id) => {
+  const db = await openDB();
+  const tx = db.transaction(KANBAN_STORE, 'readwrite');
+  const store = tx.objectStore(KANBAN_STORE);
+
+  return new Promise((resolve, reject) => {
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
 };
