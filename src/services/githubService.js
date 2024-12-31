@@ -2,7 +2,7 @@ import { DB_NAME, DB_VERSION, TABS_STORE, TODO_STORE, openDB } from '../utils/db
 
 class GitHubService {
   constructor() {
-    this.syncInterval = 30 * 60 * 1000; // 30 minutes
+    this.syncInterval = 60 * 60 * 1000; // 60 minutes
     this.loadSettings();
     this.startAutoSync();
   }
