@@ -248,7 +248,7 @@ function App() {
       name: options.label || `Code-${newId}.md`,
       content: options.content || '',
       type: options.type || 'markdown',
-      editorType: options.type ? undefined : 'codemirror'
+      editorType: options.type === 'markdown' ? 'codemirror' : undefined
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
     // Use requestAnimationFrame for smoother focus handling

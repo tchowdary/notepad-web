@@ -7,23 +7,32 @@ import EditIcon from '@mui/icons-material/Edit';
 import { saveKanbanBoard, loadKanbanBoard } from '../utils/db';
 
 const KanbanBoard = ({ id, content, onSave }) => {
-  const defaultLists = [
-    { id: 'todo', title: 'To Do', cards: [] },
-    { id: 'inprogress', title: 'In Progress', cards: [] },
-    { id: 'done', title: 'Done', cards: [] }
-  ];
 
   const [lists, setLists] = useState(() => {
-    if (!content) return defaultLists;
-    
     try {
+      if (!content) return [];
       const parsed = JSON.parse(content);
-      return Array.isArray(parsed) ? parsed : defaultLists;
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error('Error parsing kanban content:', e);
-      return defaultLists;
+      return [];
     }
   });
+
+  useEffect(() => {
+    try {
+      if (!content) {
+        setLists([]);
+        return;
+      }
+      const parsed = JSON.parse(content);
+      setLists(Array.isArray(parsed) ? parsed : []);
+    } catch (e) {
+      console.error('Error parsing kanban content:', e);
+      setLists([]);
+    }
+  }, [content]);
+
   const [editingList, setEditingList] = useState(null);
   const [editingCard, setEditingCard] = useState(null);
 
@@ -69,7 +78,7 @@ const KanbanBoard = ({ id, content, onSave }) => {
     const list = newLists.find(l => l.id === listId);
     const newCard = {
       id: Date.now().toString(),
-      content: 'New Card'
+      content: ''
     };
     list.cards.push(newCard);
     setLists(newLists);
@@ -151,10 +160,10 @@ const KanbanBoard = ({ id, content, onSave }) => {
                 )}
                 <Box>
                   <IconButton size="small" onClick={() => setEditingList(list.id)}>
-                    <EditIcon fontSize="small" />
+                    <EditIcon fontSize="medium" />
                   </IconButton>
                   <IconButton size="small" onClick={() => deleteList(list.id)}>
-                    <DeleteIcon fontSize="small" />
+                    <DeleteIcon fontSize="medium" />
                   </IconButton>
                 </Box>
               </Box>
@@ -185,32 +194,47 @@ const KanbanBoard = ({ id, content, onSave }) => {
                             }}
                           >
                             {editingCard?.listId === list.id && editingCard?.cardId === card.id ? (
-                              <input
+                              <textarea
                                 autoFocus
                                 defaultValue={card.content}
                                 onBlur={(e) => updateCardContent(list.id, card.id, e.target.value)}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
                                     updateCardContent(list.id, card.id, e.target.value);
                                   }
                                 }}
-                                style={{ width: '100%' }}
+                                style={{ 
+                                  width: '100%',
+                                  minHeight: '80px',
+                                  padding: '8px',
+                                  border: '1px solid rgba(0, 0, 0, 0.1)',
+                                  borderRadius: '4px',
+                                  resize: 'vertical'
+                                }}
                               />
                             ) : (
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography>{card.content}</Typography>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                                <Typography sx={{ 
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                  flex: 1,
+                                  mr: 1
+                                }}>
+                                  {card.content}
+                                </Typography>
                                 <Box>
                                   <IconButton 
                                     size="small" 
                                     onClick={() => setEditingCard({ listId: list.id, cardId: card.id })}
                                   >
-                                    <EditIcon fontSize="small" />
+                                    <EditIcon fontSize="medium" />
                                   </IconButton>
                                   <IconButton 
                                     size="small" 
                                     onClick={() => deleteCard(list.id, card.id)}
                                   >
-                                    <DeleteIcon fontSize="small" />
+                                    <DeleteIcon fontSize="medium" />
                                   </IconButton>
                                 </Box>
                               </Box>
