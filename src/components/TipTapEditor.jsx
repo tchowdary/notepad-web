@@ -11,6 +11,7 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import Image from '@tiptap/extension-image';
 import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
 import {
   FormatQuote,
@@ -28,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
+import { compressImage } from '../utils/imageUtils';
 
 const getTableStyles = (darkMode) => ({
   '& table': {
@@ -171,6 +173,13 @@ const getEditorStyles = (darkMode) => ({
         },
       },
     },
+    '& img': {
+      maxWidth: '100%',
+      height: 'auto',
+      display: 'block',
+      margin: '1em 0',
+      borderRadius: '4px',
+    },
     ...getTableStyles(darkMode),
   },
 });
@@ -205,6 +214,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       TaskItem.configure({
         nested: true,
       }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -215,17 +228,29 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       isEditorReady.current = true;
     },
     editorProps: {
-      handlePaste: (view, event) => {
+      handlePaste: async (view, event) => {
+        if (event.clipboardData && event.clipboardData.files && event.clipboardData.files[0]) {
+          const file = event.clipboardData.files[0];
+          if (file.type.startsWith('image/')) {
+            event.preventDefault();
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              const base64Image = e.target.result;
+              // Compress image before storing
+              const compressedImage = await compressImage(base64Image);
+              editor.commands.setImage({ src: compressedImage });
+            };
+            reader.readAsDataURL(file);
+            return true;
+          }
+        }
         if (event.clipboardData) {
-          event.preventDefault();
-          
           // Try to get HTML content first
           const html = event.clipboardData.getData('text/html');
           if (html) {
             editor.commands.insertContent(html);
             return true;
           }
-          
           // If no HTML, try plain text and convert from markdown
           const text = event.clipboardData.getData('text/plain');
           if (text) {
@@ -239,12 +264,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       handleCopy: (view, event) => {
         const { state, dispatch } = view;
         const { empty, content } = state.selection;
-        
         if (!empty) {
           // Get HTML and plain text versions
           const html = content().content.toHTML();
           const text = content().content.textBetween(0, content().content.size, '\n');
-          
           // Set clipboard data
           event.clipboardData.setData('text/html', html);
           event.clipboardData.setData('text/plain', text);
@@ -254,16 +277,13 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       handleCut: (view, event) => {
         const { state, dispatch } = view;
         const { empty, content } = state.selection;
-        
         if (!empty) {
           // Get HTML and plain text versions
           const html = content().content.toHTML();
           const text = content().content.textBetween(0, content().content.size, '\n');
-          
           // Set clipboard data
           event.clipboardData.setData('text/html', html);
           event.clipboardData.setData('text/plain', text);
-          
           // Remove selected content
           dispatch(state.tr.deleteSelection());
           event.preventDefault();
@@ -277,11 +297,9 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     if (editor && isEditorReady.current && cursorPosition && cursorPosition !== lastKnownPosition.current) {
       const pos = cursorPosition;
       lastKnownPosition.current = pos;
-      
       try {
         isRestoringCursor.current = true;
         const docLength = editor.state.doc.content.size;
-        
         // Ensure position is within valid range
         let targetPos;
         if (typeof pos === 'number') {
@@ -302,14 +320,12 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
         // Get the current selection end position
         const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
-        
         // Only scroll if the position is valid
         if (end <= docLength) {
           const resolvedPos = editor.state.doc.resolve(end);
           editor.view.dispatch(editor.state.tr.setSelection(
             editor.state.selection.constructor.near(resolvedPos)
           ));
-          
           // Scroll into view without animation
           const editorElement = editor.view.dom.closest('.ProseMirror');
           if (editorElement) {
@@ -336,13 +352,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     if (editor && onCursorChange && isEditorReady.current) {
       const handleSelectionUpdate = () => {
         if (isRestoringCursor.current) return;
-        
         const { from, to } = editor.state.selection;
         const position = from === to ? from : { from, to };
         lastKnownPosition.current = position;
         onCursorChange(position);
       };
-      
       editor.on('selectionUpdate', handleSelectionUpdate);
       return () => editor.off('selectionUpdate', handleSelectionUpdate);
     }
@@ -358,7 +372,6 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const handleImproveText = async () => {
     if (improving) return;
-    
     const text = editor?.state.selection.empty ? 
       editor?.getHTML() : 
       editor?.state.doc.textBetween(
@@ -393,7 +406,6 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const handleCopyPlainText = () => {
     if (!editor) return;
-    
     const selection = editor.state.selection;
     if (!selection.empty) {
       const text = editor.state.doc.textBetween(selection.from, selection.to, '\n');
