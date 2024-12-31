@@ -72,8 +72,8 @@ class GitHubService {
     }
     
     // Include .md and .tldraw files
-    const shouldSync = filename.endsWith('.md') || filename.endsWith('.tldraw');
-    return shouldSync;
+    //const shouldSync = filename.endsWith('.md') || filename.endsWith('.tldraw');
+    return true;
   }
 
   async getLatestFileSHA(path) {

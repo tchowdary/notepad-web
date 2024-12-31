@@ -39,13 +39,15 @@ const Editor = forwardRef(({
   focusMode,
   editorType = 'codemirror',
   cursorPosition = null,
-  onCursorChange
+  onCursorChange,
+  filename = ''
 }, ref) => {
   const [editorInstance, setEditorInstance] = useState(null);
   const [improving, setImproving] = useState(false);
   const [converterAnchor, setConverterAnchor] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isJsonMode, setIsJsonMode] = useState(false);
+  const [fileMode, setFileMode] = useState('markdown');
 
   // Restore cursor position when editor instance or cursorPosition changes
   useEffect(() => {
@@ -53,6 +55,61 @@ const Editor = forwardRef(({
       editorInstance.setCursor(cursorPosition);
     }
   }, [editorInstance, cursorPosition]);
+
+  // Detect file type from extension
+  useEffect(() => {
+    if (editorInstance && content) {
+      // Try to detect JSON content
+      try {
+        JSON.parse(content);
+        setIsJsonMode(true);
+        setFileMode({ name: 'javascript', json: true });
+        editorInstance.setOption('mode', { name: 'javascript', json: true });
+        return;
+      } catch (e) {
+        setIsJsonMode(false);
+      }
+
+      // Get file extension from props
+      const filename = editorInstance.getOption('filename');
+      if (filename) {
+        const ext = filename.toLowerCase().split('.').pop();
+        let mode = 'markdown';
+        
+        switch (ext) {
+          case 'js':
+          case 'jsx':
+            mode = 'javascript';
+            break;
+          case 'css':
+            mode = 'css';
+            break;
+          case 'html':
+          case 'xml':
+            mode = 'xml';
+            break;
+          case 'py':
+            mode = 'python';
+            break;
+          case 'sql':
+            mode = 'sql';
+            break;
+          case 'yml':
+          case 'yaml':
+            mode = 'yaml';
+            break;
+          case 'json':
+            mode = { name: 'javascript', json: true };
+            break;
+          default:
+            mode = 'markdown';
+        }
+        
+        setFileMode(mode);
+        editorInstance.setOption('mode', mode);
+      }
+    }
+  }, [editorInstance, content]);
 
   useImperativeHandle(ref, () => ({
     setConverterMenuAnchor: (anchor) => {
@@ -144,7 +201,7 @@ const Editor = forwardRef(({
   };
 
   const options = {
-    mode: isJsonMode ? { name: 'javascript', json: true } : 'markdown',
+    mode: fileMode,
     theme: darkMode ? 'material' : 'default',
     lineNumbers: !focusMode && showLineNumbers,
     lineWrapping: wordWrap,
@@ -177,6 +234,7 @@ const Editor = forwardRef(({
     indentUnit: 2,
     tabSize: 2,
     viewportMargin: Infinity,
+    filename: filename
   };
 
   const editorComponent = (
