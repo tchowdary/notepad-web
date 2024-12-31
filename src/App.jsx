@@ -244,7 +244,7 @@ function App() {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     const newTab = {
       id: newId,
-      name: `Code-${newId}.md`,
+      name: `Code-${newId}.txt`,
       content: '',
       type: 'markdown',
       editorType: 'codemirror'
@@ -376,12 +376,15 @@ function App() {
       const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
       const isExcalidraw = file.name.endsWith('.excalidraw');
       const isTLDraw = file.name.endsWith('.tldraw');
+      const isMarkdown = file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown');
       const newTab = {
         id: newId,
         name: file.name,
         content: isExcalidraw || isTLDraw ? JSON.parse(content) : content,
         type: isExcalidraw ? 'excalidraw' : isTLDraw ? 'tldraw' : 'markdown',
-        editorType: 'tiptap'
+        editorType: isExcalidraw ? 'excalidraw' : 
+                   isTLDraw ? 'tldraw' : 
+                   isMarkdown ? 'tiptap' : 'codemirror'
       };
 
       if (isExcalidraw) {
@@ -532,7 +535,8 @@ function App() {
         name: file.name,
         content: parsedContent,
         type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
-        editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 'tiptap',
+        editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
+                   (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror',
         path: file.path
       };
       setTabs(prev => [...prev, newTab]);
@@ -653,14 +657,16 @@ function App() {
     // Fallback to CodeMirror editor
     return (
       <Editor
+        ref={editorRef}
         content={tab.content}
         onChange={(newContent) => handleContentChange(tab.id, newContent)}
         wordWrap={wordWrap}
         darkMode={darkMode}
         showPreview={showPreview}
+        focusMode={focusMode}
         cursorPosition={tab.cursorPosition}
-        onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
-        ref={editorRef}
+        onCursorChange={(cursor) => handleCursorChange(tab.id, cursor)}
+        filename={tab.name}
       />
     );
   };
