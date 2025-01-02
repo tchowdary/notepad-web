@@ -157,10 +157,28 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
 
 const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => {
   try {
-    const messagePayload = messages.map(({ role, content }) => ({
-      role: role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: Array.isArray(content) ? content[0].text : content }]
-    }));
+    const messagePayload = messages.map(({ role, content }) => {
+      const parts = [];
+      const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
+
+      formattedContent.forEach(item => {
+        if (item.type === 'image') {
+          parts.push({
+            inlineData: {
+              mimeType: item.source.media_type,
+              data: item.source.data,
+            }
+          });
+        } else if (item.type === 'text') {
+          parts.push({ text: item.text });
+        }
+      });
+
+      return {
+        role: role === 'assistant' ? 'model' : 'user',
+        parts
+      };
+    });
 
     if (customInstruction) {
       messagePayload.unshift({ role: 'user', parts: [{ text: customInstruction.content }] });
@@ -174,7 +192,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
           maxOutputTokens: 2048,
         }
       };
-    
+
       // Only add tools for the specific model
       if (model === 'gemini-2.0-flash-exp') {
         baseConfig.tools = {
@@ -182,7 +200,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
         };
         baseConfig.generationConfig.response_modalities = ["TEXT"];
       }
-    
+
       return baseConfig;
     };
 
@@ -208,7 +226,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
 
     return {
       role: 'assistant',
-      content: data.candidates[0].content.parts[0].text,
+      content: data.candidates[0].content.parts.map(part => part.text).join(''),
       timestamp: new Date().toISOString()
     };
   } catch (error) {
