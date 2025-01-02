@@ -1090,7 +1090,8 @@ const ChatBox = () => {
                 if (typeof firstMessage.content === 'string') {
                   preview = firstMessage.content;
                 } else if (Array.isArray(firstMessage.content)) {
-                  preview = '[Image with text]';
+                  const textContent = firstMessage.content.find(item => item.type === 'text');
+                  preview = textContent ? textContent.text : '[No text available]';
                 } else if (firstMessage.content?.type === 'image') {
                   preview = '[Image]';
                 }
