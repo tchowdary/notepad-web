@@ -320,7 +320,7 @@ const ChatBox = () => {
 
       const newMessage = {
         role: 'user',
-        content: messageContent,
+        content: input.trim(),
         timestamp: new Date().toISOString()
       };
 
@@ -426,113 +426,99 @@ const ChatBox = () => {
   };
 
   const renderMessageContent = (content) => {
+    // If content is a string, render it with markdown
+    if (typeof content === 'string') {
+      return (
+        <Typography 
+          variant="body1" 
+          component="div"
+          sx={{ 
+            fontFamily: 'Geist, sans-serif',
+            fontSize: '17px',
+            lineHeight: 1.8,
+            '& h1, & h2, & h3, & h4, & h5, & h6': {
+              fontWeight: 600,
+              lineHeight: 1.3,
+              marginTop: '1.5em',
+              marginBottom: '0.5em'
+            },
+            '& h1': { fontSize: '2em' },
+            '& h2': { fontSize: '1.5em' },
+            '& h3': { fontSize: '1.25em' },
+            '& h4': { fontSize: '1.1em' },
+            '& h5': { fontSize: '1em' },
+            '& h6': { fontSize: '0.875em' },
+            '& p': {
+              marginBottom: '1em',
+              marginTop: 0
+            },
+            '& pre': {
+              marginBottom: '1.5em',
+              '& code': {
+                fontFamily: 'Geist Mono, monospace',
+                fontSize: '0.9em'
+              }
+            },
+            '& code': {
+              fontFamily: 'Geist Mono, monospace',
+              fontSize: '0.9em',
+              padding: '0.2em 0.4em',
+              borderRadius: '4px',
+              backgroundColor: 'rgba(0, 0, 0, 0.1)'
+            },
+            '& ul, & ol': {
+              marginTop: '0.5em',
+              marginBottom: '1em',
+              paddingLeft: '2em'
+            },
+            '& li': {
+              marginBottom: '0.5em',
+              '& p': {
+                marginBottom: '0.5em'
+              },
+              '& > ul, & > ol': {
+                marginTop: '0.5em',
+                marginBottom: '0.5em'
+              }
+            },
+            '& ul > li': { listStyle: 'disc' },
+            '& ul > li > ul > li': { listStyle: 'circle' },
+            '& ul > li > ul > li > ul > li': { listStyle: 'square' },
+            '& ol > li': { listStyle: 'decimal' }
+          }}
+        >
+          <ReactMarkdown
+            components={{
+              code: ({ node, inline, className, children, ...props }) => {
+                const match = /language-(\w+)/.exec(className || '');
+                return !inline && match ? (
+                  <SyntaxHighlighter
+                    style={oneDark}
+                    language={match[1]}
+                    PreTag="div"
+                    {...props}
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              },
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </Typography>
+      );
+    }
+
+    // If content is an array, handle each item
     if (Array.isArray(content)) {
       return content.map((item, index) => {
         if (item.type === 'text' || item.type === 'markdown') {
-          return (
-            <Typography 
-              key={index} 
-              variant="body1" 
-              component="div"
-              sx={{ 
-                fontFamily: 'Geist Mono, sans-serif',
-                lineHeight: 1.8,
-                '& h1, & h2, & h3, & h4, & h5, & h6': {
-                  fontWeight: 600,
-                  lineHeight: 1.3,
-                  marginTop: '1.5em',
-                  marginBottom: '0.5em'
-                },
-                '& h1': {
-                  fontSize: '2em',
-                },
-                '& h2': {
-                  fontSize: '1.5em',
-                },
-                '& h3': {
-                  fontSize: '1.25em',
-                },
-                '& h4': {
-                  fontSize: '1.1em',
-                },
-                '& h5': {
-                  fontSize: '1em',
-                },
-                '& h6': {
-                  fontSize: '0.875em',
-                },
-                '& p': {
-                  marginBottom: '1em',
-                  marginTop: 0
-                },
-                '& pre': {
-                  marginBottom: '1.5em',
-                  '& code': {
-                    fontFamily: 'Geist Mono, monospace',
-                    fontSize: '0.9em'
-                  }
-                },
-                '& ul, & ol': {
-                  marginTop: '0.5em',
-                  marginBottom: '1em',
-                  paddingLeft: '2em'
-                },
-                '& li': {
-                  marginBottom: '0.5em',
-                  '& p': {
-                    marginBottom: '0.5em'
-                  },
-                  '& > ul, & > ol': {
-                    marginTop: '0.5em',
-                    marginBottom: '0.5em'
-                  }
-                },
-                '& ul > li': {
-                  listStyle: 'disc'
-                },
-                '& ul > li > ul > li': {
-                  listStyle: 'circle'
-                },
-                '& ul > li > ul > li > ul > li': {
-                  listStyle: 'square'
-                },
-                '& ol > li': {
-                  listStyle: 'decimal'
-                },
-                '& code': {
-                  fontFamily: 'Geist Mono, monospace',
-                  fontSize: '0.9em',
-                  padding: '0.2em 0.4em',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.1)'
-                }
-              }}
-            >
-              <ReactMarkdown
-                components={{
-                  code: ({ node, inline, className, children, ...props }) => {
-                    const match = /language-(\w+)/.exec(className || '');
-                    return !inline && match ? (
-                      <SyntaxHighlighter
-                        style={oneDark}
-                        language={match[1]}
-                        PreTag="div"
-                        {...props}
-                      >
-                        {String(children).replace(/\n$/, '')}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}
-              >
-                {item.text || item.content}
-              </ReactMarkdown>
-            </Typography>
-          );
+          return renderMessageContent(item.text || item.content);
         }
         if (item.type === 'image') {
           return (
@@ -560,99 +546,8 @@ const ChatBox = () => {
       });
     }
 
-    return (
-      <Typography 
-        variant="body1" 
-        component="div"
-        sx={{ 
-          fontFamily: 'Geist, sans-serif',
-          fontSize: '17px',
-          lineHeight: 1.8,
-          '& h1, & h2, & h3, & h4, & h5, & h6': {
-            fontWeight: 600,
-            lineHeight: 1.3,
-            marginTop: '1.5em',
-            marginBottom: '0.5em'
-          },
-          '& h1': {
-            fontSize: '2em',
-          },
-          '& h2': {
-            fontSize: '1.5em',
-          },
-          '& h3': {
-            fontSize: '1.25em',
-          },
-          '& h4': {
-            fontSize: '1.1em',
-          },
-          '& h5': {
-            fontSize: '1em',
-          },
-          '& h6': {
-            fontSize: '0.875em',
-          },
-          '& p': {
-            marginBottom: '1em',
-            marginTop: 0
-          },
-          '& pre': {
-            marginBottom: '1.5em'
-          },
-          '& ul, & ol': {
-            marginTop: '0.5em',
-            marginBottom: '1em',
-            paddingLeft: '2em'
-          },
-          '& li': {
-            marginBottom: '0.5em',
-            '& p': {
-              marginBottom: '0.5em'
-            },
-            '& > ul, & > ol': {
-              marginTop: '0.5em',
-              marginBottom: '0.5em'
-            }
-          },
-          '& ul > li': {
-            listStyle: 'disc'
-          },
-          '& ul > li > ul > li': {
-            listStyle: 'circle'
-          },
-          '& ul > li > ul > li > ul > li': {
-            listStyle: 'square'
-          },
-          '& ol > li': {
-            listStyle: 'decimal'
-          }
-        }}
-      >
-        <ReactMarkdown
-          components={{
-            code: ({ node, inline, className, children, ...props }) => {
-              const match = /language-(\w+)/.exec(className || '');
-              return !inline && match ? (
-                <SyntaxHighlighter
-                  style={oneDark}
-                  language={match[1]}
-                  PreTag="div"
-                  {...props}
-                >
-                  {String(children).replace(/\n$/, '')}
-                </SyntaxHighlighter>
-              ) : (
-                <code className={className} {...props}>
-                  {children}
-                </code>
-              );
-            },
-          }}
-        >
-          {content}
-        </ReactMarkdown>
-      </Typography>
-    );
+    // If content is undefined or null, return null
+    return null;
   };
 
   return (
