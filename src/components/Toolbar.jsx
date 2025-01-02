@@ -122,13 +122,7 @@ const Toolbar = ({
           minHeight: '48px !important',
           padding: '0 8px !important',
         }}
-      >
-        <Tooltip title="New File (Ctrl+N)">
-          <IconButton onClick={onNewTab} size="small">
-            <AddIcon />
-          </IconButton>
-        </Tooltip>
-
+      >       
         <Tooltip title="Quick Add Task">
           <IconButton onClick={onQuickAddClick} size="small">
             <QuickAddIcon />
@@ -247,6 +241,12 @@ const Toolbar = ({
             setSplitView(!splitView);
           }} size="small" color={splitView ? 'primary' : 'inherit'}>
             <SplitViewIcon />
+          </IconButton>
+        </Tooltip>
+        
+        <Tooltip title="New File (Ctrl+N)">
+          <IconButton onClick={onNewTab} size="small">
+            <AddIcon />
           </IconButton>
         </Tooltip>
 
