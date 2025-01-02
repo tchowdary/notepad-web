@@ -268,6 +268,32 @@ const ChatBox = () => {
     }
   };
 
+  const handlePaste = async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64Data = e.target.result.split(',')[1];
+          setSelectedFile({
+            type: 'image',
+            name: 'pasted-image.png',
+            data: base64Data,
+            mediaType: file.type
+          });
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  };
+
   const handleSendMessage = async () => {
     if ((!input.trim() && !selectedFile) || !selectedProvider || isLoading) return;
     setError('');
@@ -277,40 +303,19 @@ const ChatBox = () => {
       const [providerName, modelId] = selectedProvider.split('|');
       const messageContent = [];
 
+      // Check if an image or file is selected
       if (selectedFile) {
-        switch (selectedFile.type) {
-          case 'pdf':
-            messageContent.push({
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: selectedFile.data
-              },
-              cache_control: {
-                type: 'ephemeral'
-              }
-            });
-            break;
-          case 'markdown':
-            messageContent.push({
-              type: 'text',
-              text: selectedFile.content
-            });
-            break;
-          case 'image':
-            messageContent.push({
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: selectedFile.mediaType,
-                data: selectedFile.data
-              }
-            });
-            break;
-        }
+        messageContent.push({
+          type: selectedFile.type,
+          source: {
+            type: 'base64',
+            media_type: selectedFile.mediaType,
+            data: selectedFile.data
+          }
+        });
       }
 
+      // Include text input if available
       if (input.trim()) {
         messageContent.push({
           type: 'text',
@@ -320,7 +325,7 @@ const ChatBox = () => {
 
       const newMessage = {
         role: 'user',
-        content: input.trim(),
+        content: messageContent,
         timestamp: new Date().toISOString()
       };
 
@@ -707,6 +712,7 @@ const ChatBox = () => {
                   inputRef={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  onPaste={handlePaste}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -1001,6 +1007,7 @@ const ChatBox = () => {
               <TextField
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onPaste={handlePaste}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
