@@ -103,7 +103,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
         model,
         messages: formattedMessages,
         system: customInstruction ? customInstruction.content : undefined,
-        max_tokens: 1024,
+        max_tokens: 5000,
         temperature: 0,
         stream: Boolean(onStream),
       }),
@@ -189,7 +189,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
         contents: messagePayload,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 10000,
         }
       };
 
