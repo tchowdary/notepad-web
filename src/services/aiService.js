@@ -189,7 +189,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
         contents: messagePayload,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 20000,
+          maxOutputTokens: 8000,
         }
       };
 
