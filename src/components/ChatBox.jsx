@@ -1,51 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box,
-  TextField,
-  IconButton,
-  Paper,
-  Typography,
-  useTheme,
-  Select,
-  MenuItem,
-  Alert,
-  CircularProgress,
-  Tooltip,
-  Menu,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Divider,
-  ListItemIcon,
-  Input,
-  Modal,
-} from '@mui/material';
-import { 
-  Send as SendIcon, 
-  ContentCopy as CopyIcon, 
-  Add as AddIcon,
-  Settings as SettingsIcon,
-  History as HistoryIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-  AutoFixHigh as AutoFixHighIcon,
-  Image as ImageIcon,
-  Fullscreen as FullscreenIcon,
-  FullscreenExit as FullscreenExitIcon,
-  Key as KeyIcon,
-  AttachFile as AttachFileIcon,
-  PictureAsPdf as PdfIcon,
-  Description as MarkdownIcon,
-} from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+import {
+  Send,
+  Copy,
+  Plus,
+  History as HistoryIcon,
+  Settings as SettingsIcon,
+  Trash,
+  Wand2,
+  Maximize2,
+  Minimize2,
+  Key,
+  FileText,
+  FileCode,
+  X,
+  Image,
+  Paperclip,
+  Edit
+} from 'lucide-react';
+
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { ScrollArea } from "./ui/scroll-area";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import { List, ListItem } from "./ui/list";
+
+import ApiKeyInput from './ApiKeyInput';
+
 import {
   sendOpenAIMessage,
   sendAnthropicMessage,
@@ -54,7 +40,13 @@ import {
 } from '../services/aiService';
 import { chatStorage } from '../services/chatStorageService';
 import { customInstructionsStorage } from '../services/customInstructionsService';
-import ApiKeyInput from './ApiKeyInput';
+
+import { Card } from "./ui/card";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { Separator } from "./ui/separator";
+import { Progress } from "./ui/progress";
 
 const ChatBox = () => {
   const [sessions, setSessions] = useState([]);
@@ -81,7 +73,6 @@ const ChatBox = () => {
   const [streamingContent, setStreamingContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const streamingContentRef = useRef('');
-  const theme = useTheme();
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -434,67 +425,10 @@ const ChatBox = () => {
     // If content is a string, render it with markdown
     if (typeof content === 'string') {
       return (
-        <Typography 
-          variant="body1" 
-          component="div"
-          sx={{ 
-            fontFamily: 'Geist, sans-serif',
-            fontSize: '17px',
-            lineHeight: 1.8,
-            '& h1, & h2, & h3, & h4, & h5, & h6': {
-              fontWeight: 600,
-              lineHeight: 1.3,
-              marginTop: '1.5em',
-              marginBottom: '0.5em'
-            },
-            '& h1': { fontSize: '2em' },
-            '& h2': { fontSize: '1.5em' },
-            '& h3': { fontSize: '1.25em' },
-            '& h4': { fontSize: '1.1em' },
-            '& h5': { fontSize: '1em' },
-            '& h6': { fontSize: '0.875em' },
-            '& p': {
-              marginBottom: '1em',
-              marginTop: 0
-            },
-            '& pre': {
-              marginBottom: '1.5em',
-              '& code': {
-                fontFamily: 'Geist Mono, monospace',
-                fontSize: '0.9em'
-              }
-            },
-            '& code': {
-              fontFamily: 'Geist Mono, monospace',
-              fontSize: '0.9em',
-              padding: '0.2em 0.4em',
-              borderRadius: '4px',
-              backgroundColor: 'rgba(0, 0, 0, 0.1)'
-            },
-            '& ul, & ol': {
-              marginTop: '0.5em',
-              marginBottom: '1em',
-              paddingLeft: '2em'
-            },
-            '& li': {
-              marginBottom: '0.5em',
-              '& p': {
-                marginBottom: '0.5em'
-              },
-              '& > ul, & > ol': {
-                marginTop: '0.5em',
-                marginBottom: '0.5em'
-              }
-            },
-            '& ul > li': { listStyle: 'disc' },
-            '& ul > li > ul > li': { listStyle: 'circle' },
-            '& ul > li > ul > li > ul > li': { listStyle: 'square' },
-            '& ol > li': { listStyle: 'decimal' }
-          }}
-        >
+        <div className="prose dark:prose-invert max-w-none">
           <ReactMarkdown
             components={{
-              code: ({ node, inline, className, children, ...props }) => {
+              code({ node, inline, className, children, ...props }) {
                 const match = /language-(\w+)/.exec(className || '');
                 return !inline && match ? (
                   <SyntaxHighlighter
@@ -515,7 +449,7 @@ const ChatBox = () => {
           >
             {content}
           </ReactMarkdown>
-        </Typography>
+        </div>
       );
     }
 
@@ -527,24 +461,24 @@ const ChatBox = () => {
         }
         if (item.type === 'image') {
           return (
-            <Box key={index} sx={{ my: 2 }}>
+            <div key={index} className="my-4">
               <img 
                 src={`data:${item.source.media_type};base64,${item.source.data}`}
                 alt="User uploaded image"
                 style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
               />
-            </Box>
+            </div>
           );
         } else if (item.type === 'pdf') {
           return (
-            <Box key={index} sx={{ my: 2 }}>
+            <div key={index} className="my-4">
               <embed 
                 src={`data:application/pdf;base64,${item.data}`}
                 type="application/pdf"
                 width="100%"
                 height="500"
               />
-            </Box>
+            </div>
           );
         }
         return null;
@@ -555,720 +489,373 @@ const ChatBox = () => {
     return null;
   };
 
+  const clearHistory = () => {
+    console.log('Clear history');
+  };
+
+  const handleInstructionsClick = () => {
+    console.log('Instructions');
+  };
+
   return (
-    <>
+    <div className={`flex flex-col h-full ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       {isFullscreen ? (
-        <Modal
-          open={isFullscreen}
-          onClose={() => setIsFullscreen(false)}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Box
-            sx={{
-              width: '100%',
-              height: '100%',
-              bgcolor: theme.palette.background.default,
-              outline: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <Box
-              sx={{
-                p: 1,
-                borderBottom: 1,
-                borderColor: 'divider',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                bgcolor: 'background.paper',
-              }}
-            >
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center gap-2">
+              <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select a provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {providers.map(provider => 
+                    provider.models.map(model => (
+                      <SelectItem key={`${provider.name}|${model.id}`} value={`${provider.name}|${model.id}`}>
+                        {`${provider.name} - ${model.name}`}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
               
-
-              <Tooltip title="Exit Fullscreen">
-                <IconButton onClick={() => setIsFullscreen(false)} size="small">
-                  <FullscreenExitIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-
-            {error && (
-              <Alert severity="error" sx={{ mx: 2, mt: 2 }} onClose={() => setError('')}>
-                {error}
-              </Alert>
-            )}
-
-            {/* Messages Container */}
-            <Box
-              ref={messagesContainerRef}
-              sx={{
-                flex: 1,
-                overflowY: 'auto',
-                p: 3,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 3,
-                '&::-webkit-scrollbar': {
-                  width: '8px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: 'transparent',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  background: theme.palette.divider,
-                  borderRadius: '4px',
-                },
-              }}
-            >
-              {messages.map((message, index) => (
-                <Box 
-                  key={index} 
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    maxWidth: '100%',
-                    wordBreak: 'break-word',
-                    overflowWrap: 'break-word',
-                  }}
-                >
-                  <Paper
-                    elevation={1}
-                    sx={{
-                      p: 3,
-                      width: '100%',
-                      bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.background.paper,
-                      color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
-                      borderRadius: 2,
-                      overflow: 'auto',
-                      maxHeight: '80vh',
-                    }}
-                  >
-                    <Box sx={{ position: 'relative' }}>
-                      {renderMessageContent(message.content)}
-                      <IconButton
-                        size="small"
-                        onClick={() => handleCopy(message.content, index)}
-                        sx={{
-                          position: 'absolute',
-                          right: -8,
-                          top: -8,
-                          color: message.role === 'user' ? 'inherit' : theme.palette.text.secondary,
-                        }}
-                      >
-                        {copiedIndex === index ? <Typography variant="caption">Copied!</Typography> : <CopyIcon fontSize="small" />}
-                      </IconButton>
-                    </Box>
-                  </Paper>
-                </Box>
-              ))}
-              {isStreaming && streamingContent && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    maxWidth: '100%',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  <Paper
-                    elevation={1}
-                    sx={{
-                      p: 3,
-                      width: '100%',
-                      bgcolor: theme.palette.background.paper,
-                      color: theme.palette.text.primary,
-                      borderRadius: 2,
-                    }}
-                  >
-                    <Box sx={{ position: 'relative' }}>
-                      <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
-                        {streamingContent}
-                      </Typography>
-                    </Box>
-                  </Paper>
-                </Box>
-              )}
-              <div ref={messagesEndRef} />
-            </Box>
-
-            {/* Input Container */}
-            <Box
-              sx={{
-                p: 2,
-                borderTop: 1,
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-              }}
-            >
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <TextField
-                  inputRef={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onPaste={handlePaste}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  multiline
-                  maxRows={5}
-                  fullWidth
-                  placeholder="Type your message..."
-                  variant="outlined"
-                  size="medium"
-                  InputProps={{
-                    sx: { fontSize: '1rem', minHeight: '56px' },
-                    startAdornment: (
-                      <Tooltip title={selectedInstruction ? `Custom Instruction: ${selectedInstruction.name}` : "Select Custom Instruction"}>
-                        <IconButton
-                          onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
-                          color={selectedInstruction ? "primary" : "default"}
-                          size="small"
-                          sx={{ mr: 1 }}
-                        >
-                          <AutoFixHighIcon />
-                        </IconButton>
-                      </Tooltip>
-                    ),
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      paddingRight: '14px',
-                    }
-                  }}
-                />
-                <label htmlFor="file-upload">
-                  <Input
-                    id="file-upload"
-                    type="file"
-                    accept="image/*,.pdf,.md"
-                    onChange={handleFileUpload}
-                    sx={{ display: 'none' }}
-                  />
-                  <IconButton component="span" disabled={isLoading}>
-                    <AttachFileIcon />
-                  </IconButton>
-                </label>
-
-                <IconButton
-                  onClick={handleSendMessage}
-                  disabled={!selectedProvider || (!input.trim() && !selectedFile) || isLoading}
-                >
-                  {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
-                </IconButton>
-              </Box>
-            </Box>
-          </Box>
-        </Modal>
-      ) : (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            maxHeight: '100vh',
-            position: 'relative',
-            '@media (max-width: 960px)': {
-              height: '100vh',
-              width: '100vw',
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            }
-          }}
-        >
-          {error && (
-            <Alert severity="error" sx={{ mx: 2, mt: 2 }} onClose={() => setError('')}>
-              {error}
-            </Alert>
-          )}
-
-          {/* Messages Container */}
-          <Box
-            ref={messagesContainerRef}
-            sx={{
-              flex: 1,
-              overflowY: 'auto',
-              p: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 3,
-              '@media (max-width: 960px)': {
-                flex: 1,
-                height: 'auto',
-                pb: '140px', // Increased bottom padding to account for input box
-              },
-              '&::-webkit-scrollbar': {
-                width: '8px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: 'transparent',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: theme.palette.divider,
-                borderRadius: '4px',
-              },
-            }}
-          >
-            {messages.map((message, index) => (
-              <Box 
-                key={index} 
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  maxWidth: '100%',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                }}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setHistoryAnchorEl(null)}
+                className="h-8 w-8"
               >
-                <Paper
-                  elevation={1}
-                  sx={{
-                    p: 3,
-                    width: '100%',
-                    bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.background.paper,
-                    color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
-                    borderRadius: 2,
-                    overflow: 'auto',
-                    maxHeight: '80vh',
-                  }}
-                >
-                  <Box sx={{ position: 'relative' }}>
-                    {message.role === 'user' ? (
-                      <>
-                        <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
-                          {renderMessageContent(message.content)}
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleCopy(message.content, index)}
-                          sx={{
-                            position: 'absolute',
-                            right: -8,
-                            top: -8,
-                            color: theme.palette.primary.contrastText,
-                            opacity: 0.7,
-                            '&:hover': {
-                              opacity: 1,
-                              bgcolor: 'rgba(255,255,255,0.2)',
-                            },
-                          }}
-                        >
-                          <Tooltip title={copiedIndex === index ? "Copied!" : "Copy"}>
-                            <CopyIcon fontSize="small" />
-                          </Tooltip>
-                        </IconButton>
-                      </>
-                    ) : (
-                      <>
-                        {renderMessageContent(message.content)}
-                        <IconButton
-                          size="small"
-                          onClick={() => handleCopy(message.content, index)}
-                          sx={{
-                            position: 'absolute',
-                            right: -8,
-                            top: -8,
-                            color: theme.palette.text.secondary,
-                            opacity: 0.7,
-                            '&:hover': {
-                              opacity: 1,
-                              bgcolor: 'rgba(0,0,0,0.1)',
-                            },
-                          }}
-                        >
-                          <Tooltip title={copiedIndex === index ? "Copied!" : "Copy"}>
-                            <CopyIcon fontSize="small" />
-                          </Tooltip>
-                        </IconButton>
-                      </>
-                    )}
-                  </Box>
-                </Paper>
-              </Box>
+                <HistoryIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setApiKeyDialogOpen(true)}
+                className="h-8 w-8"
+              >
+                <SettingsIcon className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsFullscreen(false)}
+              className="h-8 w-8"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <ScrollArea className="flex-grow p-4" ref={messagesContainerRef}>
+            {messages.map((message, index) => (
+              <Card key={index} className={`mb-4 p-4 ${message.role === 'assistant' ? 'bg-muted' : ''}`}>
+                <div className="flex justify-between items-start">
+                  <div className="prose dark:prose-invert max-w-none">
+                    {renderMessageContent(message.content)}
+                  </div>
+                  {message.role === 'assistant' && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleCopy(message.content, index)}
+                          >
+                            <Copy className={`h-4 w-4 ${copiedIndex === index ? 'text-green-500' : ''}`} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {copiedIndex === index ? 'Copied!' : 'Copy to clipboard'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              </Card>
             ))}
             {isStreaming && streamingContent && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  maxWidth: '100%',
-                  wordBreak: 'break-word',
-                }}
-              >
-                <Paper
-                  elevation={1}
-                  sx={{
-                    p: 3,
-                    width: '100%',
-                    bgcolor: theme.palette.background.paper,
-                    color: theme.palette.text.primary,
-                    borderRadius: 2,
-                  }}
-                >
-                  <Box sx={{ position: 'relative' }}>
-                    <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
-                      {streamingContent}
-                    </Typography>
-                  </Box>
-                </Paper>
-              </Box>
+              <div className="flex justify-center">
+                <Progress value={30} className="w-[60%]" />
+              </div>
             )}
             <div ref={messagesEndRef} />
-          </Box>
+          </ScrollArea>
 
-          {/* Input Container */}
-          <Box
-            sx={{
-              p: 2,
-              borderTop: 1,
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              '@media (max-width: 960px)': {
-                position: 'fixed',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                zIndex: 1000,
-              },
-            }}
-          >
-            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-              <Tooltip title="Model Settings">
-                <IconButton 
-                  size="small"
-                  onClick={(e) => setSettingsAnchorEl(e.currentTarget)}
-                >
-                  <SettingsIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="Chat History">
-                <IconButton 
-                  size="small"
-                  onClick={(e) => setHistoryAnchorEl(e.currentTarget)}
-                >
-                  <HistoryIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="New Chat">
-                <IconButton 
-                  size="small"
-                  onClick={createNewSession}
-                  color="primary"
-                >
-                  <AddIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Fullscreen">
-              <IconButton onClick={() => setIsFullscreen(true)} size="small">
-                <FullscreenIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="API Keys">
-              <IconButton onClick={() => setApiKeyDialogOpen(true)} size="small">
-                <KeyIcon />
-              </IconButton>
-            </Tooltip>
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', p: 2, pt: 0 }}>
-              <input
-                type="file"
-                accept="image/*,.pdf,.md"
-                style={{ display: 'none' }}
-                id="file-upload"
-                onChange={handleFileUpload}
-              />
-              <label htmlFor="file-upload">
-                <IconButton component="span" color={selectedFile ? "primary" : "default"}>
-                  <AttachFileIcon />
-                </IconButton>
-              </label>
-              {selectedFile && (
-                <Typography variant="body2" color="textSecondary">
-                  {selectedFile.name}
-                </Typography>
-              )}
-              <TextField
+          <div className="p-4 border-t">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onPaste={handlePaste}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage();
                   }
                 }}
-                multiline
-                maxRows={5}
-                fullWidth
                 placeholder="Type your message..."
-                variant="outlined"
-                size="medium"
-                InputProps={{
-                  sx: { fontSize: '1rem', minHeight: '56px' },
-                  startAdornment: (
-                    <Tooltip title={selectedInstruction ? `Custom Instruction: ${selectedInstruction.name}` : "Select Custom Instruction"}>
-                      <IconButton
-                        onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
-                        color={selectedInstruction ? "primary" : "default"}
-                        size="small"
-                        sx={{ mr: 1 }}
-                      >
-                        <AutoFixHighIcon />
-                      </IconButton>
-                    </Tooltip>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    paddingRight: '14px',
+                disabled={isLoading}
+                className="flex-grow"
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={isLoading || !input.trim()}
+                className="min-w-[40px]"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {error && (
+            <Alert variant="destructive" className="m-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center gap-2">
+              <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select a provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {providers.map(provider => 
+                    provider.models.map(model => (
+                      <SelectItem key={`${provider.name}|${model.id}`} value={`${provider.name}|${model.id}`}>
+                        {`${provider.name} - ${model.name}`}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setHistoryAnchorEl(null)}
+                className="h-8 w-8"
+              >
+                <HistoryIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setApiKeyDialogOpen(true)}
+                className="h-8 w-8"
+              >
+                <SettingsIcon className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsFullscreen(true)}
+              className="h-8 w-8"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <ScrollArea className="flex-grow p-4" ref={messagesContainerRef}>
+            {messages.map((message, index) => (
+              <Card key={index} className={`mb-4 p-4 ${message.role === 'assistant' ? 'bg-muted' : ''}`}>
+                <div className="flex justify-between items-start">
+                  <div className="prose dark:prose-invert max-w-none">
+                    {renderMessageContent(message.content)}
+                  </div>
+                  {message.role === 'assistant' && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleCopy(message.content, index)}
+                          >
+                            <Copy className={`h-4 w-4 ${copiedIndex === index ? 'text-green-500' : ''}`} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {copiedIndex === index ? 'Copied!' : 'Copy to clipboard'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              </Card>
+            ))}
+            {isStreaming && streamingContent && (
+              <div className="flex justify-center">
+                <Progress value={30} className="w-[60%]" />
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </ScrollArea>
+
+          <div className="p-4 border-t">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
                   }
                 }}
+                placeholder="Type your message..."
+                disabled={isLoading}
+                className="flex-grow"
               />
-              <IconButton 
-                onClick={handleSendMessage} 
-                color="primary"
-                disabled={!selectedProvider || (!input.trim() && !selectedFile) || isLoading}
-                sx={{ height: 40, width: 40 }}
+              <Button
+                onClick={handleSendMessage}
+                disabled={isLoading || !input.trim()}
+                className="min-w-[40px]"
               >
-                {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
-              </IconButton>
-            </Box>
-          </Box>
-
-          <Menu
-            anchorEl={settingsAnchorEl}
-            open={Boolean(settingsAnchorEl)}
-            onClose={() => setSettingsAnchorEl(null)}
-          >
-            {providers.map(provider => 
-              provider.models.map(model => (
-                <MenuItem 
-                  key={`${provider.name}|${model.id}`}
-                  value={`${provider.name}|${model.id}`}
-                  selected={selectedProvider === `${provider.name}|${model.id}`}
-                  onClick={() => {
-                    handleProviderChange(`${provider.name}|${model.id}`);
-                    setSettingsAnchorEl(null);
-                  }}
-                >
-                  {`${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)} - ${model.name}`}
-                </MenuItem>
-              ))
-            )}
-          </Menu>
-
-          <Menu
-            anchorEl={historyAnchorEl}
-            open={Boolean(historyAnchorEl)}
-            onClose={() => setHistoryAnchorEl(null)}
-            PaperProps={{
-              sx: { maxWidth: '400px' }
-            }}
-          >
-            {sessions.map(session => {
-              const firstMessage = session.messages[0];
-              let preview = '';
-              
-              if (firstMessage) {
-                if (typeof firstMessage.content === 'string') {
-                  preview = firstMessage.content;
-                } else if (Array.isArray(firstMessage.content)) {
-                  const textContent = firstMessage.content.find(item => item.type === 'text');
-                  preview = textContent ? textContent.text : '[No text available]';
-                } else if (firstMessage.content?.type === 'image') {
-                  preview = '[Image]';
-                }
-              }
-              
-              preview = preview.length > 60 ? preview.substring(0, 60) + '...' : preview;
-              const date = new Date(session.lastUpdated).toLocaleString();
-              
-              return (
-                <MenuItem
-                  key={session.id}
-                  onClick={() => {
-                    setActiveSessionId(session.id);
-                    setMessages(session.messages);
-                    setHistoryAnchorEl(null);
-                  }}
-                  selected={session.id === activeSessionId}
-                  sx={{ 
-                    whiteSpace: 'normal',
-                    minWidth: '300px'
-                  }}
-                >
-                  <ListItemText 
-                    primary={preview || 'Empty session'}
-                    secondary={date}
-                    primaryTypographyProps={{
-                      sx: { 
-                        fontSize: '0.9rem',
-                        mb: 0.5,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }
-                    }}
-                    secondaryTypographyProps={{
-                      sx: { 
-                        fontSize: '0.75rem',
-                        color: 'text.secondary'
-                      }
-                    }}
-                  />
-                </MenuItem>
-              );
-            })}
-          </Menu>
-
-          <Menu
-            anchorEl={instructionMenuAnchorEl}
-            open={Boolean(instructionMenuAnchorEl)}
-            onClose={() => setInstructionMenuAnchorEl(null)}
-          >
-            <MenuItem 
-              onClick={() => {
-                setEditingInstruction(null);
-                setNewInstructionName('');
-                setNewInstructionContent('');
-                setInstructionDialogOpen(true);
-                setInstructionMenuAnchorEl(null);
-              }}
-            >
-              <ListItemIcon>
-                <AddIcon />
-              </ListItemIcon>
-              <ListItemText primary="Create New Instruction" />
-            </MenuItem>
-            <Divider />
-            {customInstructions.length === 0 ? (
-              <MenuItem disabled>
-                <ListItemText primary="No custom instructions" secondary="Create one to get started" />
-              </MenuItem>
-            ) : (
-              customInstructions.map(instruction => (
-                <MenuItem
-                  key={instruction.id}
-                  selected={selectedInstruction?.id === instruction.id}
-                  sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    minWidth: '300px'
-                  }}
-                >
-                  <ListItemText 
-                    primary={instruction.name}
-                    onClick={() => {
-                      setSelectedInstruction(instruction);
-                      localStorage.setItem('last_selected_instruction', instruction.id);
-                      setInstructionMenuAnchorEl(null);
-                    }}
-                  />
-                  <Box>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditInstruction(instruction);
-                        setInstructionMenuAnchorEl(null);
-                      }}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteInstruction(instruction.id);
-                        setInstructionMenuAnchorEl(null);
-                      }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </MenuItem>
-              ))
-            )}
-            {selectedInstruction && (
-              <>
-                <Divider />
-                <MenuItem 
-                  onClick={() => {
-                    setSelectedInstruction(null);
-                    localStorage.removeItem('last_selected_instruction');
-                    setInstructionMenuAnchorEl(null);
-                  }}
-                >
-                  <ListItemText primary="Clear Selection" />
-                </MenuItem>
-              </>
-            )}
-          </Menu>
-
-          <ApiKeyInput
-            open={apiKeyDialogOpen}
-            onClose={() => setApiKeyDialogOpen(false)}
-          />
-
-          <Dialog
-            open={instructionDialogOpen}
-            onClose={() => setInstructionDialogOpen(false)}
-            maxWidth="md"
-            fullWidth
-          >
-            <DialogTitle>
-              {editingInstruction ? 'Edit Custom Instruction' : 'Create Custom Instruction'}
-            </DialogTitle>
-            <DialogContent>
-              <TextField
-                autoFocus
-                margin="dense"
-                label="Instruction Name"
-                fullWidth
-                value={newInstructionName}
-                onChange={(e) => setNewInstructionName(e.target.value)}
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                margin="dense"
-                label="Instruction Content"
-                fullWidth
-                multiline
-                rows={4}
-                value={newInstructionContent}
-                onChange={(e) => setNewInstructionContent(e.target.value)}
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setInstructionDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleCreateInstruction} variant="contained">
-                {editingInstruction ? 'Update' : 'Create'}
+                <Send className="h-4 w-4" />
               </Button>
-            </DialogActions>
-          </Dialog>
-        </Box>
+            </div>
+          </div>
+
+          {error && (
+            <Alert variant="destructive" className="m-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </div>
       )}
 
-      {/* Existing menus and dialogs */}
-    </>
+      <Dialog open={apiKeyDialogOpen} onOpenChange={setApiKeyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>API Key Settings</DialogTitle>
+          </DialogHeader>
+          <ApiKeyInput onClose={() => setApiKeyDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
+      <Sheet open={historyAnchorEl !== null} onOpenChange={() => setHistoryAnchorEl(null)}>
+        <SheetContent side="left">
+          <SheetHeader>
+            <SheetTitle>Chat History</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={createNewSession}
+              className="w-full justify-start px-2 py-1.5"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              New Chat
+            </Button>
+
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearHistory}
+                className="h-8 w-8"
+              >
+                <Trash className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleInstructionsClick}
+                className="h-8 w-8"
+              >
+                <Wand2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <List>
+              {sessions.map((session) => (
+                <React.Fragment key={session.id}>
+                  <ListItem
+                    className={`cursor-pointer ${session.id === activeSessionId ? 'bg-muted' : ''}`}
+                    onClick={() => switchSession(session.id)}
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium">
+                        {(() => {
+                          const firstMessage = session.messages?.[0];
+                          if (!firstMessage) return 'New Chat';
+                          
+                          let title = '';
+                          if (typeof firstMessage.content === 'string') {
+                            title = firstMessage.content;
+                          } else if (firstMessage.content?.text) {
+                            title = firstMessage.content.text;
+                          } else if (Array.isArray(firstMessage.content)) {
+                            title = firstMessage.content.map(part => part.text || '').join(' ');
+                          } else {
+                            return 'New Chat';
+                          }
+                          
+                          return title.length > 30 ? title.substring(0, 30) + '...' : title || 'New Chat';
+                        })()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(session.lastUpdated).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </ListItem>
+                  <Separator />
+                </React.Fragment>
+              ))}
+            </List>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <ApiKeyInput
+        open={apiKeyDialogOpen}
+        onClose={() => setApiKeyDialogOpen(false)}
+      />
+
+      <Dialog
+        open={instructionDialogOpen}
+        onClose={() => setInstructionDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingInstruction ? 'Edit Custom Instruction' : 'Create Custom Instruction'}
+        </DialogTitle>
+        <DialogContent>
+          <Input
+            autoFocus
+            margin="dense"
+            label="Instruction Name"
+            fullWidth
+            value={newInstructionName}
+            onChange={(e) => setNewInstructionName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <Input
+            margin="dense"
+            label="Instruction Content"
+            fullWidth
+            multiline
+            rows={4}
+            value={newInstructionContent}
+            onChange={(e) => setNewInstructionContent(e.target.value)}
+          />
+        </DialogContent>
+        <DialogFooter>
+          <Button onClick={() => setInstructionDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCreateInstruction} variant="contained">
+            {editingInstruction ? 'Update' : 'Create'}
+          </Button>
+        </DialogFooter>
+      </Dialog>
+    </div>
   );
 };
 

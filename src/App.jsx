@@ -14,7 +14,7 @@ import GitHubService from './services/githubService';
 import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
-import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
+import TipTapEditor from './components/TipTapEditor';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
@@ -48,7 +48,7 @@ function App() {
   const [showChat, setShowChat] = useState(false);
   const [showApiSettings, setShowApiSettings] = useState(false);
   const editorRef = useRef(null);
-  const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
+  const tipTapEditorRef = useRef(null); 
   const sidebarTimeoutRef = useRef(null);
 
   const theme = createTheme({
@@ -96,7 +96,6 @@ function App() {
   });
 
   useEffect(() => {
-    // Auto-hide sidebar in PWA mode
     if (isPWA()) {
       setShowSidebar(false);
     }
@@ -110,7 +109,6 @@ function App() {
           setTabs(savedTabs);
           setActiveTab(savedTabs[0].id);
         } else {
-          // Create default tab if no saved tabs
           const defaultTab = { 
             id: 1, 
             name: 'untitled.md', 
@@ -124,7 +122,6 @@ function App() {
         setIsLoading(false);
       } catch (error) {
         console.error('Error initializing app:', error);
-        // Create default tab on error
         const defaultTab = { 
           id: 1, 
           name: 'untitled.md', 
@@ -142,7 +139,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading) {  // Don't save during initial load
+    if (!isLoading) {  
       saveTabs(tabs).catch(error => {
         console.error('Error saving tabs:', error);
       });
@@ -174,14 +171,12 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = async (e) => {
-      // Exit focus mode on Escape key
       if (e.key === 'Escape' && focusMode) {
         setFocusMode(false);
         setShowSidebar(true);
         return;
       }
       
-      // Handle Ctrl+K before any other key combinations
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         e.stopPropagation();
@@ -194,14 +189,12 @@ function App() {
       }
     };
 
-    // Use capture phase to handle the event before React's event system
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [focusMode]);
 
   useEffect(() => {
     const handleKeyPress = (e) => {
-      // Command/Ctrl + Shift + A for quick add task
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'a') {
         e.preventDefault();
         setQuickAddOpen(true);
@@ -250,7 +243,6 @@ function App() {
       editorType: 'codemirror'
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
-    // Use requestAnimationFrame for smoother focus handling
     requestAnimationFrame(() => {
       setActiveTab(newId);
     });
@@ -266,7 +258,6 @@ function App() {
       editorType: 'tiptap'
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
-    // Use requestAnimationFrame for smoother focus handling
     requestAnimationFrame(() => {
       setActiveTab(newId);
     });
@@ -284,13 +275,11 @@ function App() {
     
     const newTabs = tabs.filter(tab => tab.id !== id);
     if (newTabs.length === 0) {
-      // Create a new empty tab if we're closing the last one
       setTabs([{ id: 1, name: 'untitled.md', content: '', type: 'markdown', editorType: 'tiptap' }]);
       setActiveTab(1);
     } else {
       setTabs(newTabs);
       if (activeTab === id) {
-        // Set active tab to the previous tab, or the first one if we're at the beginning
         const index = tabs.findIndex(tab => tab.id === id);
         const newActiveTab = tabs[index === 0 ? 1 : index - 1].id;
         setActiveTab(newActiveTab);
@@ -301,7 +290,6 @@ function App() {
   const handleTabRename = (id, newName) => {
     setTabs(tabs.map(tab => {
       if (tab.id === id) {
-        // Ensure Excalidraw files keep their extension
         if (tab.type === 'excalidraw' && !newName.endsWith('.excalidraw')) {
           newName = `${newName}.excalidraw`;
         }
@@ -312,7 +300,6 @@ function App() {
   };
 
   const handleTabSelect = (id) => {
-    // Save cursor position of current tab before switching
     if (activeTab && editorRef.current?.editorInstance) {
       const cursor = editorRef.current.editorInstance.getCursor();
       setTabs(prevTabs => prevTabs.map(tab => 
@@ -338,7 +325,6 @@ function App() {
   };
 
   const handleTabAreaDoubleClick = (event) => {
-    // Only create new tab if clicking on the tab area, not on existing tabs
     if (event.target.closest('.MuiTab-root') === null) {
       handleDoubleClickSidebar();
     }
@@ -388,7 +374,6 @@ function App() {
       };
 
       if (isExcalidraw) {
-        // Save Excalidraw content to IndexedDB
         try {
           const content = JSON.parse(e.target.result);
           saveDrawing({ id: newId, ...content });
@@ -441,8 +426,6 @@ function App() {
       const textToConvert = selectedText || currentTab.content;
       const result = converters[converterId].convert(textToConvert);
 
-
-      // Update the current tab by appending the result
       const updatedContent = currentTab.content + '\n\n' + result;
       const updatedTabs = tabs.map(tab => 
         tab.id === activeTab 
@@ -469,19 +452,16 @@ function App() {
       ));
     } catch (error) {
       console.error('JSON formatting failed:', error);
-      // You might want to show an error message to the user here
     }
   };
 
   const handleTodoClick = () => {
-    // Check if todo tab already exists
     const todoTab = tabs.find(tab => tab.type === 'todo');
     if (todoTab) {
       setActiveTab(todoTab.id);
       return;
     }
 
-    // Create new todo tab with consistent ID generation
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     const newTab = {
       id: newId,
@@ -522,7 +502,6 @@ function App() {
       let parsedContent = content;
       if (file.name.endsWith('.tldraw')) {
         try {
-          // Parse but keep the entire state structure
           parsedContent = JSON.parse(content);
         } catch (error) {
           console.error('Error parsing TLDraw file:', error);
@@ -547,7 +526,6 @@ function App() {
   const handleChatToggle = () => {
     const newChatState = !showChat;
     setShowChat(newChatState);
-    // Only hide sidebar when opening chat, restore it when closing
     if (newChatState) {
       setShowSidebar(false);
     } else {
@@ -563,7 +541,6 @@ function App() {
   };
 
   const handleEditorClick = (event) => {
-    // Only handle clicks in responsive mode
     if (window.innerWidth <= 960) {
       setShowSidebar(false);
     }
@@ -573,12 +550,10 @@ function App() {
     if (activeTab) {
       const tab = tabs.find(t => t.id === activeTab);
       if (tab) {
-        // For TipTap editor, get plain text
         if (tipTapEditorRef.current?.editor) {
           const plainText = tipTapEditorRef.current.editor.getText();
           navigator.clipboard.writeText(plainText);
         } else {
-          // For other editors, copy content as is
           navigator.clipboard.writeText(tab.content);
         }
       }
@@ -587,10 +562,8 @@ function App() {
 
   const handleClearContent = () => {
     if (activeTab) {
-      // For TipTap editor, use chain.clearContent()
       if (tipTapEditorRef.current?.editor) {
         tipTapEditorRef.current.editor.chain().focus().clearContent().run();
-        // Update tabs state
         const updatedTabs = tabs.map(tab => {
           if (tab.id === activeTab) {
             return { ...tab, content: '' };
@@ -599,7 +572,6 @@ function App() {
         });
         setTabs(updatedTabs);
       } else {
-        // For other editors
         const updatedTabs = tabs.map(tab => {
           if (tab.id === activeTab) {
             return { ...tab, content: '' };
@@ -616,7 +588,7 @@ function App() {
       return (
         <ExcalidrawEditor
           open={true}
-          onClose={() => {}} // No-op since we're using tabs
+          onClose={() => {}} 
           darkMode={darkMode}
           id={tab.id}
         />
@@ -639,12 +611,11 @@ function App() {
       );
     }
 
-    // Use TipTap editor for markdown files
     if (tab.editorType === 'tiptap') {
       return (
         <TipTapEditor
           ref={tipTapEditorRef}
-          key={tab.id} // Add key to force remount
+          key={tab.id} 
           content={tab.content}
           onChange={(newContent) => handleContentChange(tab.id, newContent)}
           darkMode={darkMode}
@@ -654,7 +625,6 @@ function App() {
       );
     }
 
-    // Fallback to CodeMirror editor
     return (
       <Editor
         ref={editorRef}
@@ -741,42 +711,6 @@ function App() {
               />
             </Box>
 
-            <CommandBar
-              open={showCommandBar}
-              onClose={() => setShowCommandBar(false)}
-              commands={commandList}
-            />
-            <GitHubSettingsModal
-              open={showGitHubSettings}
-              onClose={() => setShowGitHubSettings(false)}
-            />
-            <ApiKeyInput
-              open={showApiSettings}
-              onClose={() => setShowApiSettings(false)}
-            />
-            <QuickAddTask
-              open={quickAddOpen}
-              onClose={() => setQuickAddOpen(false)}
-              onAddTask={handleQuickAddTask}
-              darkMode={darkMode}
-            />
-            <CommandPalette
-              isOpen={showCommandPalette}
-              onClose={() => setShowCommandPalette(false)}
-              onFileSelect={handleFileSelectFromCommandPalette}
-              darkMode={darkMode}
-            />
-            
-            <ResponsiveToolbar
-              darkMode={darkMode}
-              onDarkModeChange={() => setDarkMode(!darkMode)}
-              onChatToggle={() => setShowChat(!showChat)}
-              showChat={showChat}
-              onSidebarToggle={() => setShowSidebar(!showSidebar)}
-              showSidebar={showSidebar}
-              onCopy={handleCopyContent}
-              onClear={handleClearContent}
-            />
             <Box sx={{ 
               display: 'flex', 
               flex: 1,
@@ -798,19 +732,6 @@ function App() {
                     minWidth: 0,
                     position: 'relative',
                     overflow: 'auto',
-                    // Add overlay when sidebar is shown in mobile
-                    '&::after': {
-                      content: '""',
-                      display: { xs: showSidebar ? 'block' : 'none', md: 'none' },
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      bgcolor: 'rgba(0, 0, 0, 0.3)',
-                      zIndex: 1,
-                      pointerEvents: 'none' // Allow scrolling when overlay is shown
-                    }
                   }}
                 >
                   {splitView ? (
@@ -849,7 +770,6 @@ function App() {
               {/* Right Sidebar */}
               {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && (
                 <Box
-              
                   sx={{
                     width: 250,
                     flexShrink: 0,
@@ -880,17 +800,50 @@ function App() {
                 </Box>
               )}
             </Box>
+
+            <CommandBar
+              open={showCommandBar}
+              onClose={() => setShowCommandBar(false)}
+              commands={commandList}
+            />
+
+            <GitHubSettingsModal
+              open={showGitHubSettings}
+              onClose={() => setShowGitHubSettings(false)}
+            />
+
+            <ApiKeyInput
+              open={showApiSettings}
+              onClose={() => setShowApiSettings(false)}
+            />
+
+            <QuickAddTask
+              open={quickAddOpen}
+              onClose={() => setQuickAddOpen(false)}
+              onAddTask={handleQuickAddTask}
+              darkMode={darkMode}
+            />
+
+            <CommandPalette
+              isOpen={showCommandPalette}
+              onClose={() => setShowCommandPalette(false)}
+              onFileSelect={handleFileSelectFromCommandPalette}
+              darkMode={darkMode}
+            />
           </>
         )}
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleFileSelect}
+          accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
+        />
       </Box>
-      <input
-        type="file"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        onChange={handleFileSelect}
-        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
-      />
-    </ThemeProvider>
+<HistoryIcon className="h-4 w-4" />
+<SettingsIcon className="h-4 w-4" /><HistoryIcon className="h-4 w-4" />
+<SettingsIcon className="h-4 w-4" />    </ThemeProvider>
   );
 }
 

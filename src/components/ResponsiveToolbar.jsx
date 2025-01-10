@@ -1,85 +1,109 @@
 import React from "react";
+import { Button } from "./ui/button";
 import {
-  AppBar,
-  Toolbar as MuiToolbar,
-  IconButton,
-  useTheme,
-} from "@mui/material";
-import {
-  DarkMode as DarkModeIcon,
-  LightMode as LightModeIcon,
-  Chat as ChatIcon,
-  Menu as MenuIcon,
-  ContentCopy as CopyIcon,
-  Clear as ClearIcon,
-} from "@mui/icons-material";
+  Sun,
+  Moon,
+  MessageSquare,
+  Menu,
+  Copy,
+  Trash,
+  Settings,
+  Plus,
+  Search,
+  GitBranch
+} from "lucide-react";
 
 const ResponsiveToolbar = ({
   darkMode,
-  onDarkModeChange,
-  onChatToggle,
-  showChat,
-  onSidebarToggle,
+  toggleDarkMode,
+  focusMode,
+  toggleFocusMode,
+  showPreview,
+  togglePreview,
   showSidebar,
-  onCopy,
-  onClear,
-  className,
+  toggleSidebar,
+  wordWrap,
+  toggleWordWrap,
+  splitView,
+  toggleSplitView,
+  showChat,
+  toggleChat,
+  showApiSettings,
+  setShowApiSettings,
+  handleGitHubSettings,
+  handleQuickAdd,
+  handleCommandPalette,
 }) => {
-  const theme = useTheme();
-
   return (
-    <AppBar
-      position="fixed"
-      color="default"
-      elevation={0}
-      className={className}
-      sx={{
-        top: "auto",
-        bottom: 0,
-        borderTop: `1px solid ${theme.palette.divider}`,
-        bgcolor: theme.palette.background.paper,
-        display: { xs: "block", sm: "block", md: "none" }, // Only show on mobile and tablet
-        zIndex: (theme) => theme.zIndex.drawer + 2,
-        left: 0,
-        right: 0,
-        width: "100%",
-        minHeight: '30px', // Reduced height
-      }}
-    >
-      <MuiToolbar 
-        variant="dense" 
-        sx={{ 
-          justifyContent: "space-around",
-          minHeight: '30px !important', // Override default height
-          padding: '0 8px', // Reduced padding
-        }}
-      >
-        <IconButton
-          onClick={onSidebarToggle}
-          size="small"
-          color={showSidebar ? "primary" : "default"}
-          sx={{ padding: '4px' }} // Reduced padding for icons
-        >
-          <MenuIcon />
-        </IconButton>
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background md:hidden">
+      <div className="flex h-12 items-center justify-between px-4">
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="h-8 w-8"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleDarkMode}
+            className="h-8 w-8"
+          >
+            {darkMode ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
 
-        <IconButton onClick={onDarkModeChange} size="small" sx={{ padding: '4px' }}>
-          {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
-        </IconButton>
-
-        <IconButton onClick={onCopy} size="small" sx={{ padding: '4px' }}>
-          <CopyIcon />
-        </IconButton>
-
-        <IconButton onClick={onClear} size="small" sx={{ padding: '4px' }}>
-          <ClearIcon />
-        </IconButton>
-
-        <IconButton onClick={onChatToggle} size="small" sx={{ padding: '4px' }}>
-          <ChatIcon color={showChat ? "primary" : "inherit"} />
-        </IconButton>
-      </MuiToolbar>
-    </AppBar>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCommandPalette}
+            className="h-8 w-8"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleQuickAdd}
+            className="h-8 w-8"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleGitHubSettings}
+            className="h-8 w-8"
+          >
+            <GitBranch className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleChat}
+            className="h-8 w-8"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowApiSettings(true)}
+            className="h-8 w-8"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 
