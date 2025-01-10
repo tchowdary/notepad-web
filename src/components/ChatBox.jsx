@@ -7,8 +7,8 @@ import {
   Send,
   Copy,
   Plus,
-  History as HistoryIcon,
-  Settings as SettingsIcon,
+  History,
+  Settings,
   Trash,
   Wand2,
   Maximize2,
@@ -524,7 +524,7 @@ const ChatBox = () => {
                 onClick={() => setHistoryAnchorEl(null)}
                 className="h-8 w-8"
               >
-                <HistoryIcon className="h-4 w-4" />
+                <History className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -532,7 +532,7 @@ const ChatBox = () => {
                 onClick={() => setApiKeyDialogOpen(true)}
                 className="h-8 w-8"
               >
-                <SettingsIcon className="h-4 w-4" />
+                <Settings className="h-4 w-4" />
               </Button>
             </div>
 
@@ -639,7 +639,7 @@ const ChatBox = () => {
                 onClick={() => setHistoryAnchorEl(null)}
                 className="h-8 w-8"
               >
-                <HistoryIcon className="h-4 w-4" />
+                <History className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -647,7 +647,7 @@ const ChatBox = () => {
                 onClick={() => setApiKeyDialogOpen(true)}
                 className="h-8 w-8"
               >
-                <SettingsIcon className="h-4 w-4" />
+                <Settings className="h-4 w-4" />
               </Button>
             </div>
 

@@ -841,9 +841,7 @@ function App() {
           accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
         />
       </Box>
-<HistoryIcon className="h-4 w-4" />
-<SettingsIcon className="h-4 w-4" /><HistoryIcon className="h-4 w-4" />
-<SettingsIcon className="h-4 w-4" />    </ThemeProvider>
+    </ThemeProvider>
   );
 }
 
