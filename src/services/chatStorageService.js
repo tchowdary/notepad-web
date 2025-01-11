@@ -1,7 +1,7 @@
 const DB_NAME = 'chatDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'chatSessions';
-const MAX_SESSIONS = 10;
+const MAX_SESSIONS = 50;
 
 class ChatStorageService {
   constructor() {
