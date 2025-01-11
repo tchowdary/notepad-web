@@ -25,6 +25,7 @@ import {
   ListItemIcon,
   Input,
   Modal,
+  InputBase,
   InputAdornment,
 } from '@mui/material';
 import { 
@@ -591,6 +592,197 @@ const ChatBox = () => {
     return null;
   };
 
+  const renderMessageInput = () => (
+    <Box
+      sx={{
+        position: 'absolute',
+        bottom: 0,
+        left: isFullscreen ? '250px' : 0,
+        right: 0,
+        backgroundColor: theme.palette.background.default,
+        borderTop: `1px solid ${theme.palette.divider}`,
+        zIndex: 1,
+        width: isFullscreen ? 'calc(100% - 250px)' : '100%',
+      }}
+    >
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1, 
+              bgcolor: 'background.paper', 
+              p: 1.5, 
+              borderRadius: 1,
+              width: '100%',
+              flexWrap: 'nowrap',
+              overflow: 'hidden',
+              minHeight: '60px',
+            }}
+          >
+            {/* Toolbar Icons */}
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <IconButton size="small" onClick={createNewSession}>
+                <AddIcon />
+              </IconButton>
+              <IconButton size="small" onClick={() => setHistoryAnchorEl(inputRef.current)}>
+                <HistoryIcon />
+              </IconButton>
+
+              <IconButton size="small" onClick={() => setIsFullscreen(true)}>
+                <FullscreenIcon />
+              </IconButton>
+              <IconButton size="small" onClick={() => setApiKeyDialogOpen(true)}>
+                <KeyIcon />
+              </IconButton>
+            </Box>
+            <Select
+              value={selectedProvider}
+              onChange={(e) => {
+                setSelectedProvider(e.target.value);
+                localStorage.setItem('last_selected_provider', e.target.value);
+              }}
+              size="small"
+              sx={{ 
+                minWidth: 180,
+                flexShrink: 1  
+              }}
+            >
+              {providers.map((provider) =>
+                provider.models.map((model) => (
+                  <MenuItem
+                    key={`${provider.name}|${model.id}`}
+                    value={`${provider.name}|${model.id}`}
+                  >
+                    {model.name}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+            
+           
+            <IconButton
+                size="small"
+                onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
+                color={selectedInstruction ? "primary" : "default"}
+                sx={{ flexShrink: 0 }}  
+              >
+                <AutoFixHighIcon />
+              </IconButton>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                gap: 1,
+                flexGrow: 0,
+                flexShrink: 1,
+                minWidth: 120  
+              }}
+            >
+              <Select
+                value={selectedInstruction ? selectedInstruction.id : ''}
+                onChange={(e) => {
+                  const instruction = customInstructions.find(i => i.id === e.target.value);
+                  setSelectedInstruction(instruction || null);
+                  localStorage.setItem('last_selected_instruction', instruction ? instruction.id : null);
+                }}
+                size="small"
+                sx={{ 
+                  flexGrow: 0,
+                  flexShrink: 1,
+                  minWidth: 120,
+                  maxWidth: 150
+                }}
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {customInstructions.map((instruction) => (
+                  <MenuItem key={instruction.id} value={instruction.id}>
+                    {instruction.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              
+              
+            </Box>
+            
+
+            
+            
+          </Box>
+        </Box>
+
+        <Paper
+          component="form"
+          sx={{
+            p: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            minHeight: '60px',
+            backgroundColor: 'background.paper',
+          }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage();
+          }}
+        >
+          <IconButton
+            sx={{ p: '10px' }}
+            aria-label="attach file"
+            component="label"
+          >
+            <input
+              type="file"
+              hidden
+              onChange={handleFileUpload}
+              accept=".txt,.md,.pdf,image/*"
+            />
+            <AttachFileIcon />
+          </IconButton>
+          
+          <InputBase
+            sx={{ ml: 1, flex: 1 }}
+            placeholder="Type a message..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            multiline
+            maxRows={4}
+            ref={inputRef}
+          />
+          
+          {selectedFile && (
+            <Box sx={{ display: 'flex', alignItems: 'center', px: 1 }}>
+              <Typography variant="body2" color="textSecondary">
+                {selectedFile.name}
+              </Typography>
+              <IconButton size="small" onClick={() => setSelectedFile(null)}>
+                <ClearIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
+          
+          <IconButton
+            color="primary"
+            sx={{ p: '10px' }}
+            aria-label="send message"
+            onClick={handleSendMessage}
+            disabled={isLoading || (!input.trim() && !selectedFile)}
+          >
+            {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
+          </IconButton>
+        </Paper>
+      </Box>
+    </Box>
+  );
+
   return (
     <>
       {isFullscreen ? (
@@ -732,64 +924,14 @@ const ChatBox = () => {
 
             {/* Main chat area */}
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              {/* Toolbar */}
-              <Box sx={{ display: 'flex', gap: 1, p: 2, borderBottom: 1, borderColor: 'divider' }}>
-                {!isSidebarOpen && (
-                  <IconButton onClick={() => setIsSidebarOpen(true)} size="small">
-                    <ChevronRightIcon />
-                  </IconButton>
-                )}
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Tooltip title="Model Settings">
-                    <IconButton 
-                      size="small"
-                      onClick={(e) => setSettingsAnchorEl(e.currentTarget)}
-                    >
-                      <SettingsIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-
-                  <Tooltip title="Chat History">
-                    <IconButton 
-                      size="small"
-                      onClick={(e) => setHistoryAnchorEl(e.currentTarget)}
-                    >
-                      <HistoryIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-
-                  <Tooltip title="New Chat">
-                    <IconButton 
-                      size="small"
-                      onClick={createNewSession}
-                      color="primary"
-                    >
-                      <AddIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-
-                  <Tooltip title="Fullscreen">
-                    <IconButton onClick={() => setIsFullscreen(true)} size="small">
-                      <FullscreenIcon />
-                    </IconButton>
-                  </Tooltip>
-
-                  <Tooltip title="API Keys">
-                    <IconButton onClick={() => setApiKeyDialogOpen(true)} size="small">
-                      <KeyIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </Box>
-
               {/* Messages area */}
               <Box
                 ref={messagesContainerRef}
                 sx={{
                   flex: 1,
                   overflowY: 'auto',
-                  p: 2,
-                  pt: 6,
+                  paddingBottom: '160px', // Add padding to prevent messages from being hidden
+                  width: '100%',
                 }}
               >
                 {messages.map((message, index) => (
@@ -870,80 +1012,7 @@ const ChatBox = () => {
                 <div ref={messagesEndRef} />
               </Box>
 
-              {/* Input area */}
-              <Box
-                sx={{
-                  p: 2,
-                  borderTop: 1,
-                  borderColor: 'divider',
-                  bgcolor: 'background.paper',
-                }}
-              >
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf,.md"
-                    style={{ display: 'none' }}
-                    id="file-upload"
-                    onChange={handleFileUpload}
-                  />
-                  <label htmlFor="file-upload">
-                    <IconButton component="span" color={selectedFile ? "primary" : "default"}>
-                      <AttachFileIcon />
-                    </IconButton>
-                  </label>
-                  {selectedFile && (
-                    <Typography variant="body2" color="textSecondary">
-                      {selectedFile.name}
-                    </Typography>
-                  )}
-                  <TextField
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onPaste={handlePaste}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    multiline
-                    maxRows={5}
-                    fullWidth
-                    placeholder="Type your message..."
-                    variant="outlined"
-                    size="medium"
-                    InputProps={{
-                      sx: { fontSize: '1rem', minHeight: '56px' },
-                      startAdornment: (
-                        <Tooltip title={selectedInstruction ? `Custom Instruction: ${selectedInstruction.name}` : "Select Custom Instruction"}>
-                          <IconButton
-                            onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
-                            color={selectedInstruction ? "primary" : "default"}
-                            size="small"
-                            sx={{ mr: 1 }}
-                          >
-                            <AutoFixHighIcon />
-                          </IconButton>
-                        </Tooltip>
-                      ),
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        paddingRight: '14px',
-                      }
-                    }}
-                  />
-                  <IconButton 
-                    onClick={handleSendMessage} 
-                    color="primary"
-                    disabled={!selectedProvider || (!input.trim() && !selectedFile) || isLoading}
-                    sx={{ height: 40, width: 40 }}
-                  >
-                    {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
-                  </IconButton>
-                </Box>
-              </Box>
+              {renderMessageInput()}
             </Box>
           </Box>
         </Modal>
@@ -958,212 +1027,105 @@ const ChatBox = () => {
             position: 'relative',
           }}
         >
-          {/* Toolbar */}
-          <Box sx={{ display: 'flex', gap: 1, p: 2, borderBottom: 1, borderColor: 'divider' }}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title="Model Settings">
-                <IconButton 
-                  size="small"
-                  onClick={(e) => setSettingsAnchorEl(e.currentTarget)}
-                >
-                  <SettingsIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="Chat History">
-                <IconButton 
-                  size="small"
-                  onClick={(e) => setHistoryAnchorEl(e.currentTarget)}
-                >
-                  <HistoryIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="New Chat">
-                <IconButton 
-                  size="small"
-                  onClick={createNewSession}
-                  color="primary"
-                >
-                  <AddIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="Fullscreen">
-                <IconButton onClick={() => setIsFullscreen(true)} size="small">
-                  <FullscreenIcon />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="API Keys">
-                <IconButton onClick={() => setApiKeyDialogOpen(true)} size="small">
-                  <KeyIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Box>
-
-          {/* Messages area */}
-          <Box
-            ref={messagesContainerRef}
-            sx={{
-              flex: 1,
-              overflowY: 'auto',
-              p: 2,
-              pt: 6,
-            }}
-          >
-            {messages.map((message, index) => (
-              <Box 
-                key={index} 
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  maxWidth: '100%',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                }}
-              >
-                <Paper
-                  elevation={1}
-                  sx={{
-                    p: 3,
-                    width: '100%',
-                    bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.background.paper,
-                    color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
-                    borderRadius: 2,
-                    overflow: 'auto',
-                    maxHeight: '80vh',
-                  }}
-                >
-                  <Box sx={{ position: 'relative' }}>
-                    {renderMessageContent(message.content)}
-                    <IconButton
-                      size="small"
-                      onClick={() => handleCopy(message.content, index)}
-                      sx={{
-                        position: 'absolute',
-                        right: -8,
-                        top: -8,
-                        color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.secondary,
-                        opacity: 0.7,
-                        '&:hover': {
-                          opacity: 1,
-                          bgcolor: message.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-                        },
-                      }}
-                    >
-                      {copiedIndex === index ? <Typography variant="caption">Copied!</Typography> : <CopyIcon fontSize="small" />}
-                    </IconButton>
-                  </Box>
-                </Paper>
-              </Box>
-            ))}
-            {isStreaming && streamingContent && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  maxWidth: '100%',
-                  wordBreak: 'break-word',
-                }}
-              >
-                <Paper
-                  elevation={1}
-                  sx={{
-                    p: 3,
-                    width: '100%',
-                    bgcolor: theme.palette.background.paper,
-                    color: theme.palette.text.primary,
-                    borderRadius: 2,
-                  }}
-                >
-                  <Box sx={{ position: 'relative' }}>
-                    <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
-                      {streamingContent}
-                    </Typography>
-                  </Box>
-                </Paper>
-              </Box>
-            )}
-            <div ref={messagesEndRef} />
-          </Box>
-
-          {/* Input area */}
           <Box
             sx={{
-              p: 2,
-              borderTop: 1,
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              width: '100%',
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-              <input
-                type="file"
-                accept="image/*,.pdf,.md"
-                style={{ display: 'none' }}
-                id="file-upload"
-                onChange={handleFileUpload}
-              />
-              <label htmlFor="file-upload">
-                <IconButton component="span" color={selectedFile ? "primary" : "default"}>
-                  <AttachFileIcon />
-                </IconButton>
-              </label>
-              {selectedFile && (
-                <Typography variant="body2" color="textSecondary">
-                  {selectedFile.name}
-                </Typography>
-              )}
-              <TextField
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onPaste={handlePaste}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                multiline
-                maxRows={5}
-                fullWidth
-                placeholder="Type your message..."
-                variant="outlined"
-                size="medium"
-                InputProps={{
-                  sx: { fontSize: '1rem', minHeight: '56px' },
-                  startAdornment: (
-                    <Tooltip title={selectedInstruction ? `Custom Instruction: ${selectedInstruction.name}` : "Select Custom Instruction"}>
+            {/* Chat Messages Container */}
+            <Box
+              ref={messagesContainerRef}
+              sx={{
+                flexGrow: 1,
+                overflowY: 'auto',
+                paddingBottom: '160px',
+                width: '100%',
+              }}
+            >
+              {messages.map((message, index) => (
+                <Box 
+                  key={index} 
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    maxWidth: '100%',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                  }}
+                >
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 3,
+                      width: '100%',
+                      bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.background.paper,
+                      color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
+                      borderRadius: 2,
+                      overflow: 'auto',
+                      maxHeight: '80vh',
+                    }}
+                  >
+                    <Box sx={{ position: 'relative' }}>
+                      {renderMessageContent(message.content)}
                       <IconButton
-                        onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
-                        color={selectedInstruction ? "primary" : "default"}
                         size="small"
-                        sx={{ mr: 1 }}
+                        onClick={() => handleCopy(message.content, index)}
+                        sx={{
+                          position: 'absolute',
+                          right: -8,
+                          top: -8,
+                          color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.secondary,
+                          opacity: 0.7,
+                          '&:hover': {
+                            opacity: 1,
+                            bgcolor: message.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                          },
+                        }}
                       >
-                        <AutoFixHighIcon />
+                        {copiedIndex === index ? <Typography variant="caption">Copied!</Typography> : <CopyIcon fontSize="small" />}
                       </IconButton>
-                    </Tooltip>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    paddingRight: '14px',
-                  }
-                }}
-              />
-              <IconButton 
-                onClick={handleSendMessage} 
-                color="primary"
-                disabled={!selectedProvider || (!input.trim() && !selectedFile) || isLoading}
-                sx={{ height: 40, width: 40 }}
-              >
-                {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
-              </IconButton>
+                    </Box>
+                  </Paper>
+                </Box>
+              ))}
+              {isStreaming && streamingContent && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    maxWidth: '100%',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 3,
+                      width: '100%',
+                      bgcolor: theme.palette.background.paper,
+                      color: theme.palette.text.primary,
+                      borderRadius: 2,
+                    }}
+                  >
+                    <Box sx={{ position: 'relative' }}>
+                      <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
+                        {streamingContent}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Box>
+              )}
+              <div ref={messagesEndRef} />
             </Box>
+
+            {renderMessageInput()}
           </Box>
         </Box>
       )}
