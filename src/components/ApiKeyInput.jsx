@@ -33,6 +33,9 @@ const DEFAULT_MODELS = {
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
     { id: 'o1-preview-2024-09-12', name: 'o1 Preview' },
   ],
+  deepseek: [
+    { id: 'deepseek-chat', name: 'DeepSeek V3 Chat' }
+  ],
   anthropic: [
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
     { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku' }
@@ -55,6 +58,11 @@ const ApiKeyInput = ({ open, onClose }) => {
       key: localStorage.getItem('openai_api_key') || '',
       models: DEFAULT_MODELS.openai,
       selectedModel: localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
+    },
+    deepseek: {
+      key: localStorage.getItem('deepseek_api_key') || '',
+      models: DEFAULT_MODELS.deepseek,
+      selectedModel: localStorage.getItem('deepseek_model') || DEFAULT_MODELS.deepseek[0].id,
     },
     anthropic: {
       key: localStorage.getItem('anthropic_api_key') || '',
@@ -80,6 +88,11 @@ const ApiKeyInput = ({ open, onClose }) => {
           models: parsed.openai?.models || DEFAULT_MODELS.openai,
           selectedModel: parsed.openai?.selectedModel || localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
         },
+        deepseek: {
+          key: parsed.deepseek?.key || localStorage.getItem('deepseek_api_key') || '',
+          models: parsed.deepseek?.models || DEFAULT_MODELS.deepseek,
+          selectedModel: parsed.deepseek?.selectedModel || localStorage.getItem('deepseek_model') || DEFAULT_MODELS.deepseek[0].id,
+        },
         anthropic: {
           key: parsed.anthropic?.key || localStorage.getItem('anthropic_api_key') || '',
           models: parsed.anthropic?.models || DEFAULT_MODELS.anthropic,
@@ -104,6 +117,10 @@ const ApiKeyInput = ({ open, onClose }) => {
       localStorage.setItem('openai_api_key', providers.openai.key);
       localStorage.setItem('openai_model', providers.openai.selectedModel);
     }
+    if (providers.deepseek.key) {
+      localStorage.setItem('deepseek_api_key', providers.deepseek.key);
+      localStorage.setItem('deepseek_model', providers.deepseek.selectedModel);
+    }
     if (providers.anthropic.key) {
       localStorage.setItem('anthropic_api_key', providers.anthropic.key);
       localStorage.setItem('anthropic_model', providers.anthropic.selectedModel);
@@ -117,7 +134,7 @@ const ApiKeyInput = ({ open, onClose }) => {
   };
 
   const getCurrentProvider = () => {
-    return activeTab === 0 ? 'openai' : activeTab === 1 ? 'anthropic' : 'gemini';
+    return activeTab === 0 ? 'openai' : activeTab === 1 ? 'deepseek' : activeTab === 2 ? 'anthropic' : 'gemini';
   };
 
   const handleAddModel = () => {
@@ -277,14 +294,16 @@ const ApiKeyInput = ({ open, onClose }) => {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab label="OpenAI" />
+          <Tab label="DeepSeek" />
           <Tab label="Anthropic" />
           <Tab label="Gemini" />
         </Tabs>
 
         <DialogContent>
           {activeTab === 0 && <ProviderContent provider="openai" />}
-          {activeTab === 1 && <ProviderContent provider="anthropic" />}
-          {activeTab === 2 && <ProviderContent provider="gemini" />}
+          {activeTab === 1 && <ProviderContent provider="deepseek" />}
+          {activeTab === 2 && <ProviderContent provider="anthropic" />}
+          {activeTab === 3 && <ProviderContent provider="gemini" />}
 
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
@@ -301,7 +320,7 @@ const ApiKeyInput = ({ open, onClose }) => {
           <Button
             onClick={handleSave}
             variant="contained"
-            disabled={!providers.openai.key && !providers.anthropic.key && !providers.gemini.key}
+            disabled={!providers.openai.key && !providers.deepseek.key && !providers.anthropic.key && !providers.gemini.key}
           >
             Save
           </Button>

@@ -56,6 +56,7 @@ import {
   sendOpenAIMessage,
   sendAnthropicMessage,
   sendGeminiMessage,
+  sendDeepSeekMessage,
   getAvailableProviders,
 } from '../services/aiService';
 import { chatStorage } from '../services/chatStorageService';
@@ -398,6 +399,8 @@ const ChatBox = () => {
 
           await (providerName === 'openai' 
             ? sendOpenAIMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
+            : providerName === 'deepseek'
+            ? sendDeepSeekMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
             : sendAnthropicMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream));
 
           finalResponse = {
