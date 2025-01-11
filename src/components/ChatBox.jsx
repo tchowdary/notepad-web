@@ -63,7 +63,7 @@ import { chatStorage } from '../services/chatStorageService';
 import { customInstructionsStorage } from '../services/customInstructionsService';
 import ApiKeyInput from './ApiKeyInput';
 
-const ChatBox = () => {
+const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -83,7 +83,7 @@ const ChatBox = () => {
   const [newInstructionContent, setNewInstructionContent] = useState('');
   const [instructionMenuAnchorEl, setInstructionMenuAnchorEl] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(initialFullscreen || false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -213,6 +213,18 @@ const ChatBox = () => {
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isFullscreen]);
+
+  useEffect(() => {
+    if (isFullscreen) {
+      onFullscreenChange?.(true);
+    } else {
+      onFullscreenChange?.(false);
+    }
+  }, [isFullscreen, onFullscreenChange]);
+
+  useEffect(() => {
+    setIsFullscreen(initialFullscreen || false);
+  }, [initialFullscreen]);
 
   const createNewSession = async () => {
     try {
@@ -537,14 +549,33 @@ const ChatBox = () => {
               code: ({ node, inline, className, children, ...props }) => {
                 const match = /language-(\w+)/.exec(className || '');
                 return !inline && match ? (
-                  <SyntaxHighlighter
-                    style={oneDark}
-                    language={match[1]}
-                    PreTag="div"
-                    {...props}
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
+                  <Box sx={{ position: 'relative' }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleCopy(String(children).replace(/\n$/, ''), 'code')}
+                      sx={{
+                        position: 'absolute',
+                        right: 8,
+                        top: 8,
+                        color: 'text.secondary',
+                        bgcolor: 'background.paper',
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                        },
+                        zIndex: 1,
+                      }}
+                    >
+                      <CopyIcon fontSize="small" />
+                    </IconButton>
+                    <SyntaxHighlighter
+                      style={oneDark}
+                      language={match[1]}
+                      PreTag="div"
+                      {...props}
+                    >
+                      {String(children).replace(/\n$/, '')}
+                    </SyntaxHighlighter>
+                  </Box>
                 ) : (
                   <code className={className} {...props}>
                     {children}
@@ -890,7 +921,7 @@ const ChatBox = () => {
                       selected={session.id === activeSessionId}
                       onClick={() => {
                         setActiveSessionId(session.id);
-                        setMessages(session.messages || []);
+                        setMessages(session.messages);
                       }}
                       sx={{
                         borderRadius: 1,
@@ -943,22 +974,41 @@ const ChatBox = () => {
                     sx={{
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'flex-start',
+                      alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
                       maxWidth: '100%',
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
+                      px: 2,
+                      py: 1,
                     }}
                   >
-                    <Paper
-                      elevation={1}
+                    <Box
                       sx={{
-                        p: 3,
-                        width: '100%',
-                        bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.background.paper,
+                        maxWidth: '80%',
+                        position: 'relative',
+                        backgroundColor: message.role === 'user' ? theme.palette.primary.dark : theme.palette.background.paper,
                         color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
                         borderRadius: 2,
-                        overflow: 'auto',
-                        maxHeight: '80vh',
+                        p: 2,
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          width: 0,
+                          height: 0,
+                          borderStyle: 'solid',
+                          ...(message.role === 'user' 
+                            ? {
+                                borderWidth: '0 0 12px 12px',
+                                borderColor: `transparent transparent ${theme.palette.primary.dark} transparent`,
+                                right: '-6px',
+                                bottom: 0,
+                              }
+                            : {
+                                borderWidth: '0 12px 12px 0',
+                                borderColor: `transparent ${theme.palette.background.paper} transparent transparent`,
+                                left: '-6px',
+                                bottom: 0,
+                              }
+                          )
+                        }
                       }}
                     >
                       <Box sx={{ position: 'relative' }}>
@@ -974,14 +1024,14 @@ const ChatBox = () => {
                             opacity: 0.7,
                             '&:hover': {
                               opacity: 1,
-                              bgcolor: message.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                              bgcolor: 'rgba(0,0,0,0.1)',
                             },
                           }}
                         >
                           {copiedIndex === index ? <Typography variant="caption">Copied!</Typography> : <CopyIcon fontSize="small" />}
                         </IconButton>
                       </Box>
-                    </Paper>
+                    </Box>
                   </Box>
                 ))}
                 {isStreaming && streamingContent && (
@@ -991,17 +1041,29 @@ const ChatBox = () => {
                       flexDirection: 'column',
                       alignItems: 'flex-start',
                       maxWidth: '100%',
-                      wordBreak: 'break-word',
+                      px: 2,
+                      py: 1,
                     }}
                   >
-                    <Paper
-                      elevation={1}
+                    <Box
                       sx={{
-                        p: 3,
-                        width: '100%',
-                        bgcolor: theme.palette.background.paper,
+                        maxWidth: '80%',
+                        position: 'relative',
+                        backgroundColor: theme.palette.background.paper,
                         color: theme.palette.text.primary,
                         borderRadius: 2,
+                        p: 2,
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          width: 0,
+                          height: 0,
+                          borderStyle: 'solid',
+                          borderWidth: '0 12px 12px 0',
+                          borderColor: `transparent ${theme.palette.background.paper} transparent transparent`,
+                          left: '-6px',
+                          bottom: 0,
+                        }
                       }}
                     >
                       <Box sx={{ position: 'relative' }}>
@@ -1009,7 +1071,7 @@ const ChatBox = () => {
                           {streamingContent}
                         </Typography>
                       </Box>
-                    </Paper>
+                    </Box>
                   </Box>
                 )}
                 <div ref={messagesEndRef} />
@@ -1056,22 +1118,41 @@ const ChatBox = () => {
                   sx={{
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'flex-start',
+                    alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
                     maxWidth: '100%',
-                    wordBreak: 'break-word',
-                    overflowWrap: 'break-word',
+                    px: 2,
+                    py: 1,
                   }}
                 >
-                  <Paper
-                    elevation={1}
+                  <Box
                     sx={{
-                      p: 3,
-                      width: '100%',
-                      bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.background.paper,
+                      maxWidth: '80%',
+                      position: 'relative',
+                      backgroundColor: message.role === 'user' ? theme.palette.primary.dark : theme.palette.background.paper,
                       color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
                       borderRadius: 2,
-                      overflow: 'auto',
-                      maxHeight: '80vh',
+                      p: 2,
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        width: 0,
+                        height: 0,
+                        borderStyle: 'solid',
+                        ...(message.role === 'user' 
+                          ? {
+                              borderWidth: '0 0 12px 12px',
+                              borderColor: `transparent transparent ${theme.palette.primary.dark} transparent`,
+                              right: '-6px',
+                              bottom: 0,
+                            }
+                          : {
+                              borderWidth: '0 12px 12px 0',
+                              borderColor: `transparent ${theme.palette.background.paper} transparent transparent`,
+                              left: '-6px',
+                              bottom: 0,
+                            }
+                        )
+                      }
                     }}
                   >
                     <Box sx={{ position: 'relative' }}>
@@ -1087,14 +1168,14 @@ const ChatBox = () => {
                           opacity: 0.7,
                           '&:hover': {
                             opacity: 1,
-                            bgcolor: message.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                            bgcolor: 'rgba(0,0,0,0.1)',
                           },
                         }}
                       >
                         {copiedIndex === index ? <Typography variant="caption">Copied!</Typography> : <CopyIcon fontSize="small" />}
                       </IconButton>
                     </Box>
-                  </Paper>
+                  </Box>
                 </Box>
               ))}
               {isStreaming && streamingContent && (
@@ -1104,17 +1185,29 @@ const ChatBox = () => {
                     flexDirection: 'column',
                     alignItems: 'flex-start',
                     maxWidth: '100%',
-                    wordBreak: 'break-word',
+                    px: 2,
+                    py: 1,
                   }}
                 >
-                  <Paper
-                    elevation={1}
+                  <Box
                     sx={{
-                      p: 3,
-                      width: '100%',
-                      bgcolor: theme.palette.background.paper,
+                      maxWidth: '80%',
+                      position: 'relative',
+                      backgroundColor: theme.palette.background.paper,
                       color: theme.palette.text.primary,
                       borderRadius: 2,
+                      p: 2,
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        width: 0,
+                        height: 0,
+                        borderStyle: 'solid',
+                        borderWidth: '0 12px 12px 0',
+                        borderColor: `transparent ${theme.palette.background.paper} transparent transparent`,
+                        left: '-6px',
+                        bottom: 0,
+                      }
                     }}
                   >
                     <Box sx={{ position: 'relative' }}>
@@ -1122,7 +1215,7 @@ const ChatBox = () => {
                         {streamingContent}
                       </Typography>
                     </Box>
-                  </Paper>
+                  </Box>
                 </Box>
               )}
               <div ref={messagesEndRef} />

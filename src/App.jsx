@@ -46,6 +46,7 @@ function App() {
   });
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [isChatFullscreen, setIsChatFullscreen] = useState(false);
   const [showApiSettings, setShowApiSettings] = useState(false);
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
@@ -174,13 +175,29 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = async (e) => {
-      // Exit focus mode on Escape key
-      if (e.key === 'Escape' && focusMode) {
-        setFocusMode(false);
-        setShowSidebar(true);
+      // Exit focus mode and chat on Escape key
+      if (e.key === 'Escape') {
+        if (focusMode) {
+          setFocusMode(false);
+          setShowSidebar(true);
+        }
+        if (isChatFullscreen) {
+          setIsChatFullscreen(false);
+          setShowChat(false);
+          setShowSidebar(true);
+        } else if (showChat) {
+          handleChatToggle();
+        }
         return;
       }
       
+      // Open chat in fullscreen with Ctrl/Cmd + Shift + C
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        handleChatFullscreen();
+        return;
+      }
+
       // Handle Ctrl+K before any other key combinations
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -197,7 +214,7 @@ function App() {
     // Use capture phase to handle the event before React's event system
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [focusMode]);
+  }, [focusMode, showChat, isChatFullscreen]);
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -547,12 +564,16 @@ function App() {
   const handleChatToggle = () => {
     const newChatState = !showChat;
     setShowChat(newChatState);
-    // Only hide sidebar when opening chat, restore it when closing
-    if (newChatState) {
-      setShowSidebar(false);
-    } else {
-      setShowSidebar(true);
+    // Reset fullscreen when toggling chat
+    if (!newChatState) {
+      setIsChatFullscreen(false);
     }
+  };
+
+  const handleChatFullscreen = () => {
+    setShowChat(true);
+    setIsChatFullscreen(true);
+    setShowSidebar(false);
   };
 
   const handleSplitViewToggle = () => {
@@ -828,20 +849,30 @@ function App() {
                 </Box>
                 
                 {showChat && (
-                  <Box
-                    sx={{
-                      width: { xs: '100%', md: '50%' },
-                      flexShrink: 0,
-                      borderLeft: `1px solid ${theme.palette.divider}`,
-                      bgcolor: theme.palette.background.paper,
-                      position: { xs: 'fixed', md: 'relative' },
-                      right: { xs: 0, md: 'auto' },
-                      top: { xs: 0, md: 'auto' },
-                      height: { xs: '100%', md: 'auto' },
-                      zIndex: { xs: theme.zIndex.drawer + 1, md: 1 },
+                  <Box 
+                    sx={{ 
+                      ...(isChatFullscreen ? {
+                        position: 'fixed',
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        left: 0,
+                        zIndex: theme.zIndex.drawer + 2,
+                        bgcolor: 'background.default',
+                      } : {
+                        width: '40%',
+                        minWidth: '400px',
+                        maxWidth: '800px',
+                        height: '100%',
+                        position: 'relative',
+                        borderLeft: `1px solid ${theme.palette.divider}`,
+                      })
                     }}
                   >
-                    <ChatBox />
+                    <ChatBox 
+                      onFullscreenChange={setIsChatFullscreen} 
+                      initialFullscreen={isChatFullscreen}
+                    />
                   </Box>
                 )}
               </Box>
