@@ -620,7 +620,7 @@ const ChatBox = () => {
                 transition: 'width 0.2s',
                 overflow: 'hidden',
                 borderRight: `1px solid ${theme.palette.divider}`,
-                bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
+                bgcolor: theme.palette.background.paper,
                 display: 'flex',
                 flexDirection: 'column',
               }}
