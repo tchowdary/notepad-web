@@ -320,8 +320,16 @@ class GitHubService {
         request.onsuccess = () => resolve(request.result);
       });
 
+      // Get today's date at midnight for comparison
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       for (const session of sessions) {
         if (!session.messages || session.messages.length === 0) continue;
+        
+        // Skip if lastModified is not today
+        const lastModified = new Date(session.lastModified || 0);
+        if (lastModified < today) continue;
 
         // Format chat content in markdown
         const content = session.messages.map(msg => {
