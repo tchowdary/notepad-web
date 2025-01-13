@@ -1,4 +1,4 @@
-import React, { useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, forwardRef, useImperativeHandle, useState, useRef, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextStyle from '@tiptap/extension-text-style';
@@ -26,10 +26,13 @@ import {
   TextFields,
   CheckBox,
   ContentCopy,
+  Mic as MicIcon,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
 import { compressImage } from '../utils/imageUtils';
+import RecordRTC from 'recordrtc';
+import RecordingDialog from './RecordingDialog';
 
 const getTableStyles = (darkMode) => ({
   '& table': {
@@ -187,6 +190,13 @@ const getEditorStyles = (darkMode) => ({
 const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange }, ref) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [recordingInterval, setRecordingInterval] = useState(null);
+  const [recorder, setRecorder] = useState(null);
+  const [recordingStream, setRecordingStream] = useState(null);
+  const [recordingError, setRecordingError] = useState(null);
   const editorRef = React.useRef(null);
   const menuRef = React.useRef(null);
   const isRestoringCursor = React.useRef(false);
@@ -414,11 +424,143 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     handleClose();
   };
 
+  const handleStartRecording = async () => {
+    try {
+      setRecordingError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setRecordingStream(stream);
+      
+      const newRecorder = new RecordRTC(stream, {
+        type: 'audio',
+        mimeType: 'audio/webm',
+        recorderType: RecordRTC.StereoAudioRecorder,
+        numberOfAudioChannels: 1,
+        desiredSampRate: 16000,
+      });
+
+      newRecorder.startRecording();
+      setRecorder(newRecorder);
+      setIsRecording(true);
+      setContextMenu(null);
+      const interval = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+      }, 1000);
+      setRecordingInterval(interval);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      setRecordingError(error.message || 'Error accessing microphone');
+      setIsRecording(false);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      if (recorder) {
+        return new Promise((resolve) => {
+          recorder.stopRecording(async () => {
+            try {
+              const blob = await recorder.getBlob();
+              await transcribeAudio(blob);
+            } catch (err) {
+              console.error('Transcription error:', err);
+              setRecordingError(err.message || 'Error transcribing audio');
+            } finally {
+              cleanup();
+              resolve();
+            }
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      setRecordingError(error.message || 'Error stopping recording');
+      cleanup();
+    }
+  };
+
+  const cleanup = () => {
+    if (recordingStream) {
+      recordingStream.getTracks().forEach(track => track.stop());
+      setRecordingStream(null);
+    }
+    if (recorder) {
+      try {
+        recorder.destroy();
+      } catch (err) {
+        console.error('Error destroying recorder:', err);
+      }
+      setRecorder(null);
+    }
+    if (recordingInterval) {
+      clearInterval(recordingInterval);
+      setRecordingInterval(null);
+      setElapsedTime(0);
+    }
+    setIsRecording(false);
+    setIsProcessing(false);
+  };
+
+  const transcribeAudio = async (audioBlob) => {
+    try {
+      setIsProcessing(true);
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.webm');
+      formData.append('model', 'whisper-1');
+
+      const apiKey = localStorage.getItem('openai_api_key');
+      if (!apiKey) {
+        throw new Error('OpenAI API key not found. Please set your API key in settings.');
+      }
+
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Transcription failed');
+      }
+
+      const data = await response.json();
+      if (editor) {
+        // Get the current selection position
+        const { from } = editor.state.selection;
+        
+        // If we're at the start of a line, don't add an extra newline
+        const needsNewline = from > 0 && editor.state.doc.textBetween(from - 1, from) !== '\n';
+        
+        // Insert the transcribed text at the current position
+        editor
+          .chain()
+          .focus()
+          .insertContent((needsNewline ? '\n' : '') + data.text)
+          .run();
+      }
+    } catch (err) {
+      console.error('Transcription error:', err);
+      throw new Error('Failed to transcribe audio: ' + err.message);
+    }
+  };
+
+  // Cleanup recording resources on unmount
+  useEffect(() => {
+    return cleanup;
+  }, []);
+
   const formatOptions = [
     {
       title: 'Copy as Plain Text',
       icon: <ContentCopy />,
       action: handleCopyPlainText,
+    },
+    {
+      title: 'Voice to Text',
+      icon: <MicIcon />,
+      action: handleStartRecording,
     },
     {
       title: 'H2',
@@ -621,12 +763,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       ref={editorRef}
       onContextMenu={handleContextMenu}
       sx={{
-        height: { xs: 'calc(100vh - 30px)', sm: 'calc(100vh - 30px)', md: '100%' },
-        width: '100%',
         position: 'relative',
-        overflow: 'auto',
-        mb: { xs: '30px', sm: '30px', md: 0 },
-        py: 3,
+        height: '100%',
+        backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
+        ...getTableStyles(darkMode),
       }}
     >
       <Box
@@ -718,6 +858,13 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           )}
         </Stack>
       )}
+      <RecordingDialog
+        open={isRecording || isProcessing}
+        onClose={handleStopRecording}
+        elapsedTime={elapsedTime}
+        isProcessing={isProcessing}
+        error={recordingError}
+      />
     </Box>
   );
 });

@@ -1,21 +1,22 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { IconButton, CircularProgress, Tooltip } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import StopIcon from '@mui/icons-material/Stop';
 import RecordRTC from 'recordrtc';
 
-const VoiceRecorder = ({ onTranscriptionComplete }) => {
+const VoiceRecorder = forwardRef(({ onTranscriptionComplete }, ref) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const recorder = useRef(null);
+  const stream = useRef(null);
 
   const startRecording = async () => {
     try {
       setError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      recorder.current = new RecordRTC(stream, {
+      recorder.current = new RecordRTC(stream.current, {
         type: 'audio',
         mimeType: 'audio/webm',
         recorderType: RecordRTC.StereoAudioRecorder,
@@ -31,25 +32,44 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
     }
   };
 
-  const stopRecording = () => {
-    if (recorder.current) {
+  const stopRecording = async () => {
+    if (!recorder.current) return;
+    
+    try {
       setIsProcessing(true);
-      recorder.current.stopRecording(async () => {
-        try {
-          const blob = await recorder.current.getBlob();
-          await transcribeAudio(blob);
-          recorder.current.destroy();
-          recorder.current = null;
-        } catch (err) {
-          console.error('Transcription error:', err);
-          setError(err.message || 'Error transcribing audio');
-        } finally {
-          setIsProcessing(false);
-        }
+      return new Promise((resolve) => {
+        recorder.current.stopRecording(async () => {
+          try {
+            const blob = await recorder.current.getBlob();
+            await transcribeAudio(blob);
+          } catch (err) {
+            console.error('Transcription error:', err);
+            setError(err.message || 'Error transcribing audio');
+          } finally {
+            if (stream.current) {
+              stream.current.getTracks().forEach(track => track.stop());
+              stream.current = null;
+            }
+            recorder.current.destroy();
+            recorder.current = null;
+            setIsRecording(false);
+            setIsProcessing(false);
+            resolve();
+          }
+        });
       });
+    } catch (err) {
+      console.error('Error stopping recording:', err);
+      setError(err.message || 'Error stopping recording');
       setIsRecording(false);
+      setIsProcessing(false);
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    startRecording,
+    stopRecording
+  }), []);
 
   const transcribeAudio = async (audioBlob) => {
     try {
@@ -103,6 +123,6 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
       </span>
     </Tooltip>
   );
-};
+});
 
 export default VoiceRecorder;
