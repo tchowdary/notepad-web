@@ -94,9 +94,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
   const streamingContentRef = useRef('');
   const theme = useTheme();
   const inputRef = useRef(null);
-  const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isNewMessage, setIsNewMessage] = useState(false);
 
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
@@ -166,12 +166,18 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
       if (!activeSessionId || messages.length === 0) return;
 
       try {
+        const existingSession = await chatStorage.getSession(activeSessionId);
+        if (!existingSession) return;
+
+        // Only update lastUpdated if messages have changed
         const session = {
-          id: activeSessionId,
+          ...existingSession,
           messages,
-          created: sessions.find(s => s.id === activeSessionId)?.created || new Date().toISOString(),
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: JSON.stringify(messages) !== JSON.stringify(existingSession.messages) 
+            ? new Date().toISOString() 
+            : existingSession.lastUpdated,
         };
+        
         await chatStorage.saveSession(session);
         if (!mounted) return;
 
@@ -229,6 +235,18 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
     setIsFullscreen(initialFullscreen || false);
   }, [initialFullscreen]);
 
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (isNewMessage && messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTop = container.scrollHeight;
+      setIsNewMessage(false);
+    }
+  }, [messages, isNewMessage]);
+
   const createNewSession = async () => {
     try {
       const newSession = {
@@ -243,6 +261,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
       setActiveSessionId(newSession.id);
       setMessages([]);
       setHistoryAnchorEl(null);
+      setIsNewMessage(true); // Auto-scroll for new sessions
     } catch (error) {
       console.error('Error creating new session:', error);
       setError('Failed to create new chat session');
@@ -283,14 +302,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
       setError('Failed to delete chat session');
     }
   };
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const handleProviderChange = (value) => {
     setSelectedProvider(value);
@@ -384,6 +395,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
     if ((!input.trim() && !selectedFile) || !selectedProvider || isLoading) return;
     setError('');
     setIsLoading(true);
+    setIsNewMessage(true);
 
     try {
       const [providerName, modelId] = selectedProvider.split('|');
@@ -986,6 +998,12 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                         '&:hover .delete-button': {
                           opacity: 1,
                         },
+                        ...(session.id === activeSessionId && {
+                          backgroundColor: theme.palette.primary.main + '1A', // 10% opacity
+                          '&:hover': {
+                            backgroundColor: theme.palette.primary.main + '26', // 15% opacity
+                          },
+                        }),
                       }}
                     >
                       <ListItemIcon sx={{ minWidth: 36 }}>
@@ -1115,17 +1133,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                         color: theme.palette.text.primary,
                         borderRadius: 2,
                         p: 2,
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          width: 0,
-                          height: 0,
-                          borderStyle: 'solid',
-                          borderWidth: '0 12px 12px 0',
-                          borderColor: `transparent ${theme.palette.background.paper} transparent transparent`,
-                          left: '-6px',
-                          bottom: 0,
-                        }
                       }}
                     >
                       <Box sx={{ position: 'relative' }}>
@@ -1136,7 +1143,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                     </Box>
                   </Box>
                 )}
-                <div ref={messagesEndRef} />
               </Box>
 
               {renderMessageInput()}
@@ -1245,17 +1251,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                       color: theme.palette.text.primary,
                       borderRadius: 2,
                       p: 2,
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        width: 0,
-                        height: 0,
-                        borderStyle: 'solid',
-                        borderWidth: '0 12px 12px 0',
-                        borderColor: `transparent ${theme.palette.background.paper} transparent transparent`,
-                        left: '-6px',
-                        bottom: 0,
-                      }
                     }}
                   >
                     <Box sx={{ position: 'relative' }}>
@@ -1266,7 +1261,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                   </Box>
                 </Box>
               )}
-              <div ref={messagesEndRef} />
             </Box>
 
             {renderMessageInput()}
@@ -1329,7 +1323,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
               onClick={() => {
                 setActiveSessionId(session.id);
                 setMessages(session.messages);
-                setHistoryAnchorEl(null);
               }}
               selected={session.id === activeSessionId}
               sx={{ 
