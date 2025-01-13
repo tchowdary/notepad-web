@@ -804,6 +804,25 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     }
   }, [contextMenu]);
 
+  const handleKeyDown = useCallback((event) => {
+    if (event.ctrlKey || event.metaKey) {
+      if (event.key === '[') {
+        event.preventDefault();
+        setIsTocOpen(false);
+      } else if (event.key === ']') {
+        event.preventDefault();
+        setIsTocOpen(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
   // Expose editor instance through ref
   useImperativeHandle(ref, () => ({
     editor,
@@ -820,7 +839,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       {/* TOC Container */}
       <Box
         sx={{
-          width: isTocOpen ? '240px' : '0px',
+          width: isTocOpen ? '300px' : '0px',
           transition: 'width 0.3s ease',
           overflow: 'hidden',
           borderRight: 'none',
@@ -831,7 +850,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         {/* TOC Content */}
         <Box
           sx={{
-            width: '240px',
+            width: '300px',
             height: '100%',
             overflow: 'auto',
             p: 2,
@@ -846,7 +865,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         onClick={() => setIsTocOpen(!isTocOpen)}
         sx={{
           position: 'absolute',
-          left: isTocOpen ? '240px' : '0',
+          left: isTocOpen ? '300px' : '0',
           top: '10px',
           transform: isTocOpen ? 'none' : 'rotate(180deg)',
           transition: 'left 0.3s ease, transform 0.3s ease',
