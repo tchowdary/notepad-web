@@ -12,27 +12,36 @@ import TableHeader from '@tiptap/extension-table-header';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
-import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
+import { getHierarchicalIndexes, TableOfContents } from '@tiptap-pro/extension-table-of-contents';
+import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText } from '@mui/material';
 import {
-  FormatQuote,
+  FormatBold,
+  FormatItalic,
+  FormatUnderlined,
   Code,
-  HorizontalRule as HorizontalRuleIcon,
-  FormatColorText,
+  FormatQuote,
+  FormatListBulleted,
+  FormatListNumbered,
   TableChart,
-  AutoFixHigh,
-  AddCircleOutline,
   DeleteOutline,
-  DeleteForever,
-  TextFields,
-  CheckBox,
   ContentCopy,
   Mic as MicIcon,
+  List as ListIcon,
+  ChevronLeft,
+  Remove,
+  AutoFixHigh,
+  TextFields,
+  CheckBox,
+  AddCircleOutline,
+  DeleteForever,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
 import { compressImage } from '../utils/imageUtils';
 import RecordRTC from 'recordrtc';
 import RecordingDialog from './RecordingDialog';
+import { ToC } from './ToC';
+import './toc.css';
 
 const getTableStyles = (darkMode) => ({
   '& table': {
@@ -184,6 +193,28 @@ const getEditorStyles = (darkMode) => ({
       borderRadius: '4px',
     },
     ...getTableStyles(darkMode),
+    '& .table-of-contents': {
+      background: darkMode ? '#252526' : '#f6f8fa',
+      padding: '1rem',
+      margin: '1rem 0',
+      borderRadius: '4px',
+      border: `1px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
+      '& ul': {
+        listStyle: 'none',
+        padding: 0,
+        margin: 0,
+      },
+      '& li': {
+        margin: '0.5rem 0',
+        '& a': {
+          color: darkMode ? '#58a6ff' : '#0969da',
+          textDecoration: 'none',
+          '&:hover': {
+            textDecoration: 'underline',
+          },
+        },
+      },
+    },
   },
 });
 
@@ -191,6 +222,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [tocItems, setTocItems] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [recordingInterval, setRecordingInterval] = useState(null);
@@ -202,10 +234,29 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const isRestoringCursor = React.useRef(false);
   const isEditorReady = React.useRef(false);
   const lastKnownPosition = React.useRef(null);
+  const [isTocOpen, setIsTocOpen] = useState(() => {
+    const saved = localStorage.getItem('tocOpen');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tocOpen', JSON.stringify(isTocOpen));
+  }, [isTocOpen]);
+
+  const toggleToc = useCallback(() => {
+    setIsTocOpen(prev => !prev);
+  }, []);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+          HTMLAttributes: {
+            class: 'heading',
+            'data-toc-id': (attrs) => `heading-${attrs.level}-${Math.random().toString(36).substr(2, 9)}`,
+          },
+        },
         horizontalRule: false,
       }),
       TextStyle,
@@ -227,6 +278,12 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       Image.configure({
         inline: false,
         allowBase64: true,
+      }),
+      TableOfContents.configure({
+        getIndex: getHierarchicalIndexes,
+        onUpdate: (items) => {
+          setTocItems(items);
+        },
       }),
     ],
     content,
@@ -553,74 +610,71 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const formatOptions = [
     {
-      title: 'Copy as Plain Text',
-      icon: <ContentCopy />,
-      action: handleCopyPlainText,
+      icon: <FormatBold />,
+      title: 'Bold',
+      action: () => editor.chain().focus().toggleBold().run(),
+      isActive: () => editor.isActive('bold'),
     },
     {
-      title: 'Voice to Text',
-      icon: <MicIcon />,
-      action: handleStartRecording,
+      icon: <FormatItalic />,
+      title: 'Italic',
+      action: () => editor.chain().focus().toggleItalic().run(),
+      isActive: () => editor.isActive('italic'),
     },
     {
-      title: 'H2',
-      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>H2</Typography>,
-      action: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(),
+      icon: <FormatUnderlined />,
+      title: 'Underline',
+      action: () => editor.chain().focus().toggleUnderline().run(),
+      isActive: () => editor.isActive('underline'),
     },
     {
-      title: 'H3',
-      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>H3</Typography>,
-      action: () => editor?.chain().focus().toggleHeading({ level: 3 }).run(),
-    },
-    {
-      title: 'H4',
-      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}>H4</Typography>,
-      action: () => editor?.chain().focus().toggleHeading({ level: 4 }).run(),
-    },
-    {
-      title: 'Code Block',
       icon: <Code />,
-      action: () => editor?.chain().focus().toggleCodeBlock().run(),
+      title: 'Code',
+      action: () => editor.chain().focus().toggleCode().run(),
+      isActive: () => editor.isActive('code'),
     },
     {
-      title: 'Block Quote',
       icon: <FormatQuote />,
-      action: () => editor?.chain().focus().toggleBlockquote().run(),
+      title: 'Blockquote',
+      action: () => editor.chain().focus().toggleBlockquote().run(),
+      isActive: () => editor.isActive('blockquote'),
     },
     {
+      icon: <FormatListBulleted />,
+      title: 'Bullet List',
+      action: () => editor.chain().focus().toggleBulletList().run(),
+      isActive: () => editor.isActive('bulletList'),
+    },
+    {
+      icon: <FormatListNumbered />,
+      title: 'Ordered List',
+      action: () => editor.chain().focus().toggleOrderedList().run(),
+      isActive: () => editor.isActive('orderedList'),
+    },
+    {
+      icon: <Remove />,
       title: 'Horizontal Rule',
-      icon: <HorizontalRuleIcon />,
-      action: () => editor?.chain().focus().setHorizontalRule().run(),
+      action: () => editor.chain().focus().setHorizontalRule().run(),
     },
     {
-      title: 'Highlight',
-      icon: <FormatColorText />,
-      action: () => editor?.chain().focus().setColor('#3AA99F').run(),
-    },
-    {
-      title: 'Insert Table',
       icon: <TableChart />,
-      action: () => {
-        editor?.chain()
-          .focus()
-          .insertTable({
-            rows: 2,
-            cols: 2,
-            withHeaderRow: true
-          })
-          .run();
-        handleClose();
-      },
+      title: 'Insert Table',
+      action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
     },
     {
-      title: 'Improve Text',
+      icon: <TextFields />,
+      title: 'Clear Format',
+      action: () => editor.chain().focus().clearNodes().unsetAllMarks().run(),
+    },
+    {
       icon: <AutoFixHigh />,
+      title: 'Improve Text',
       action: handleImproveText,
     },
     {
-      title: 'Task List',
-      icon: <CheckBox />,
-      action: () => editor?.chain().focus().toggleTaskList().run(),
+      icon: <MicIcon />,
+      title: 'Voice Input',
+      action: handleStartRecording,
     },
   ];
 
@@ -629,7 +683,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Add Column Before',
       icon: <AddCircleOutline sx={{ transform: 'rotate(90deg)' }} />,
       action: () => {
-        editor?.chain().focus().addColumnBefore().run();
+        editor.chain().focus().addColumnBefore().run();
         handleClose();
       },
     },
@@ -637,7 +691,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Add Column After',
       icon: <AddCircleOutline sx={{ transform: 'rotate(-90deg)' }} />,
       action: () => {
-        editor?.chain().focus().addColumnAfter().run();
+        editor.chain().focus().addColumnAfter().run();
         handleClose();
       },
     },
@@ -645,7 +699,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Delete Column',
       icon: <DeleteOutline sx={{ transform: 'rotate(90deg)' }} />,
       action: () => {
-        editor?.chain().focus().deleteColumn().run();
+        editor.chain().focus().deleteColumn().run();
         handleClose();
       },
     },
@@ -653,7 +707,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Add Row Before',
       icon: <AddCircleOutline />,
       action: () => {
-        editor?.chain().focus().addRowBefore().run();
+        editor.chain().focus().addRowBefore().run();
         handleClose();
       },
     },
@@ -661,7 +715,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Add Row After',
       icon: <AddCircleOutline sx={{ transform: 'rotate(180deg)' }} />,
       action: () => {
-        editor?.chain().focus().addRowAfter().run();
+        editor.chain().focus().addRowAfter().run();
         handleClose();
       },
     },
@@ -669,7 +723,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Delete Row',
       icon: <DeleteOutline />,
       action: () => {
-        editor?.chain().focus().deleteRow().run();
+        editor.chain().focus().deleteRow().run();
         handleClose();
       },
     },
@@ -677,7 +731,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Delete Table',
       icon: <DeleteForever />,
       action: () => {
-        editor?.chain().focus().deleteTable().run();
+        editor.chain().focus().deleteTable().run();
         handleClose();
       },
     },
@@ -710,18 +764,21 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     },
   ];
 
-  const handleContextMenu = (event) => {
-    event.preventDefault();
-    setContextMenu({
-      mouseX: event.clientX,
-      mouseY: event.clientY,
-      isInTable: editor?.isActive('table'),
-    });
-  };
+  const handleContextMenu = useCallback((event) => {
+    if (event.button === 2) {
+      event.preventDefault();
+      const isInTable = editor?.isActive('table');
+      setContextMenu({
+        mouseX: event.clientX + 2,
+        mouseY: event.clientY - 6,
+        isInTable
+      });
+    }
+  }, [editor]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setContextMenu(null);
-  };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -759,111 +816,157 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   }), [editor]);
 
   return (
-    <Box 
-      ref={editorRef}
-      onContextMenu={handleContextMenu}
-      sx={{
-        position: 'relative',
-        height: '100%',
-        backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
-        ...getTableStyles(darkMode),
-      }}
-    >
+    <Box sx={{ display: 'flex', height: '100vh', position: 'relative' }}>
+      {/* TOC Container */}
       <Box
         sx={{
-          maxWidth: '50em',
-          margin: '0 auto',
-          padding: '16px',
-          outline: 'none',
-          backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
-          color: darkMode ? '#e6edf3' : '#24292f',
-          fontFamily: '"Rubik", sans-serif',
-          fontSize: '17px',
-          lineHeight: '1.8',
+          width: isTocOpen ? '240px' : '0px',
+          transition: 'width 0.3s ease',
+          overflow: 'hidden',
+          borderRight: 'none',
           position: 'relative',
-          minHeight: '100%',
-          ...getEditorStyles(darkMode),
+          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
         }}
       >
-        <EditorContent editor={editor} onContextMenu={handleContextMenu} />
-        {improving && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
-              padding: '10px 20px',
-              borderRadius: '4px',
-              zIndex: 1000,
-            }}
-          >
-            Improving text...
-          </Box>
-        )}
-      </Box>
-      {contextMenu && (
-        <Stack
-          ref={menuRef}
-          direction="row"
-          spacing={1}
+        {/* TOC Content */}
+        <Box
           sx={{
-            position: 'fixed',
-            left: contextMenu.mouseX,
-            top: contextMenu.mouseY,
-            backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
-            borderRadius: 1,
-            boxShadow: 3,
-            p: 1,
-            zIndex: 1000,
+            width: '240px',
+            height: '100%',
+            overflow: 'auto',
+            p: 2,
           }}
         >
-          {contextMenu.isInTable ? (
-            tableOptions.map((option, index) => (
-              <Tooltip key={index} title={option.title}>
-                <IconButton
-                  size="small"
-                  onClick={option.action}
-                  sx={{
-                    color: darkMode ? '#e6edf3' : '#24292f',
-                  }}
-                >
-                  {option.icon}
-                </IconButton>
-              </Tooltip>
-            ))
-          ) : (
-            formatOptions.map((option, index) => (
-              <Tooltip key={index} title={option.title}>
-                <IconButton
-                  size="small"
-                  onClick={option.action}
-                  sx={{
-                    color: darkMode ? '#e6edf3' : '#24292f',
-                    '& .MuiSvgIcon-root': {
-                      fontSize: '1.2rem',
-                    },
-                    ...(option.title.startsWith('H') && {
-                      padding: '4px 8px',
-                      minWidth: '32px',
-                    }),
-                  }}
-                >
-                  {option.icon}
-                </IconButton>
-              </Tooltip>
-            ))
+          <ToC items={tocItems} editor={editor} />
+        </Box>
+      </Box>
+
+      {/* Collapse Button - Moved to absolute position */}
+      <IconButton
+        onClick={() => setIsTocOpen(!isTocOpen)}
+        sx={{
+          position: 'absolute',
+          left: isTocOpen ? '240px' : '0',
+          top: '10px',
+          transform: isTocOpen ? 'none' : 'rotate(180deg)',
+          transition: 'left 0.3s ease, transform 0.3s ease',
+          zIndex: 1,
+          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
+          '&:hover': {
+            bgcolor: darkMode ? '#2d2d2d' : '#f5f5f5',
+          },
+        }}
+      >
+        <ChevronLeft />
+      </IconButton>
+
+      {/* Editor Container */}
+      <Box
+        ref={editorRef}
+        onContextMenu={handleContextMenu}
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
+        }}
+      >
+        <Box
+          className="editor-content"
+          sx={{
+            flex: 1,
+            maxWidth: '50em',
+            margin: '0 auto',
+            padding: '16px',
+            outline: 'none',
+            backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
+            color: darkMode ? '#e6edf3' : '#24292f',
+            fontFamily: '"Rubik", sans-serif',
+            fontSize: '17px',
+            lineHeight: '1.8',
+            position: 'relative',
+            minHeight: '100%',
+            overflow: 'auto',
+            ...getEditorStyles(darkMode),
+          }}
+        >
+          <EditorContent editor={editor} />
+          {improving && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                color: 'white',
+                padding: '10px 20px',
+                borderRadius: '4px',
+                zIndex: 1000,
+              }}
+            >
+              Improving text...
+            </Box>
           )}
-        </Stack>
-      )}
+        </Box>
+      </Box>
+
+      <Menu
+        open={Boolean(contextMenu)}
+        onClose={handleClose}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu
+            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+            : undefined
+        }
+        PaperProps={{
+          sx: {
+            backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
+            color: darkMode ? '#e6edf3' : '#24292f',
+            borderRadius: '8px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          }
+        }}
+        MenuListProps={{
+          sx: {
+            display: 'flex',
+            flexDirection: 'row',
+            padding: '4px',
+          }
+        }}
+      >
+        {(contextMenu?.isInTable ? tableOptions : formatOptions).map((option, index) => (
+          <MenuItem 
+            key={index} 
+            onClick={() => { option.action(); handleClose(); }}
+            sx={{
+              minWidth: 'auto',
+              padding: '4px',
+              borderRadius: '4px',
+              '&:hover': {
+                backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)',
+              }
+            }}
+          >
+            <IconButton
+              size="small"
+              sx={{
+                color: option.isActive?.() ? 'primary.main' : 'inherit',
+              }}
+            >
+              {option.icon}
+            </IconButton>
+          </MenuItem>
+        ))}
+      </Menu>
+
       <RecordingDialog
-        open={isRecording || isProcessing}
-        onClose={handleStopRecording}
+        open={isRecording}
         elapsedTime={elapsedTime}
         isProcessing={isProcessing}
-        error={recordingError}
+        onClose={handleStopRecording}
       />
     </Box>
   );

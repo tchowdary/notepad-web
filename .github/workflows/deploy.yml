@@ -24,11 +24,20 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Configure NPM for TipTap Pro
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.TIPTAP_PRO_TOKEN }}" > .npmrc
+          echo "@tiptap-pro:registry=https://registry.npmjs.org/" >> .npmrc
+
       - name: Install dependencies
         run: npm ci
+        env:
+          TIPTAP_PRO_TOKEN: ${{ secrets.TIPTAP_PRO_TOKEN }}
 
       - name: Build project
         run: npm run build
+        env:
+          TIPTAP_PRO_TOKEN: ${{ secrets.TIPTAP_PRO_TOKEN }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
