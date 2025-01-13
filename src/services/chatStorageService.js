@@ -102,7 +102,8 @@ class ChatStorageService {
           // Prepare the session to save
           const sessionToSave = {
             ...session,
-            lastUpdated: new Date().toISOString()
+            // Only update lastUpdated if not provided
+            lastUpdated: session.lastUpdated || new Date().toISOString()
           };
 
           // If there's an existing session, preserve its lastSynced value

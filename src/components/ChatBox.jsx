@@ -274,9 +274,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
       const session = await chatStorage.getSession(sessionId);
       if (session) {
         setActiveSessionId(session.id);
-        setMessages(session.messages);
+        setMessages(session.messages || []);
+        setHistoryAnchorEl(null);
       }
-      setHistoryAnchorEl(null);
     } catch (error) {
       console.error('Error switching session:', error);
       setError('Failed to switch chat session');
@@ -988,7 +988,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                       preview = firstMessage.content;
                     } else if (Array.isArray(firstMessage.content)) {
                       const textContent = firstMessage.content.find(item => item.type === 'text');
-                      preview = textContent ? textContent.text : '[No text available]';
+                      preview = textContent ? textContent.text : '';
                     } else if (firstMessage.content?.type === 'image') {
                       preview = '[Image]';
                     }
