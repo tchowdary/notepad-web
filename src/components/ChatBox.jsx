@@ -685,9 +685,15 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
         borderTop: `1px solid ${theme.palette.divider}`,
         zIndex: 1,
         width: isFullscreen ? 'calc(100% - 250px)' : '100%',
+        display: 'flex',
+        justifyContent: 'center', // Center the input container
       }}
     >
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ 
+        p: 2,
+        width: '100%',
+        maxWidth: isFullscreen ? '1000px' : '100%', // Match message width
+      }}>
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <Box 
             sx={{ 
@@ -695,12 +701,12 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
               alignItems: 'center', 
               gap: 1, 
               bgcolor: 'background.paper', 
-              p: 1.5, 
+              p: 0.5, 
               borderRadius: 1,
               width: '100%',
               flexWrap: 'nowrap',
               overflow: 'hidden',
-              minHeight: '60px',
+              minHeight: '40px',
             }}
           >
             {/* Toolbar Icons */}
@@ -813,14 +819,14 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
           </Box>
         </Box>
 
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+        <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider' }}>
           <Paper
             component="form"
             sx={{
-              p: '8px 16px',
+              p: '4px 12px',
               display: 'flex',
               alignItems: 'center',
-              minHeight: '60px',
+              minHeight: '45px',
               backgroundColor: 'background.paper',
             }}
             onSubmit={(e) => {
@@ -843,7 +849,15 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
             </IconButton>
             
             <InputBase
-              sx={{ ml: 1, flex: 1 }}
+              sx={{ 
+                ml: 1, 
+                flex: 1,
+                minHeight: '60px', 
+                '& textarea': {
+                  minHeight: '60px !important', 
+                  padding: '8px 0', 
+                }
+              }}
               placeholder="Type a message..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -854,7 +868,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                 }
               }}
               multiline
-              maxRows={4}
+              maxRows={6} 
               ref={inputRef}
             />
             
@@ -1058,8 +1072,11 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                 sx={{
                   flex: 1,
                   overflowY: 'auto',
-                  paddingBottom: '160px', // Add padding to prevent messages from being hidden
+                  paddingBottom: '160px',
                   width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
                 }}
               >
                 {messages.map((message, index) => (
@@ -1068,15 +1085,16 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                     sx={{
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
-                      maxWidth: '100%',
+                      alignItems: 'center',
+                      width: '100%',
+                      maxWidth: isFullscreen ? '1000px' : '100%',
                       px: 2,
                       py: 1,
                     }}
                   >
                     <Box
                       sx={{
-                        maxWidth: '80%',
+                        width: '100%',
                         position: 'relative',
                         backgroundColor: message.role === 'user' ? theme.palette.primary.dark : theme.palette.background.paper,
                         color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
