@@ -154,49 +154,38 @@ class GitHubService {
     }
   }
 
-  async uploadFile(filename, content) {
+  async uploadFile(filename, content, tab = null) {
     if (!this.isConfigured()) return;
 
     try {
-      const currentPath = filename === 'todo.md' ? this.getTodoFilePath() : this.getFilePath(filename);
+      const path = this.getFilePath(filename);
+      const sha = await this.getLatestFileSHA(path);
       
-      // Find where the file currently exists (if anywhere)
-      const existingPath = await this.findExistingFilePath(currentPath);
+      // Create base64 content
+      const contentBase64 = btoa(unescape(encodeURIComponent(content)));
       
-      const latestSHA = await this.getLatestFileSHA(existingPath);
-      
-      // Always use the existing path if we found a SHA, otherwise use current path
-      const uploadPath = existingPath || currentPath;
-      
-      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${uploadPath}`;
-
-      // Ensure the directory exists before uploading
-      await this.createDirectory(uploadPath);
-
-      // Convert content to UTF-8 encoded string, handling base64 images properly
-      const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
-      const contentBytes = new TextEncoder().encode(contentStr);
-      const base64Content = btoa(String.fromCharCode(...contentBytes));
-
-      const body = {
-        message: `Update ${uploadPath}`,
-        content: base64Content,
+      const requestBody = {
+        message: `Update ${filename}`,
+        content: contentBase64,
         branch: this.settings.branch
       };
-
-      if (latestSHA) {
-        body.sha = latestSHA;
+      
+      if (sha) {
+        requestBody.sha = sha;
       }
 
-      const response = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `token ${this.settings.token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
+      const response = await fetch(
+        `https://api.github.com/repos/${this.settings.repo}/contents/${path}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${this.settings.token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github.v3+json'
+          },
+          body: JSON.stringify(requestBody)
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -205,7 +194,20 @@ class GitHubService {
       }
 
       const responseData = await response.json();
+
+      // If a tab was provided, update its lastSynced timestamp
+      if (tab) {
+        const db = await openDB();
+        const tx = db.transaction(TABS_STORE, 'readwrite');
+        const store = tx.objectStore(TABS_STORE);
+        
+        await store.put({
+          ...tab,
+          lastSynced: new Date().toISOString()
+        });
+      }
       
+      return responseData;
     } catch (error) {
       console.error('Error uploading file:', error);
       throw error;
@@ -369,8 +371,6 @@ class GitHubService {
               messageContent = '[Empty message]';
             }
 
-            debugMessageStructure(msg);
-
             // Special handling for code blocks
             const parts = messageContent.split(/(```[^`]*```)/g);
             messageContent = parts.map((part, index) => {
@@ -406,7 +406,18 @@ class GitHubService {
     }
   }
 
-  // Method to sync all files
+  // Helper function to safely parse dates and compare them
+  compareDates(date1, date2) {
+    try {
+      const d1 = new Date(date1).getTime();
+      const d2 = new Date(date2).getTime();
+      return d1 > d2;
+    } catch (error) {
+      console.error('Error comparing dates:', error, { date1, date2 });
+      return true; // If there's an error, sync to be safe
+    }
+  }
+
   async syncAllFiles() {
     if (!this.isConfigured()) {
       return;
@@ -441,17 +452,32 @@ class GitHubService {
       let syncCount = 0;
       for (const tab of tabs) {
         if (this.shouldSyncFile(tab.name)) {
-          try {
-            await this.uploadFile(tab.name, tab.content);
-            syncCount++;
-          } catch (error) {
-            console.error(`Failed to sync file ${tab.name}:`, error);
+          const needsSync = !tab.lastSynced || (tab.lastModified && this.compareDates(tab.lastModified, tab.lastSynced));
+          
+          console.log(`Tab ${tab.name} sync status:`, {
+            lastModified: tab.lastModified,
+            lastSynced: tab.lastSynced,
+            needsSync
+          });
+
+          if (needsSync) {
+            try {
+              await this.uploadFile(tab.name, tab.content, tab);
+              syncCount++;
+              console.log(`Synced ${tab.name} to GitHub`);
+            } catch (error) {
+              console.error(`Failed to sync file ${tab.name}:`, error);
+            }
+          } else {
+            console.log(`Skipping ${tab.name} - no changes since last sync`);
           }
         }
       }
 
       // Sync chats
       await this.syncChats();
+      
+      console.log(`Synced ${syncCount} files to GitHub`);
     } catch (error) {
       console.error('Error in syncAllFiles:', error);
     }

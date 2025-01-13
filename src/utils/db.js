@@ -1,5 +1,5 @@
 export const DB_NAME = 'notepadDB';
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 export const TABS_STORE = 'tabs';
 export const DRAWINGS_STORE = 'drawings';
 export const TODO_STORE = 'todos';
@@ -14,7 +14,19 @@ export const openDB = () => {
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
       if (!db.objectStoreNames.contains(TABS_STORE)) {
-        db.createObjectStore(TABS_STORE, { keyPath: 'id' });
+        const store = db.createObjectStore(TABS_STORE, { keyPath: 'id' });
+        // Add indexes for sync tracking
+        store.createIndex('lastModified', 'lastModified', { unique: false });
+        store.createIndex('lastSynced', 'lastSynced', { unique: false });
+      } else {
+        // Add indexes to existing store if upgrading from a previous version
+        const store = event.currentTarget.transaction.objectStore(TABS_STORE);
+        if (!store.indexNames.contains('lastModified')) {
+          store.createIndex('lastModified', 'lastModified', { unique: false });
+        }
+        if (!store.indexNames.contains('lastSynced')) {
+          store.createIndex('lastSynced', 'lastSynced', { unique: false });
+        }
       }
       if (!db.objectStoreNames.contains(DRAWINGS_STORE)) {
         const store = db.createObjectStore(DRAWINGS_STORE, { keyPath: 'id' });
@@ -35,8 +47,12 @@ export const saveTabs = async (tabs) => {
   // Clear existing tabs
   await store.clear();
   
-  // Add all tabs
-  const promises = tabs.map(tab => store.add(tab));
+  // Add all tabs with lastModified timestamp
+  const now = new Date().toISOString();
+  const promises = tabs.map(tab => store.add({
+    ...tab,
+    lastModified: now
+  }));
 
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
