@@ -892,7 +892,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       {/* TOC Container */}
       <Box
         sx={{
-          width: isTocOpen ? '280px' : '0px',
+          width: isTocOpen ? '300px' : '0px',
           transition: 'width 0.3s ease',
           overflow: 'hidden',
           borderLeft: 1,
@@ -904,7 +904,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         {/* TOC Content */}
         <Box
           sx={{
-            width: '280px',
+            width: '300px',
             height: '100%',
             overflow: 'auto',
             p: 2,
