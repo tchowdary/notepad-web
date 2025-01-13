@@ -262,6 +262,27 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
     }
   };
 
+  const handleDeleteSession = async (sessionId, event) => {
+    event.stopPropagation();
+    try {
+      await chatStorage.deleteSession(sessionId);
+      const updatedSessions = await chatStorage.getAllSessions();
+      setSessions(updatedSessions);
+      
+      if (sessionId === activeSessionId) {
+        if (updatedSessions.length > 0) {
+          setActiveSessionId(updatedSessions[0].id);
+          setMessages(updatedSessions[0].messages);
+        } else {
+          await createNewSession();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      setError('Failed to delete chat session');
+    }
+  };
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -948,6 +969,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                         borderRadius: 1,
                         mx: 1,
                         mb: 0.5,
+                        position: 'relative',
+                        '&:hover .delete-button': {
+                          opacity: 1,
+                        },
                       }}
                     >
                       <ListItemIcon sx={{ minWidth: 36 }}>
@@ -957,6 +982,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                         primary={preview}
                         primaryTypographyProps={{
                           sx: {
+                            fontFamily: 'Geist, sans-serif',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
@@ -964,6 +990,22 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                           }
                         }}
                       />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleDeleteSession(session.id, e)}
+                        className="delete-button"
+                        sx={{
+                          position: 'absolute',
+                          right: 8,
+                          opacity: 0,
+                          transition: 'opacity 0.2s',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                          },
+                        }}
+                      >
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
                     </ListItem>
                   );
                 })}
