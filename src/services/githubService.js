@@ -304,16 +304,6 @@ class GitHubService {
   async syncChats() {
     if (!this.isConfigured()) return;
 
-    const debugMessageStructure = (msg) => {
-      console.log('Message debug info:');
-      console.log('- Type of content:', typeof msg.content);
-      console.log('- Content:', msg.content);
-      if (typeof msg.content === 'object' && msg.content !== null) {
-        console.log('- Content keys:', Object.keys(msg.content));
-        console.log('- Content type:', msg.content.type);
-        console.log('- Has nested content:', 'content' in msg.content);
-      }
-    };
 
     try {
       // Open chatDB instead of notepadDB
