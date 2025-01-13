@@ -839,7 +839,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       {/* TOC Container */}
       <Box
         sx={{
-          width: isTocOpen ? '300px' : '0px',
+          width: isTocOpen ? '280px' : '0px',
           transition: 'width 0.3s ease',
           overflow: 'hidden',
           borderRight: 'none',
@@ -861,7 +861,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       </Box>
 
       {/* Collapse Button - Moved to absolute position */}
-      <IconButton
+      {/* <IconButton
         onClick={() => setIsTocOpen(!isTocOpen)}
         sx={{
           position: 'absolute',
@@ -877,7 +877,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         }}
       >
         <ChevronLeft />
-      </IconButton>
+      </IconButton> */}
 
       {/* Editor Container */}
       <Box
