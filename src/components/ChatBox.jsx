@@ -48,6 +48,7 @@ import {
   Image as ImageIcon,
   PictureAsPdf as PdfIcon,
   Description as MarkdownIcon,
+  Check as CheckIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -296,10 +297,22 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
     localStorage.setItem('last_selected_provider', value);
   };
 
-  const handleCopy = (text, index) => {
-    navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
+  const handleCopyMessage = async (content, index) => {
+    let textToCopy = '';
+    if (typeof content === 'string') {
+      textToCopy = content;
+    } else if (Array.isArray(content)) {
+      const textContent = content.find(item => item.type === 'text');
+      textToCopy = textContent ? textContent.text : '';
+    }
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy message:', error);
+    }
   };
 
   const handleFileUpload = async (event) => {
@@ -575,7 +588,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                   <Box sx={{ position: 'relative' }}>
                     <IconButton
                       size="small"
-                      onClick={() => handleCopy(String(children).replace(/\n$/, ''), 'code')}
+                      onClick={() => handleCopyMessage(String(children).replace(/\n$/, ''), 'code')}
                       sx={{
                         position: 'absolute',
                         right: 8,
@@ -1051,49 +1064,35 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                         color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
                         borderRadius: 2,
                         p: 2,
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          width: 0,
-                          height: 0,
-                          borderStyle: 'solid',
-                          ...(message.role === 'user' 
-                            ? {
-                                borderWidth: '0 0 12px 12px',
-                                borderColor: `transparent transparent ${theme.palette.primary.dark} transparent`,
-                                right: '-6px',
-                                bottom: 0,
-                              }
-                            : {
-                                borderWidth: '0 12px 12px 0',
-                                borderColor: `transparent ${theme.palette.background.paper} transparent transparent`,
-                                left: '-6px',
-                                bottom: 0,
-                              }
-                          )
-                        }
+                        '&:hover .copy-button': {
+                          opacity: 1,
+                        },
                       }}
                     >
-                      <Box sx={{ position: 'relative' }}>
-                        {renderMessageContent(message.content)}
-                        <IconButton
-                          size="small"
-                          onClick={() => handleCopy(message.content, index)}
-                          sx={{
-                            position: 'absolute',
-                            right: -8,
-                            top: -8,
-                            color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.secondary,
-                            opacity: 0.7,
-                            '&:hover': {
-                              opacity: 1,
-                              bgcolor: 'rgba(0,0,0,0.1)',
-                            },
-                          }}
-                        >
-                          {copiedIndex === index ? <Typography variant="caption">Copied!</Typography> : <CopyIcon fontSize="small" />}
-                        </IconButton>
-                      </Box>
+                      {renderMessageContent(message.content)}
+                      <IconButton
+                        size="small"
+                        onClick={() => handleCopyMessage(message.content, index)}
+                        className="copy-button"
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          opacity: 0,
+                          transition: 'opacity 0.2s',
+                          backgroundColor: message.role === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+                          color: message.role === 'user' ? 'white' : 'inherit',
+                          '&:hover': {
+                            backgroundColor: message.role === 'user' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)',
+                          },
+                        }}
+                      >
+                        {copiedIndex === index ? (
+                          <CheckIcon fontSize="small" />
+                        ) : (
+                          <CopyIcon fontSize="small" />
+                        )}
+                      </IconButton>
                     </Box>
                   </Box>
                 ))}
@@ -1195,49 +1194,35 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                       color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
                       borderRadius: 2,
                       p: 2,
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        width: 0,
-                        height: 0,
-                        borderStyle: 'solid',
-                        ...(message.role === 'user' 
-                          ? {
-                              borderWidth: '0 0 12px 12px',
-                              borderColor: `transparent transparent ${theme.palette.primary.dark} transparent`,
-                              right: '-6px',
-                              bottom: 0,
-                            }
-                          : {
-                              borderWidth: '0 12px 12px 0',
-                              borderColor: `transparent ${theme.palette.background.paper} transparent transparent`,
-                              left: '-6px',
-                              bottom: 0,
-                            }
-                        )
-                      }
+                      '&:hover .copy-button': {
+                        opacity: 1,
+                      },
                     }}
                   >
-                    <Box sx={{ position: 'relative' }}>
-                      {renderMessageContent(message.content)}
-                      <IconButton
-                        size="small"
-                        onClick={() => handleCopy(message.content, index)}
-                        sx={{
-                          position: 'absolute',
-                          right: -8,
-                          top: -8,
-                          color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.secondary,
-                          opacity: 0.7,
-                          '&:hover': {
-                            opacity: 1,
-                            bgcolor: 'rgba(0,0,0,0.1)',
-                          },
-                        }}
-                      >
-                        {copiedIndex === index ? <Typography variant="caption">Copied!</Typography> : <CopyIcon fontSize="small" />}
-                      </IconButton>
-                    </Box>
+                    {renderMessageContent(message.content)}
+                    <IconButton
+                      size="small"
+                      onClick={() => handleCopyMessage(message.content, index)}
+                      className="copy-button"
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        backgroundColor: message.role === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+                        color: message.role === 'user' ? 'white' : 'inherit',
+                        '&:hover': {
+                          backgroundColor: message.role === 'user' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)',
+                        },
+                      }}
+                    >
+                      {copiedIndex === index ? (
+                        <CheckIcon fontSize="small" />
+                      ) : (
+                        <CopyIcon fontSize="small" />
+                      )}
+                    </IconButton>
                   </Box>
                 </Box>
               ))}
