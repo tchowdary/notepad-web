@@ -327,26 +327,41 @@ class GitHubService {
       for (const session of sessions) {
         if (!session.messages || session.messages.length === 0) continue;
 
-        // Parse lastUpdated string and create a Date object
-        const lastUpdatedString = session.lastUpdated;
-        const lastModified = lastUpdatedString ? new Date(lastUpdatedString) : new Date(0);
+        try {
+          // Parse lastUpdated string and create a Date object
+          let lastModified;
+          try {
+            lastModified = session.lastUpdated ? new Date(session.lastUpdated) : new Date(0);
+          } catch (dateError) {
+            console.error('Error parsing lastUpdated date:', dateError);
+            lastModified = new Date(0);
+          }
         
-        // Skip if lastModified is not today
-        if (lastModified.toDateString() < today.toDateString()) continue;
+          // Skip if lastModified is not today
+          if (lastModified < today) continue;
 
-        // Format chat content in markdown
-        const content = session.messages.map(msg => {
-          const messageContent = typeof msg.content === 'string' 
-            ? msg.content 
-            : msg.content.type === 'text' 
-              ? msg.content.text
-              : `[${msg.content.type} content]`;
-              
-          return `### ${msg.role === 'user' ? 'User' : 'Assistant'}\n\n${messageContent}\n\n---\n`;
-        }).join('\n');
+          // Format chat content in markdown
+          let content = `# Chat Session ${session.id}\n\nLast updated: ${session.lastUpdated}\n\n`;
+          content += session.messages.map(msg => {
+            const messageContent = typeof msg.content === 'string' 
+              ? msg.content 
+              : msg.content?.type === 'text' 
+                ? msg.content.text
+                : msg.content 
+                  ? `[${msg.content.type} content]`
+                  : '[Empty message]';
+                
+            return `### ${msg.role === 'user' ? 'User' : 'Assistant'}\n\n${messageContent}\n\n---\n`;
+          }).join('\n');
 
-        const path = this.getChatFilePath(session.id);
-        await this.uploadFile(path, content);
+          const path = this.getChatFilePath(session.id);
+          await this.uploadFile(path, content);
+          console.log(`Successfully synced chat session ${session.id}`);
+        } catch (sessionError) {
+          console.error(`Error processing chat session ${session.id}:`, sessionError);
+          // Continue with other sessions even if one fails
+          continue;
+        }
       }
     } catch (error) {
       console.error('Error syncing chats:', error);
