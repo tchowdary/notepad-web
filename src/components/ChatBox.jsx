@@ -62,6 +62,8 @@ import {
 import { chatStorage } from '../services/chatStorageService';
 import { customInstructionsStorage } from '../services/customInstructionsService';
 import ApiKeyInput from './ApiKeyInput';
+import VoiceRecorder from './VoiceRecorder';
+import { processTranscription } from '../services/llmService';
 
 const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
   const [sessions, setSessions] = useState([]);
@@ -670,6 +672,23 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
               <IconButton size="small" onClick={() => setApiKeyDialogOpen(true)}>
                 <KeyIcon />
               </IconButton>
+              <VoiceRecorder onTranscriptionComplete={async (transcript) => {
+                try {
+                  const response = await processTranscription(transcript);
+                  const newMessage = {
+                    role: 'assistant',
+                    content: response,
+                    timestamp: new Date().toISOString(),
+                  };
+                  setMessages(prev => [...prev, 
+                    { role: 'user', content: transcript, timestamp: new Date().toISOString() },
+                    newMessage
+                  ]);
+                } catch (error) {
+                  console.error('Error processing voice input:', error);
+                  setError('Failed to process voice input');
+                }
+              }} />
             </Box>
             <Select
               value={selectedProvider}
@@ -748,71 +767,73 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
           </Box>
         </Box>
 
-        <Paper
-          component="form"
-          sx={{
-            p: '8px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            minHeight: '60px',
-            backgroundColor: 'background.paper',
-          }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-        >
-          <IconButton
-            sx={{ p: '10px' }}
-            aria-label="attach file"
-            component="label"
-          >
-            <input
-              type="file"
-              hidden
-              onChange={handleFileUpload}
-              accept=".txt,.md,.pdf,image/*"
-            />
-            <AttachFileIcon />
-          </IconButton>
-          
-          <InputBase
-            sx={{ ml: 1, flex: 1 }}
-            placeholder="Type a message..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
+        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Paper
+            component="form"
+            sx={{
+              p: '8px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              minHeight: '60px',
+              backgroundColor: 'background.paper',
             }}
-            multiline
-            maxRows={4}
-            ref={inputRef}
-          />
-          
-          {selectedFile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', px: 1 }}>
-              <Typography variant="body2" color="textSecondary">
-                {selectedFile.name}
-              </Typography>
-              <IconButton size="small" onClick={() => setSelectedFile(null)}>
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          )}
-          
-          <IconButton
-            color="primary"
-            sx={{ p: '10px' }}
-            aria-label="send message"
-            onClick={handleSendMessage}
-            disabled={isLoading || (!input.trim() && !selectedFile)}
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
           >
-            {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
-          </IconButton>
-        </Paper>
+            <IconButton
+              sx={{ p: '10px' }}
+              aria-label="attach file"
+              component="label"
+            >
+              <input
+                type="file"
+                hidden
+                onChange={handleFileUpload}
+                accept=".txt,.md,.pdf,image/*"
+              />
+              <AttachFileIcon />
+            </IconButton>
+            
+            <InputBase
+              sx={{ ml: 1, flex: 1 }}
+              placeholder="Type a message..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              multiline
+              maxRows={4}
+              ref={inputRef}
+            />
+            
+            {selectedFile && (
+              <Box sx={{ display: 'flex', alignItems: 'center', px: 1 }}>
+                <Typography variant="body2" color="textSecondary">
+                  {selectedFile.name}
+                </Typography>
+                <IconButton size="small" onClick={() => setSelectedFile(null)}>
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            )}
+            
+            <IconButton
+              color="primary"
+              sx={{ p: '10px' }}
+              aria-label="send message"
+              onClick={handleSendMessage}
+              disabled={isLoading || (!input.trim() && !selectedFile)}
+            >
+              {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
+            </IconButton>
+          </Paper>
+        </Box>
       </Box>
     </Box>
   );
