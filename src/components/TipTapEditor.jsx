@@ -610,6 +610,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const formatOptions = [
     {
+      icon: <MicIcon />,
+      title: 'Voice Input',
+      action: handleStartRecording,
+    },
+    {
       icon: <FormatBold />,
       title: 'Bold',
       action: () => editor.chain().focus().toggleBold().run(),
@@ -671,11 +676,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Improve Text',
       action: handleImproveText,
     },
-    {
-      icon: <MicIcon />,
-      title: 'Voice Input',
-      action: handleStartRecording,
-    },
+    
   ];
 
   const tableOptions = [
