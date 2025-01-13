@@ -852,6 +852,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           height: '100%',
           position: 'relative',
           bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
+          scrollBehavior: 'smooth'
         }}
       >
         <Box

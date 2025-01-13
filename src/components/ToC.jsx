@@ -50,7 +50,9 @@ export const ToC = ({
         const tr = editor.view.state.tr;
         tr.setSelection(TextSelection.create(tr.doc, pos));
         editor.view.dispatch(tr);
-        editor.view.focus();
+
+        // Scroll the element into view
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         // Update URL hash
         if (history.pushState) {
