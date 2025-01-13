@@ -807,10 +807,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const handleKeyDown = useCallback((event) => {
     if (event.ctrlKey || event.metaKey) {
-      if (event.key === '[') {
+      if (event.key === ']') {
         event.preventDefault();
         setIsTocOpen(false);
-      } else if (event.key === ']') {
+      } else if (event.key === '[') {
         event.preventDefault();
         setIsTocOpen(true);
       }
