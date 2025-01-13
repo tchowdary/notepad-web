@@ -692,7 +692,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
       <Box sx={{ 
         p: 2,
         width: '100%',
-        maxWidth: isFullscreen ? '1000px' : '100%', // Match message width
+        maxWidth: isFullscreen ? '900px' : '100%', // Match message width
       }}>
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <Box 
@@ -1087,7 +1087,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       width: '100%',
-                      maxWidth: isFullscreen ? '1000px' : '100%',
+                      maxWidth: isFullscreen ? '1100px' : '100%',
                       px: 2,
                       py: 1,
                     }}
