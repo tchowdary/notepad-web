@@ -42,6 +42,10 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
           '& .MuiTabs-indicator': {
             left: 0,
             width: '2px'
+          },
+          '& .MuiTab-root': {
+            fontFamily: 'Rubik, sans-serif',
+            textTransform: 'none'
           }
         }}
         onDoubleClick={handleDoubleClick}
