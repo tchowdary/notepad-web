@@ -304,6 +304,17 @@ class GitHubService {
   async syncChats() {
     if (!this.isConfigured()) return;
 
+    const debugMessageStructure = (msg) => {
+      console.log('Message debug info:');
+      console.log('- Type of content:', typeof msg.content);
+      console.log('- Content:', msg.content);
+      if (typeof msg.content === 'object' && msg.content !== null) {
+        console.log('- Content keys:', Object.keys(msg.content));
+        console.log('- Content type:', msg.content.type);
+        console.log('- Has nested content:', 'content' in msg.content);
+      }
+    };
+
     try {
       // Open chatDB instead of notepadDB
       const db = await new Promise((resolve, reject) => {
@@ -343,14 +354,50 @@ class GitHubService {
           // Format chat content in markdown
           let content = `# Chat Session ${session.id}\n\nLast updated: ${session.lastUpdated}\n\n`;
           content += session.messages.map(msg => {
-            const messageContent = typeof msg.content === 'string' 
-              ? msg.content 
-              : msg.content?.type === 'text' 
-                ? msg.content.text
-                : msg.content 
-                  ? `[${msg.content.type} content]`
-                  : '[Empty message]';
-                
+            let messageContent = '';
+            
+            // Handle different message content types
+            if (typeof msg.content === 'string') {
+              messageContent = msg.content;
+            } else if (Array.isArray(msg.content)) {
+              // Handle array content by joining array items
+              messageContent = msg.content.map(item => {
+                if (typeof item === 'string') return item;
+                if (item.text) return item.text;
+                if (item.content) return item.content;
+                return JSON.stringify(item);
+              }).join('\n');
+            } else if (msg.content?.type === 'text') {
+              messageContent = msg.content.text;
+            } else if (typeof msg.content?.content === 'string') {
+              messageContent = msg.content.content;
+            } else if (msg.content?.content?.text) {
+              messageContent = msg.content.content.text;
+            } else if (msg.content) {
+              messageContent = JSON.stringify(msg.content, null, 2);
+            } else {
+              messageContent = '[Empty message]';
+            }
+
+            debugMessageStructure(msg);
+
+            // Special handling for code blocks
+            const parts = messageContent.split(/(```[^`]*```)/g);
+            messageContent = parts.map((part, index) => {
+              if (part.startsWith('```') && part.endsWith('```')) {
+                // Preserve code blocks exactly as they are
+                return part;
+              } else {
+                // Format regular text parts
+                return part
+                  .split('\n')
+                  .map(line => line.trim())
+                  .filter(line => line.length > 0)
+                  .join('\n\n');
+              }
+            }).join('\n\n');
+
+            // For regular text, ensure proper markdown formatting
             return `### ${msg.role === 'user' ? 'User' : 'Assistant'}\n\n${messageContent}\n\n---\n`;
           }).join('\n');
 
