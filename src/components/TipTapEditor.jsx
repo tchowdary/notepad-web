@@ -842,9 +842,14 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         ref={editorRef}
         onContextMenu={handleContextMenu}
         sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
+          flexGrow: 1,
+          overflowY: 'scroll',
+          '&::-webkit-scrollbar': {
+            display: 'none'
+          },
+          '-ms-overflow-style': 'none',
+          'scrollbarWidth': 'none',
+          height: '100%',
           position: 'relative',
           bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
         }}
