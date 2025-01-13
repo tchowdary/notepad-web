@@ -328,7 +328,7 @@ class GitHubService {
         if (!session.messages || session.messages.length === 0) continue;
         
         // Skip if lastModified is not today
-        const lastModified = new Date(session.lastModified || 0);
+        const lastModified = new Date(session.lastUpdated || 0);
         if (lastModified < today) continue;
 
         // Format chat content in markdown
