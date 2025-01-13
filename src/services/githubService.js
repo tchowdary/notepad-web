@@ -326,10 +326,13 @@ class GitHubService {
 
       for (const session of sessions) {
         if (!session.messages || session.messages.length === 0) continue;
+
+        // Parse lastUpdated string and create a Date object
+        const lastUpdatedString = session.lastUpdated;
+        const lastModified = lastUpdatedString ? new Date(lastUpdatedString) : new Date(0);
         
         // Skip if lastModified is not today
-        const lastModified = new Date(session.lastUpdated || 0);
-        if (lastModified < today) continue;
+        if (lastModified.toDateString() < today.toDateString()) continue;
 
         // Format chat content in markdown
         const content = session.messages.map(msg => {
