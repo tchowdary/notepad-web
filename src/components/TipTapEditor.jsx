@@ -836,49 +836,6 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', position: 'relative' }}>
-      {/* TOC Container */}
-      <Box
-        sx={{
-          width: isTocOpen ? '280px' : '0px',
-          transition: 'width 0.3s ease',
-          overflow: 'hidden',
-          borderRight: 'none',
-          position: 'relative',
-          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
-        }}
-      >
-        {/* TOC Content */}
-        <Box
-          sx={{
-            width: '300px',
-            height: '100%',
-            overflow: 'auto',
-            p: 2,
-          }}
-        >
-          <ToC items={tocItems} editor={editor} />
-        </Box>
-      </Box>
-
-      {/* Collapse Button - Moved to absolute position */}
-      {/* <IconButton
-        onClick={() => setIsTocOpen(!isTocOpen)}
-        sx={{
-          position: 'absolute',
-          left: isTocOpen ? '300px' : '0',
-          top: '10px',
-          transform: isTocOpen ? 'none' : 'rotate(180deg)',
-          transition: 'left 0.3s ease, transform 0.3s ease',
-          zIndex: 1,
-          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
-          '&:hover': {
-            bgcolor: darkMode ? '#2d2d2d' : '#f5f5f5',
-          },
-        }}
-      >
-        <ChevronLeft />
-      </IconButton> */}
-
       {/* Editor Container */}
       <Box
         ref={editorRef}
@@ -910,7 +867,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             ...getEditorStyles(darkMode),
           }}
         >
-          <EditorContent editor={editor} />
+          {editor && <EditorContent editor={editor} />}
           {improving && (
             <Box
               sx={{
@@ -928,6 +885,31 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
               Improving text...
             </Box>
           )}
+        </Box>
+      </Box>
+
+      {/* TOC Container */}
+      <Box
+        sx={{
+          width: isTocOpen ? '280px' : '0px',
+          transition: 'width 0.3s ease',
+          overflow: 'hidden',
+          borderLeft: 1,
+          borderColor: darkMode ? 'rgba(255, 255, 255, 0.12)' : 'divider',
+          position: 'relative',
+          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
+        }}
+      >
+        {/* TOC Content */}
+        <Box
+          sx={{
+            width: '280px',
+            height: '100%',
+            overflow: 'auto',
+            p: 2,
+          }}
+        >
+          <ToC items={tocItems} editor={editor} />
         </Box>
       </Box>
 
