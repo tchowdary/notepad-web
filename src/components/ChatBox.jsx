@@ -27,6 +27,7 @@ import {
   Modal,
   InputBase,
   InputAdornment,
+  Fab,
 } from '@mui/material';
 import { 
   Send as SendIcon,
@@ -49,6 +50,7 @@ import {
   PictureAsPdf as PdfIcon,
   Description as MarkdownIcon,
   Check as CheckIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -92,6 +94,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const streamingContentRef = useRef('');
   const theme = useTheme();
   const inputRef = useRef(null);
@@ -247,6 +250,27 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
       setIsNewMessage(false);
     }
   }, [messages, isNewMessage]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToBottom = () => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  };
 
   const createNewSession = async () => {
     try {
@@ -931,8 +955,28 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
               bgcolor: theme.palette.background.default,
               outline: 'none',
               display: 'flex',
+              position: 'relative',
             }}
           >
+            {showScrollButton && (
+              <Fab
+                size="small"
+                color="primary"
+                sx={{
+                  position: 'fixed',
+                  right: 32,
+                  bottom: 120,
+                  zIndex: 1000,
+                  opacity: 0.9,
+                  '&:hover': {
+                    opacity: 1
+                  }
+                }}
+                onClick={scrollToBottom}
+              >
+                <KeyboardArrowDownIcon />
+              </Fab>
+            )}
             {/* Sidebar */}
             <Box
               sx={{
@@ -1295,6 +1339,25 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
               )}
             </Box>
 
+            {showScrollButton && (
+              <Fab
+                size="small"
+                color="primary"
+                sx={{
+                  position: 'fixed',
+                  right: 32,
+                  bottom: 120,
+                  zIndex: 1000,
+                  opacity: 0.9,
+                  '&:hover': {
+                    opacity: 1
+                  }
+                }}
+                onClick={scrollToBottom}
+              >
+                <KeyboardArrowDownIcon />
+              </Fab>
+            )}
             {renderMessageInput()}
           </Box>
         </Box>
