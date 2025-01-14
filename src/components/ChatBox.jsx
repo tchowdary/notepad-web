@@ -343,15 +343,16 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
           data: base64Data
         });
       };
-    } else if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
+    } else if (file.type === 'text/markdown' || file.name.endsWith('.md') || 
+               file.type === 'text/csv' || file.name.endsWith('.csv')) {
       reader.readAsText(file);
       reader.onload = (e) => {
         const content = e.target.result;
         setSelectedFile({
-          type: 'markdown',
+          type: file.type === 'text/csv' || file.name.endsWith('.csv') ? 'csv' : 'markdown',
           name: file.name,
-          data: content,  // Store the content in data field for consistency
-          content: content // Keep content field for backward compatibility
+          data: content,
+          content: content
         });
       };
     } else if (file.type.startsWith('image/')) {
@@ -406,8 +407,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
 
       // Check if an image or file is selected
       if (selectedFile) {
-        if (selectedFile.type === 'markdown') {
-          // Handle markdown files as text content
+        if (selectedFile.type === 'markdown' || selectedFile.type === 'csv') {
+          // Handle markdown and CSV files as text content
           messageContent.push({
             type: 'text',
             text: selectedFile.data
@@ -856,7 +857,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
                 type="file"
                 hidden
                 onChange={handleFileUpload}
-                accept=".txt,.md,.pdf,image/*"
+                accept=".txt,.csv,.md,.pdf,image/*"
               />
               <AttachFileIcon />
             </IconButton>
