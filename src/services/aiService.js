@@ -75,6 +75,7 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
         model,
         messages: messagePayload.map(({ role, content }) => ({ role, content })),
         stream: Boolean(onStream),
+        temperature: 0
       }),
     });
 

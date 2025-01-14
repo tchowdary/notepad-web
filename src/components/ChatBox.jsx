@@ -346,10 +346,12 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
     } else if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
       reader.readAsText(file);
       reader.onload = (e) => {
+        const content = e.target.result;
         setSelectedFile({
           type: 'markdown',
           name: file.name,
-          content: e.target.result
+          data: content,  // Store the content in data field for consistency
+          content: content // Keep content field for backward compatibility
         });
       };
     } else if (file.type.startsWith('image/')) {
@@ -404,14 +406,23 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
 
       // Check if an image or file is selected
       if (selectedFile) {
-        messageContent.push({
-          type: selectedFile.type,
-          source: {
-            type: 'base64',
-            media_type: selectedFile.mediaType,
-            data: selectedFile.data
-          }
-        });
+        if (selectedFile.type === 'markdown') {
+          // Handle markdown files as text content
+          messageContent.push({
+            type: 'text',
+            text: selectedFile.data
+          });
+        } else {
+          // Handle other file types normally
+          messageContent.push({
+            type: selectedFile.type,
+            source: {
+              type: 'base64',
+              media_type: selectedFile.mediaType,
+              data: selectedFile.data
+            }
+          });
+        }
       }
 
       // Include text input if available
