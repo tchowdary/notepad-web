@@ -15,6 +15,7 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
         model,
         messages: messagePayload.map(({ role, content }) => ({ role, content })),
         stream: Boolean(onStream),
+        temperature: getAISettings().openai.temperature,
       }),
     });
 
@@ -75,7 +76,7 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
         model,
         messages: messagePayload.map(({ role, content }) => ({ role, content })),
         stream: Boolean(onStream),
-        temperature: 0
+        temperature: getAISettings().deepseek.temperature,
       }),
     });
 
@@ -168,7 +169,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
         messages: formattedMessages,
         system: customInstruction ? customInstruction.content : undefined,
         max_tokens: 5000,
-        temperature: 0,
+        temperature: getAISettings().anthropic.temperature,
         stream: Boolean(onStream),
       }),
     });
@@ -252,7 +253,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
       const baseConfig = {
         contents: messagePayload,
         generationConfig: {
-          temperature: 0.7,
+          temperature: getAISettings().gemini.temperature,
           maxOutputTokens: 8000,
         }
       };
@@ -303,10 +304,10 @@ const getAISettings = () => {
   const settings = localStorage.getItem('ai_settings');
   if (!settings) {
     return {
-      openai: { key: '', models: [], selectedModel: '' },
-      anthropic: { key: '', models: [], selectedModel: '' },
-      gemini: { key: '', models: [], selectedModel: '' },
-      deepseek: { key: '', models: [], selectedModel: '' },
+      openai: { key: '', models: [], selectedModel: '', temperature: 0 },
+      anthropic: { key: '', models: [], selectedModel: '', temperature: 0 },
+      gemini: { key: '', models: [], selectedModel: '', temperature: 0 },
+      deepseek: { key: '', models: [], selectedModel: '', temperature: 0 },
     };
   }
   return JSON.parse(settings);

@@ -58,21 +58,25 @@ const ApiKeyInput = ({ open, onClose }) => {
       key: localStorage.getItem('openai_api_key') || '',
       models: DEFAULT_MODELS.openai,
       selectedModel: localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
+      temperature: parseFloat(localStorage.getItem('openai_temperature')) || 0.7,
     },
     deepseek: {
       key: localStorage.getItem('deepseek_api_key') || '',
       models: DEFAULT_MODELS.deepseek,
       selectedModel: localStorage.getItem('deepseek_model') || DEFAULT_MODELS.deepseek[0].id,
+      temperature: parseFloat(localStorage.getItem('deepseek_temperature')) || 0,
     },
     anthropic: {
       key: localStorage.getItem('anthropic_api_key') || '',
       models: DEFAULT_MODELS.anthropic,
       selectedModel: localStorage.getItem('anthropic_model') || DEFAULT_MODELS.anthropic[0].id,
+      temperature: parseFloat(localStorage.getItem('anthropic_temperature')) || 0.7,
     },
     gemini: {
       key: localStorage.getItem('gemini_api_key') || '',
       models: DEFAULT_MODELS.gemini,
       selectedModel: localStorage.getItem('gemini_model') || DEFAULT_MODELS.gemini[0].id,
+      temperature: parseFloat(localStorage.getItem('gemini_temperature')) || 0.7,
     }
   });
 
@@ -87,21 +91,25 @@ const ApiKeyInput = ({ open, onClose }) => {
           key: parsed.openai?.key || localStorage.getItem('openai_api_key') || '',
           models: parsed.openai?.models || DEFAULT_MODELS.openai,
           selectedModel: parsed.openai?.selectedModel || localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
+          temperature: parsed.openai?.temperature || parseFloat(localStorage.getItem('openai_temperature')) || 0.7,
         },
         deepseek: {
           key: parsed.deepseek?.key || localStorage.getItem('deepseek_api_key') || '',
           models: parsed.deepseek?.models || DEFAULT_MODELS.deepseek,
           selectedModel: parsed.deepseek?.selectedModel || localStorage.getItem('deepseek_model') || DEFAULT_MODELS.deepseek[0].id,
+          temperature: parsed.deepseek?.temperature || parseFloat(localStorage.getItem('deepseek_temperature')) || 0,
         },
         anthropic: {
           key: parsed.anthropic?.key || localStorage.getItem('anthropic_api_key') || '',
           models: parsed.anthropic?.models || DEFAULT_MODELS.anthropic,
           selectedModel: parsed.anthropic?.selectedModel || localStorage.getItem('anthropic_model') || DEFAULT_MODELS.anthropic[0].id,
+          temperature: parsed.anthropic?.temperature || parseFloat(localStorage.getItem('anthropic_temperature')) || 0.7,
         },
         gemini: {
           key: parsed.gemini?.key || localStorage.getItem('gemini_api_key') || '',
           models: parsed.gemini?.models || DEFAULT_MODELS.gemini,
           selectedModel: parsed.gemini?.selectedModel || localStorage.getItem('gemini_model') || DEFAULT_MODELS.gemini[0].id,
+          temperature: parsed.gemini?.temperature || parseFloat(localStorage.getItem('gemini_temperature')) || 0.7,
         }
       };
       setProviders(updatedSettings);
@@ -116,18 +124,22 @@ const ApiKeyInput = ({ open, onClose }) => {
     if (providers.openai.key) {
       localStorage.setItem('openai_api_key', providers.openai.key);
       localStorage.setItem('openai_model', providers.openai.selectedModel);
+      localStorage.setItem('openai_temperature', providers.openai.temperature);
     }
     if (providers.deepseek.key) {
       localStorage.setItem('deepseek_api_key', providers.deepseek.key);
       localStorage.setItem('deepseek_model', providers.deepseek.selectedModel);
+      localStorage.setItem('deepseek_temperature', providers.deepseek.temperature);
     }
     if (providers.anthropic.key) {
       localStorage.setItem('anthropic_api_key', providers.anthropic.key);
       localStorage.setItem('anthropic_model', providers.anthropic.selectedModel);
+      localStorage.setItem('anthropic_temperature', providers.anthropic.temperature);
     }
     if (providers.gemini.key) {
       localStorage.setItem('gemini_api_key', providers.gemini.key);
       localStorage.setItem('gemini_model', providers.gemini.selectedModel);
+      localStorage.setItem('gemini_temperature', providers.gemini.temperature);
     }
     
     onClose();
@@ -179,6 +191,30 @@ const ApiKeyInput = ({ open, onClose }) => {
     setEditModelDialog(false);
   };
 
+  const handleProviderChange = (provider, field, value) => {
+    setProviders(prev => {
+      const updated = {
+        ...prev,
+        [provider]: {
+          ...prev[provider],
+          [field]: value,
+        },
+      };
+
+      // Save to localStorage
+      if (field === 'key') {
+        localStorage.setItem(`${provider}_api_key`, value);
+      } else if (field === 'selectedModel') {
+        localStorage.setItem(`${provider}_model`, value);
+      } else if (field === 'temperature') {
+        localStorage.setItem(`${provider}_temperature`, value);
+      }
+
+      localStorage.setItem('ai_settings', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const ModelDialog = () => (
     <Dialog open={editModelDialog} onClose={() => setEditModelDialog(false)}>
       <DialogTitle>{editingModel?.isNew ? 'Add Model' : 'Edit Model'}</DialogTitle>
@@ -212,24 +248,55 @@ const ApiKeyInput = ({ open, onClose }) => {
 
   const ProviderContent = ({ provider }) => (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-      <TextField
-        fullWidth
-        label={`${provider.charAt(0).toUpperCase() + provider.slice(1)} API Key`}
-        type={showKey ? 'text' : 'password'}
-        value={providers[provider].key}
-        onChange={(e) => setProviders(prev => ({
-          ...prev,
-          [provider]: { ...prev[provider], key: e.target.value }
-        }))}
-        InputProps={{
-          endAdornment: (
-            <IconButton onClick={() => setShowKey(!showKey)} edge="end">
-              {showKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-            </IconButton>
-          ),
-        }}
-      />
-      
+      <Box sx={{ mt: 2 }}>
+        <TextField
+          label="API Key"
+          type={showKey ? 'text' : 'password'}
+          fullWidth
+          value={providers[provider].key}
+          onChange={(e) => handleProviderChange(provider, 'key', e.target.value)}
+          InputProps={{
+            endAdornment: (
+              <IconButton onClick={() => setShowKey(!showKey)}>
+                {showKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+              </IconButton>
+            ),
+          }}
+        />
+      </Box>
+
+      <Box sx={{ mt: 2 }}>
+        <FormControl fullWidth>
+          <InputLabel>Model</InputLabel>
+          <Select
+            value={providers[provider].selectedModel}
+            onChange={(e) => handleProviderChange(provider, 'selectedModel', e.target.value)}
+            label="Model"
+          >
+            {providers[provider].models.map((model) => (
+              <MenuItem key={model.id} value={model.id}>
+                {model.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Box sx={{ mt: 2 }}>
+        <Typography gutterBottom>Temperature: {providers[provider].temperature}</Typography>
+        <TextField
+          type="range"
+          inputProps={{
+            min: 0,
+            max: 2,
+            step: 0.1
+          }}
+          value={providers[provider].temperature}
+          onChange={(e) => handleProviderChange(provider, 'temperature', parseFloat(e.target.value))}
+          fullWidth
+        />
+      </Box>
+
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="subtitle1">Models</Typography>
         <Button
@@ -262,24 +329,6 @@ const ApiKeyInput = ({ open, onClose }) => {
           </React.Fragment>
         ))}
       </List>
-
-      <FormControl fullWidth>
-        <InputLabel>Selected Model</InputLabel>
-        <Select
-          value={providers[provider].selectedModel}
-          onChange={(e) => setProviders(prev => ({
-            ...prev,
-            [provider]: { ...prev[provider], selectedModel: e.target.value }
-          }))}
-          label="Selected Model"
-        >
-          {providers[provider].models.map((model) => (
-            <MenuItem key={model.id} value={model.id}>
-              {model.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
     </Box>
   );
 
