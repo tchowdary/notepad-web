@@ -611,6 +611,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const formatOptions = [
     {
+      icon: <AutoFixHigh />,
+      title: 'Improve Text',
+      action: handleImproveText,
+    },
+    {
       icon: <MicIcon />,
       title: 'Voice Input',
       action: handleStartRecording,
@@ -671,11 +676,6 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       icon: <TextFields />,
       title: 'Clear Format',
       action: () => editor.chain().focus().clearNodes().unsetAllMarks().run(),
-    },
-    {
-      icon: <AutoFixHigh />,
-      title: 'Improve Text',
-      action: handleImproveText,
     },
     
   ];
