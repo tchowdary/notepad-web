@@ -42,6 +42,7 @@ import RecordRTC from 'recordrtc';
 import RecordingDialog from './RecordingDialog';
 import { ToC } from './ToC';
 import './toc.css';
+import { sendAnthropicMessage } from '../services/aiService';
 
 const getTableStyles = (darkMode) => ({
   '& table': {
@@ -584,6 +585,31 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       }
 
       const data = await response.json();
+      
+      // Process the transcription with Claude
+      const anthropicKey = localStorage.getItem('anthropic_api_key');
+      if (!anthropicKey) {
+        throw new Error('Anthropic API key not found. Please set your API key in settings.');
+      }
+
+      const messages = [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `You are an AI assistant specialized in processing and improving transcribed voice notes. Your task is to edit the provided text for clarity, readability, and correctness, and then extract any task items mentioned.\n\nHere is the transcribed text you need to work with:\n\n<transcribed_text>\n${data.text}\n</transcribed_text>\n\nPlease follow these steps:\n\n1. Edit and format the text:\n   - Correct any spelling mistakes.\n   - Fix grammar issues.\n   - Adjust punctuation for clarity.\n   - Improve overall readability and flow.\n   - Format the text into appropriately sized paragraphs.\n\n2. After editing, carefully review the text to identify and extract any task items mentioned. Task items are typically actions, assignments, or to-do list entries that the speaker intends to complete or delegate.\n\nYour final output should be formatted as follows:\n\n# Edited Text\n[Insert the edited and formatted version of the transcribed text here]\n\n# Task Items\n- [List each extracted task item on a new line, starting with a dash]\n\nImportant notes:\n- Make your best effort to improve the text while maintaining the original meaning and intent of the speaker.\n- If you're unsure about a particular edit or task item, err on the side of caution and preserve the original content.\n- Do not include any commentary or explanations in your final output.`
+            }
+          ]
+        }
+      ];
+
+      const aiResponse = await sendAnthropicMessage(
+        messages,
+        'claude-3-5-sonnet-20241022',
+        anthropicKey
+      );
+
       if (editor) {
         // Get the current selection position
         const { from } = editor.state.selection;
@@ -591,16 +617,32 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         // If we're at the start of a line, don't add an extra newline
         const needsNewline = from > 0 && editor.state.doc.textBetween(from - 1, from) !== '\n';
         
-        // Insert the transcribed text at the current position
+        // Format the content with proper nodes
         editor
           .chain()
           .focus()
-          .insertContent((needsNewline ? '\n' : '') + data.text)
+          // Add initial newline if needed
+          .insertContent(needsNewline ? '\n' : '')
+          // Original Transcription section
+          .setNode('heading', { level: 1 })
+          .insertContent('Original Transcription')
+          .insertContent('\n')
+          .setParagraph()
+          .insertContent(data.text)
+          .insertContent('\n\n')
+          // Add the AI processed content with proper markdown parsing
+          .insertContent(aiResponse.content, {
+            parseOptions: {
+              preserveWhitespace: 'full'
+            }
+          })
           .run();
       }
     } catch (err) {
       console.error('Transcription error:', err);
       throw new Error('Failed to transcribe audio: ' + err.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
