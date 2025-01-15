@@ -15,10 +15,12 @@ import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
 import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
+import QuickChat from './components/QuickChat';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
 import { converters } from './utils/converters';
+import { chatStorage } from './services/chatStorageService';
 import './App.css';
 
 function App() {
@@ -48,6 +50,8 @@ function App() {
   const [showChat, setShowChat] = useState(false);
   const [isChatFullscreen, setIsChatFullscreen] = useState(false);
   const [showApiSettings, setShowApiSettings] = useState(false);
+  const [showQuickChat, setShowQuickChat] = useState(false);
+  const [quickChatInput, setQuickChatInput] = useState('');
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
@@ -175,6 +179,13 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = async (e) => {
+      // Alt + C for quick chat
+      if (e.ctrlKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        setShowQuickChat(true);
+        return;
+      }
+
       // Exit focus mode and chat on Escape key
       if (e.key === 'Escape') {
         if (focusMode) {
@@ -632,6 +643,16 @@ function App() {
     }
   };
 
+  const handleQuickChatSubmit = (text) => {
+    setQuickChatInput(text);
+    setShowChat(true);
+    setShowQuickChat(false);
+  };
+
+  const handleMessageSent = () => {
+    setQuickChatInput('');
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -872,6 +893,9 @@ function App() {
                     <ChatBox 
                       onFullscreenChange={setIsChatFullscreen} 
                       initialFullscreen={isChatFullscreen}
+                      initialInput={quickChatInput}
+                      createNewSessionOnMount={true}
+                      onMessageSent={handleMessageSent}
                     />
                   </Box>
                 )}
@@ -920,6 +944,11 @@ function App() {
         style={{ display: 'none' }}
         onChange={handleFileSelect}
         accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
+      />
+      <QuickChat
+        open={showQuickChat}
+        onClose={() => setShowQuickChat(false)}
+        onSubmit={handleQuickChatSubmit}
       />
     </ThemeProvider>
   );

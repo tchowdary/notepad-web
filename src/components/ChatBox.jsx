@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Box,
   TextField,
@@ -69,7 +69,7 @@ import ApiKeyInput from './ApiKeyInput';
 import VoiceRecorder from './VoiceRecorder';
 import { processTranscription } from '../services/llmService';
 
-const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
+const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNewSessionOnMount, onMessageSent }) => {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -101,6 +101,117 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
   const messagesContainerRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewMessage, setIsNewMessage] = useState(false);
+
+  const initialized = useRef(false);
+
+  const handleSendMessage = useCallback(async () => {
+    if ((!input.trim() && !selectedFile) || !selectedProvider || isLoading) return;
+    setError('');
+    setIsLoading(true);
+    setIsNewMessage(true);
+
+    try {
+      const [providerName, modelId] = selectedProvider.split('|');
+      const messageContent = [];
+
+      // Check if an image or file is selected
+      if (selectedFile) {
+        if (selectedFile.type === 'markdown' || selectedFile.type === 'csv') {
+          messageContent.push({
+            type: 'text',
+            text: selectedFile.data
+          });
+        } else {
+          messageContent.push({
+            type: selectedFile.type,
+            source: {
+              type: 'base64',
+              media_type: selectedFile.mediaType,
+              data: selectedFile.data
+            }
+          });
+        }
+      }
+
+      // Include text input if available
+      if (input.trim()) {
+        messageContent.push({
+          type: 'text',
+          text: input.trim()
+        });
+      }
+
+      const newMessage = {
+        role: 'user',
+        content: messageContent,
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, newMessage]);
+      setInput('');
+      setSelectedFile(null);
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
+
+      try {
+        const apiKey = localStorage.getItem(`${providerName}_api_key`);
+        if (!apiKey) {
+          throw new Error(`No API key found for ${providerName}`);
+        }
+
+        let finalResponse;
+        if (providerName === 'gemini') {
+          const response = await sendGeminiMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
+          finalResponse = response;
+          setMessages(prev => [...prev, finalResponse]);
+        } else {
+          setIsStreaming(true);
+          setStreamingContent('');
+          streamingContentRef.current = '';
+          
+          const handleStream = (content) => {
+            streamingContentRef.current += content;
+            setStreamingContent(streamingContentRef.current);
+          };
+
+          await (providerName === 'openai' 
+            ? sendOpenAIMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
+            : providerName === 'deepseek'
+            ? sendDeepSeekMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
+            : sendAnthropicMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream));
+
+          finalResponse = {
+            role: 'assistant',
+            content: streamingContentRef.current,
+            timestamp: new Date().toISOString()
+          };
+
+          setIsStreaming(false);
+          setStreamingContent('');
+          setMessages(prev => [...prev, finalResponse]);
+        }
+        
+        if (activeSessionId) {
+          await chatStorage.saveSession({
+            id: activeSessionId,
+            messages: messages.concat([newMessage, finalResponse]),
+            lastUpdated: new Date().toISOString()
+          });
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+        setIsStreaming(false);
+      }
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+      setIsStreaming(false);
+    }
+  }, [input, selectedFile, selectedProvider, isLoading, messages, activeSessionId, selectedInstruction]);
 
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
@@ -135,6 +246,34 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
       localStorage.setItem('last_selected_provider', defaultProvider);
     }
   }, []);
+
+  useEffect(() => {
+    const initializeChat = async () => {
+      if (createNewSessionOnMount) {
+        await createNewSession();
+      }
+      if (initialInput && !initialized.current) {
+        setInput(initialInput);
+        initialized.current = true;
+      }
+    };
+    
+    initializeChat();
+  }, [createNewSessionOnMount, initialInput]);
+
+  useEffect(() => {
+    const sendInitialMessage = async () => {
+      if (initialInput && initialized.current && input === initialInput) {
+        initialized.current = false;
+        setTimeout(() => {
+          handleSendMessage();
+          onMessageSent?.();
+        }, 100);
+      }
+    };
+
+    sendInitialMessage();
+  }, [initialInput, input, handleSendMessage, onMessageSent]);
 
   useEffect(() => {
     let mounted = true;
@@ -416,119 +555,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen }) => {
         reader.readAsDataURL(file);
         break;
       }
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if ((!input.trim() && !selectedFile) || !selectedProvider || isLoading) return;
-    setError('');
-    setIsLoading(true);
-    setIsNewMessage(true);
-
-    try {
-      const [providerName, modelId] = selectedProvider.split('|');
-      const messageContent = [];
-
-      // Check if an image or file is selected
-      if (selectedFile) {
-        if (selectedFile.type === 'markdown' || selectedFile.type === 'csv') {
-          // Handle markdown and CSV files as text content
-          messageContent.push({
-            type: 'text',
-            text: selectedFile.data
-          });
-        } else {
-          // Handle other file types normally
-          messageContent.push({
-            type: selectedFile.type,
-            source: {
-              type: 'base64',
-              media_type: selectedFile.mediaType,
-              data: selectedFile.data
-            }
-          });
-        }
-      }
-
-      // Include text input if available
-      if (input.trim()) {
-        messageContent.push({
-          type: 'text',
-          text: input.trim()
-        });
-      }
-
-      const newMessage = {
-        role: 'user',
-        content: messageContent,
-        timestamp: new Date().toISOString()
-      };
-
-      setMessages(prev => [...prev, newMessage]);
-      setInput('');
-      setSelectedFile(null);
-      if (inputRef.current) {
-        inputRef.current.value = '';
-      }
-
-      try {
-        const apiKey = localStorage.getItem(`${providerName}_api_key`);
-        if (!apiKey) {
-          throw new Error(`No API key found for ${providerName}`);
-        }
-
-        let finalResponse;
-        if (providerName === 'gemini') {
-          // Handle Gemini without streaming
-          const response = await sendGeminiMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
-          finalResponse = response;
-          setMessages(prev => [...prev, finalResponse]);
-        } else {
-          // Handle OpenAI and Anthropic with streaming
-          setIsStreaming(true);
-          setStreamingContent('');
-          streamingContentRef.current = '';
-          
-          const handleStream = (content) => {
-            streamingContentRef.current += content;
-            setStreamingContent(streamingContentRef.current);
-          };
-
-          await (providerName === 'openai' 
-            ? sendOpenAIMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
-            : providerName === 'deepseek'
-            ? sendDeepSeekMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
-            : sendAnthropicMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream));
-
-          finalResponse = {
-            role: 'assistant',
-            content: streamingContentRef.current,
-            timestamp: new Date().toISOString()
-          };
-
-          setIsStreaming(false);
-          setStreamingContent('');
-          setMessages(prev => [...prev, finalResponse]);
-        }
-        
-        if (activeSessionId) {
-          await chatStorage.saveSession({
-            id: activeSessionId,
-            messages: messages.concat([newMessage, finalResponse]),
-            lastUpdated: new Date().toISOString()
-          });
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-        setIsStreaming(false);
-      }
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-      setIsStreaming(false);
     }
   };
 
