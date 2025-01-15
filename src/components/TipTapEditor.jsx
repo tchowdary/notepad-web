@@ -43,6 +43,72 @@ import RecordingDialog from './RecordingDialog';
 import { ToC } from './ToC';
 import './toc.css';
 import { sendAnthropicMessage } from '../services/aiService';
+import { createLowlight } from 'lowlight';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import css from 'highlight.js/lib/languages/css';
+import xml from 'highlight.js/lib/languages/xml';
+import json from 'highlight.js/lib/languages/json';
+import bash from 'highlight.js/lib/languages/bash';
+import markdown from 'highlight.js/lib/languages/markdown';
+
+// Create a new lowlight instance
+const lowlight = createLowlight();
+
+// Register languages
+lowlight.register('javascript', javascript);
+lowlight.register('js', javascript);
+lowlight.register('typescript', typescript);
+lowlight.register('ts', typescript);
+lowlight.register('css', css);
+lowlight.register('html', xml);
+lowlight.register('xml', xml);
+lowlight.register('json', json);
+lowlight.register('bash', bash);
+lowlight.register('shell', bash);
+lowlight.register('markdown', markdown);
+lowlight.register('md', markdown);
+
+const codeBlockStyles = {
+  'pre': {
+    'background': darkMode => darkMode ? '#1e1e1e' : '#f8f9fa',
+    'color': darkMode => darkMode ? '#d4d4d4' : '#24292e',
+    'fontFamily': '"Fira Code", "Consolas", "Monaco", "Andale Mono", monospace',
+    'padding': '0.75rem 1rem',
+    'margin': '0.5rem 0',
+    'borderRadius': '6px',
+    'overflow': 'auto',
+    'fontSize': '0.9em',
+    'lineHeight': '1.5',
+    'border': darkMode => darkMode ? '1px solid #2d2d2d' : '1px solid #e1e4e8'
+  },
+  'code': {
+    'backgroundColor': 'transparent',
+    'padding': '0',
+    'margin': '0',
+  },
+  // VSCode-like syntax highlighting
+  '.hljs-comment,.hljs-quote': { color: '#6a737d' },
+  '.hljs-variable,.hljs-template-variable,.hljs-tag,.hljs-name,.hljs-selector-id,.hljs-selector-class,.hljs-regexp,.hljs-deletion': { 
+    color: darkMode => darkMode ? '#e06c75' : '#d73a49'
+  },
+  '.hljs-number,.hljs-built_in,.hljs-literal,.hljs-type,.hljs-params,.hljs-meta,.hljs-link': { 
+    color: darkMode => darkMode ? '#d19a66' : '#005cc5'
+  },
+  '.hljs-attribute': { 
+    color: darkMode => darkMode ? '#98c379' : '#22863a'
+  },
+  '.hljs-string,.hljs-symbol,.hljs-bullet,.hljs-addition': { 
+    color: darkMode => darkMode ? '#98c379' : '#032f62'
+  },
+  '.hljs-title,.hljs-section': { 
+    color: darkMode => darkMode ? '#61aeee' : '#005cc5'
+  },
+  '.hljs-keyword,.hljs-selector-tag': { 
+    color: darkMode => darkMode ? '#c678dd' : '#d73a49'
+  }
+};
 
 const getTableStyles = (darkMode) => ({
   '& table': {
@@ -142,24 +208,19 @@ const getEditorStyles = (darkMode) => ({
       marginRight: 0,
       paddingLeft: '1rem',
     },
-    '& code': {
-      backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
-      color: darkMode ? '#e6edf3' : '#24292f',
-      borderRadius: '6px',
-      padding: '0.2em 0.4em',
-      fontSize: '85%',
-      fontFamily: '"Rubik", sans-serif',
-    },
     '& pre': {
-      backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
-      padding: '1em',
+      backgroundColor: darkMode ? '#1e1e1e' : '#f6f8fa',
       borderRadius: '6px',
-      overflow: 'auto',
-      '& code': {
-        backgroundColor: 'transparent',
-        padding: 0,
-        fontSize: '90%',
-      },
+      color: darkMode ? '#e6edf3' : '#24292f',
+      fontFamily: 'monospace',
+      padding: '0.75rem 1rem',
+      margin: '0.5rem 0',
+    },
+    '& code': {
+      backgroundColor: 'transparent',
+      color: 'inherit',
+      fontSize: '0.9em',
+      padding: 0,
     },
     '& hr': {
       border: 'none',
@@ -216,6 +277,10 @@ const getEditorStyles = (darkMode) => ({
         },
       },
     },
+    ...Object.entries(codeBlockStyles).reduce((acc, [selector, styles]) => {
+      acc[`& ${selector}`] = typeof styles === 'function' ? styles(darkMode) : styles;
+      return acc;
+    }, {}),
   },
 });
 
@@ -251,14 +316,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-          HTMLAttributes: {
-            class: 'heading',
-            'data-toc-id': (attrs) => `heading-${attrs.level}-${Math.random().toString(36).substr(2, 9)}`,
-          },
-        },
-        horizontalRule: false,
+        codeBlock: false,
+      }),
+      CodeBlockLowlight.configure({
+        lowlight,
+        defaultLanguage: 'javascript',
       }),
       TextStyle,
       Color,
@@ -296,36 +358,30 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       isEditorReady.current = true;
     },
     editorProps: {
-      handlePaste: async (view, event) => {
-        if (event.clipboardData && event.clipboardData.files && event.clipboardData.files[0]) {
-          const file = event.clipboardData.files[0];
-          if (file.type.startsWith('image/')) {
-            event.preventDefault();
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-              const base64Image = e.target.result;
-              // Compress image before storing
-              const compressedImage = await compressImage(base64Image);
-              editor.commands.setImage({ src: compressedImage });
-            };
-            reader.readAsDataURL(file);
-            return true;
-          }
-        }
-        if (event.clipboardData) {
-          // Try to get HTML content first
-          const html = event.clipboardData.getData('text/html');
-          if (html) {
-            editor.commands.insertContent(html);
-            return true;
-          }
-          // If no HTML, try plain text and convert from markdown
-          const text = event.clipboardData.getData('text/plain');
-          if (text) {
-            const html = marked.parse(text);
-            editor.commands.insertContent(html);
-            return true;
-          }
+      handlePaste: (view, event) => {
+        const items = Array.from(event.clipboardData?.items || []);
+        const textItem = items.find(item => item.type === 'text/plain');
+        
+        if (textItem) {
+          event.preventDefault();
+          textItem.getAsString(text => {
+            const { state } = view;
+            const { selection } = state;
+            const { $from } = selection;
+            
+            // Check if we're inside a code block
+            const isInCodeBlock = $from.parent.type.name === 'codeBlock';
+            
+            if (isInCodeBlock) {
+              // Insert text directly in code block
+              view.dispatch(view.state.tr.insertText(text));
+            } else {
+              // Use default paste handling
+              const transaction = view.state.tr.insertText(text, selection.from, selection.to);
+              view.dispatch(transaction);
+            }
+          });
+          return true;
         }
         return false;
       },
@@ -785,23 +841,31 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       action: () => {
         const { state } = editor;
         const { selection } = state;
-        const tablePos = selection.$anchor.pos;
-        let table = null;
-        let tableEndPos = null;
+        const { $from } = selection;
+        
+        // Check if we're inside a table
+        const isInTable = $from.parent.type.name === 'table';
+        
+        if (isInTable) {
+          // Insert text below table
+          const tablePos = $from.pos;
+          let table = null;
+          let tableEndPos = null;
 
-        state.doc.nodesBetween(0, state.doc.content.size, (node, pos) => {
-          if (node.type.name === 'table' && pos <= tablePos && pos + node.nodeSize >= tablePos) {
-            table = node;
-            tableEndPos = pos + node.nodeSize;
-            return false;
+          state.doc.nodesBetween(0, state.doc.content.size, (node, pos) => {
+            if (node.type.name === 'table' && pos <= tablePos && pos + node.nodeSize >= tablePos) {
+              table = node;
+              tableEndPos = pos + node.nodeSize;
+              return false;
+            }
+          });
+
+          if (tableEndPos !== null) {
+            editor.chain()
+              .insertContentAt(tableEndPos, { type: 'paragraph' })
+              .focus(tableEndPos)
+              .run();
           }
-        });
-
-        if (tableEndPos !== null) {
-          editor.chain()
-            .insertContentAt(tableEndPos, { type: 'paragraph' })
-            .focus(tableEndPos)
-            .run();
         }
         handleClose();
       },
