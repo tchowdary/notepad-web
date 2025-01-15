@@ -13,8 +13,9 @@ export async function improveText(text) {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 1024,
+      model: "claude-3-5-haiku-latest",
+      max_tokens: 2024,
+      temperature: 0.2,
       messages: [
         {
           role: "user",
@@ -22,9 +23,9 @@ export async function improveText(text) {
             {
               type: "text",
               text:
-                "Your task is to take the text provided and rewrite it into a clear, grammatically correct version while preserving the original meaning as closely as possible. Correct any spelling mistakes, punctuation errors, verb tense issues, word choice problems, and other grammatical mistakes. Skip the commentary, and only rewrite the text.\n\nHere is the text to rewrite:\n\n<text_to_rewrite>\n" +
+                "Your task is to take the HTML text provided and improve it while preserving all HTML formatting, including links, bullet points, and other markup. Maintain the original HTML structure and only improve the content. Return the result as valid HTML.\n\nHere is the text to improve:\n\n<text_to_improve>\n" +
                 text +
-                "\n</text_to_rewrite>\n",
+                "\n</text_to_improve>\n",
             },
           ],
         },

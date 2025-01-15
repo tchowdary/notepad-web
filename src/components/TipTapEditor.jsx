@@ -439,13 +439,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const handleImproveText = async () => {
     if (improving) return;
+    
+    // Always get HTML content to preserve formatting
     const text = editor?.state.selection.empty ? 
       editor?.getHTML() : 
-      editor?.state.doc.textBetween(
-        editor.state.selection.from,
-        editor.state.selection.to,
-        ' '
-      );
+      editor?.chain().focus().getMarkdown().run();
 
     if (!text?.trim()) return;
 
@@ -457,10 +455,13 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           editor?.chain()
             .focus()
             .deleteSelection()
-            .insertContent(improvedText)
+            .setContent(improvedText, false, { preserveWhitespace: true })
             .run();
         } else {
-          editor?.commands.setContent(improvedText);
+          editor?.chain()
+            .focus()
+            .setContent(improvedText, false, { preserveWhitespace: true })
+            .run();
           onChange(improvedText);
         }
       }
