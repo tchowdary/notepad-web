@@ -25,7 +25,8 @@ export async function improveText(text) {
               text:
                 "Your task is to take the HTML text provided and improve it while preserving all HTML formatting, including links, bullet points, and other markup. Maintain the original HTML structure and only improve the content. Return the result as valid HTML.\n\nHere is the text to improve:\n\n<text_to_improve>\n" +
                 text +
-                "\n</text_to_improve>\n",
+                "\n</text_to_improve>\n" +
+                "\nReturn only the edited text. Do not wrap your response in quotes. Do not offer anything else other than the edited text in the response.",
             },
           ],
         },

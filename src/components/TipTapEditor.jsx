@@ -443,7 +443,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     // Always get HTML content to preserve formatting
     const text = editor?.state.selection.empty ? 
       editor?.getHTML() : 
-      editor?.chain().focus().getMarkdown().run();
+      editor?.state.selection.empty ? editor?.getMarkdown() : editor?.getHTML();
 
     if (!text?.trim()) return;
 
