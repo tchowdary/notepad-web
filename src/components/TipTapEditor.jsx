@@ -51,6 +51,7 @@ import css from 'highlight.js/lib/languages/css';
 import xml from 'highlight.js/lib/languages/xml';
 import json from 'highlight.js/lib/languages/json';
 import bash from 'highlight.js/lib/languages/bash';
+import yaml from 'highlight.js/lib/languages/yaml';
 import markdown from 'highlight.js/lib/languages/markdown';
 
 // Create a new lowlight instance
@@ -69,6 +70,7 @@ lowlight.register('bash', bash);
 lowlight.register('shell', bash);
 lowlight.register('markdown', markdown);
 lowlight.register('md', markdown);
+lowlight.register('yaml', yaml);
 
 const codeBlockStyles = {
   'pre': {
