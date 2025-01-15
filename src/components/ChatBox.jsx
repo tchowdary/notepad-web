@@ -147,7 +147,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
         timestamp: new Date().toISOString()
       };
 
-      setMessages(prev => [...prev, newMessage]);
+      // Update messages state with user message
+      const updatedMessages = [...messages, newMessage];
+      setMessages(updatedMessages);
+      
       setInput('');
       setSelectedFile(null);
       if (inputRef.current) {
@@ -162,9 +165,18 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
 
         let finalResponse;
         if (providerName === 'gemini') {
-          const response = await sendGeminiMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction);
+          const response = await sendGeminiMessage(updatedMessages, modelId, apiKey, selectedInstruction);
           finalResponse = response;
-          setMessages(prev => [...prev, finalResponse]);
+          const newUpdatedMessages = [...updatedMessages, finalResponse];
+          setMessages(newUpdatedMessages);
+          
+          if (activeSessionId) {
+            await chatStorage.saveSession({
+              id: activeSessionId,
+              messages: newUpdatedMessages,
+              lastUpdated: new Date().toISOString()
+            });
+          }
         } else {
           setIsStreaming(true);
           setStreamingContent('');
@@ -176,10 +188,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
           };
 
           await (providerName === 'openai' 
-            ? sendOpenAIMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
+            ? sendOpenAIMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
             : providerName === 'deepseek'
-            ? sendDeepSeekMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream)
-            : sendAnthropicMessage(messages.concat([newMessage]), modelId, apiKey, selectedInstruction, handleStream));
+            ? sendDeepSeekMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
+            : sendAnthropicMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream));
 
           finalResponse = {
             role: 'assistant',
@@ -189,18 +201,27 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
 
           setIsStreaming(false);
           setStreamingContent('');
-          setMessages(prev => [...prev, finalResponse]);
-        }
-        
-        if (activeSessionId) {
-          await chatStorage.saveSession({
-            id: activeSessionId,
-            messages: messages.concat([newMessage, finalResponse]),
-            lastUpdated: new Date().toISOString()
-          });
+          const finalUpdatedMessages = [...updatedMessages, finalResponse];
+          setMessages(finalUpdatedMessages);
+          
+          if (activeSessionId) {
+            await chatStorage.saveSession({
+              id: activeSessionId,
+              messages: finalUpdatedMessages,
+              lastUpdated: new Date().toISOString()
+            });
+          }
         }
       } catch (err) {
         setError(err.message);
+        // Save the user message even if the AI response fails
+        if (activeSessionId) {
+          await chatStorage.saveSession({
+            id: activeSessionId,
+            messages: updatedMessages,
+            lastUpdated: new Date().toISOString()
+          });
+        }
       } finally {
         setIsLoading(false);
         setIsStreaming(false);
@@ -251,6 +272,21 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
     const initializeChat = async () => {
       if (createNewSessionOnMount) {
         await createNewSession();
+      } else {
+        // Load sessions and set the most recent one as active
+        const loadedSessions = await chatStorage.getAllSessions();
+        if (loadedSessions.length > 0) {
+          // Sort by lastUpdated and get the most recent
+          const sortedSessions = loadedSessions.sort((a, b) => 
+            new Date(b.lastUpdated) - new Date(a.lastUpdated)
+          );
+          const mostRecent = sortedSessions[0];
+          setActiveSessionId(mostRecent.id);
+          setMessages(mostRecent.messages || []);
+        } else {
+          // If no sessions exist, create a new one
+          await createNewSession();
+        }
       }
       if (initialInput && !initialized.current) {
         setInput(initialInput);

@@ -894,7 +894,7 @@ function App() {
                       onFullscreenChange={setIsChatFullscreen} 
                       initialFullscreen={isChatFullscreen}
                       initialInput={quickChatInput}
-                      createNewSessionOnMount={true}
+                      createNewSessionOnMount={quickChatInput !== ''} // Only create new session if coming from quick chat
                       onMessageSent={handleMessageSent}
                     />
                   </Box>
