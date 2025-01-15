@@ -20,13 +20,9 @@ import 'codemirror/addon/fold/brace-fold';
 import 'codemirror/addon/fold/indent-fold';
 import 'codemirror/addon/fold/comment-fold';
 import 'codemirror/addon/fold/foldgutter.css';
-import { Box, IconButton, Tooltip, Menu, MenuItem } from '@mui/material';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import FormatAlignJustifyIcon from '@mui/icons-material/FormatAlignJustify';
+import { Box, Menu, MenuItem } from '@mui/material';
 import MarkdownPreview from './MarkdownPreview';
-import ApiKeyInput from './ApiKeyInput';
 import TipTapEditor from './TipTapEditor';
-import { improveText } from '../utils/textImprovement';
 import { converters } from '../utils/converters';
 
 const Editor = forwardRef(({ 
@@ -177,29 +173,6 @@ const Editor = forwardRef(({
     handleConverterClose();
   };
 
-  const handleImproveText = async () => {
-    if (improving) return;
-    
-    const text = editorInstance?.getSelection() || content;
-    if (!text.trim()) return;
-
-    setImproving(true);
-    try {
-      const improvedText = await improveText(text);
-      if (improvedText) {
-        if (editorInstance?.somethingSelected()) {
-          editorInstance.replaceSelection(improvedText);
-        } else {
-          onChange(improvedText);
-        }
-      }
-    } catch (error) {
-      console.error('Error improving text:', error);
-    } finally {
-      setImproving(false);
-    }
-  };
-
   const options = {
     mode: fileMode,
     theme: darkMode ? 'material' : 'default',
@@ -292,34 +265,6 @@ const Editor = forwardRef(({
         ))}
       </Menu>
       
-      {improving && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            padding: '10px 20px',
-            borderRadius: '4px',
-          }}
-        >
-          Improving text...
-        </Box>
-      )}
-      {!showPreview && editorType === 'codemirror' && (
-        <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1 }}>
-          <Tooltip title="Improve Text">
-            <IconButton 
-              onClick={handleImproveText}
-              disabled={improving}
-            >
-              <AutoFixHighIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      )}
     </Box>
   );
 
