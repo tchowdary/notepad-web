@@ -83,12 +83,34 @@ const codeBlockStyles = {
     'overflow': 'auto',
     'fontSize': '0.9em',
     'lineHeight': '1.5',
-    'border': darkMode => darkMode ? '1px solid #2d2d2d' : '1px solid #e1e4e8'
+    'border': darkMode => darkMode ? '1px solid #2d2d2d' : '1px solid #e1e4e8',
+    'position': 'relative',
+    '&:hover .copy-button': {
+      opacity: 1,
+    }
   },
   'code': {
     'backgroundColor': 'transparent',
     'padding': '0',
     'margin': '0',
+  },
+  '.copy-button': {
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    opacity: 0,
+    transition: 'opacity 0.2s',
+    backgroundColor: darkMode => darkMode ? '#2d2d2d' : '#f0f0f0',
+    border: darkMode => darkMode ? '1px solid #404040' : '1px solid #d0d0d0',
+    borderRadius: '4px',
+    padding: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    '&:hover': {
+      backgroundColor: darkMode => darkMode ? '#404040' : '#e0e0e0',
+    }
   },
   // VSCode-like syntax highlighting
   '.hljs-comment,.hljs-quote': { color: '#6a737d' },
@@ -290,6 +312,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
+
   const [tocItems, setTocItems] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -320,10 +344,53 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       StarterKit.configure({
         codeBlock: false,
       }),
-      CodeBlockLowlight.configure({
-        lowlight,
-        defaultLanguage: 'javascript',
-      }),
+      CodeBlockLowlight
+        .extend({
+          addNodeView() {
+            return ({ node, HTMLAttributes, getPos }) => {
+              const dom = document.createElement('pre');
+              const content = document.createElement('code');
+              const wrapper = document.createElement('div');
+              wrapper.style.position = 'relative';
+              
+              const copyButton = document.createElement('button');
+              copyButton.className = 'copy-button';
+              copyButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/></svg>';
+              
+              copyButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigator.clipboard.writeText(node.textContent).then(() => {
+                  const originalContent = copyButton.innerHTML;
+                  copyButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" fill="currentColor"/></svg>';
+                  setTimeout(() => {
+                    copyButton.innerHTML = originalContent;
+                  }, 2000);
+                });
+              });
+
+              Object.entries(HTMLAttributes).forEach(([key, value]) => {
+                dom.setAttribute(key, value);
+              });
+
+              if (node.textContent) {
+                content.textContent = node.textContent;
+              }
+
+              dom.appendChild(content);
+              wrapper.appendChild(dom);
+              wrapper.appendChild(copyButton);
+
+              return {
+                dom: wrapper,
+                contentDOM: content,
+              };
+            };
+          },
+        })
+        .configure({
+          lowlight,
+        }),
       TextStyle,
       Color,
       Link.configure({
