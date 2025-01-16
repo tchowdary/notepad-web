@@ -44,18 +44,38 @@ export const saveTabs = async (tabs) => {
   const tx = db.transaction(TABS_STORE, 'readwrite');
   const store = tx.objectStore(TABS_STORE);
 
-  // Clear existing tabs
-  await store.clear();
+  // Get existing tabs to compare content
+  const existingTabsRequest = store.getAll();
   
-  // Add all tabs with lastModified timestamp
-  const now = new Date().toISOString();
-  const promises = tabs.map(tab => store.add({
-    ...tab,
-    lastModified: now
-  }));
-
   return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
+    existingTabsRequest.onsuccess = async () => {
+      const existingTabs = existingTabsRequest.result;
+      const existingTabsMap = new Map(existingTabs.map(tab => [tab.id, tab]));
+      
+      // Clear existing tabs
+      await store.clear();
+      
+      const now = new Date().toISOString();
+      
+      // Add tabs, preserving lastModified if content hasn't changed
+      const promises = tabs.map(tab => {
+        const existingTab = existingTabsMap.get(tab.id);
+        const lastModified = existingTab && existingTab.content === tab.content
+          ? existingTab.lastModified
+          : now;
+          
+        return store.add({
+          ...tab,
+          lastModified
+        });
+      });
+
+      Promise.all(promises)
+        .then(() => resolve())
+        .catch(error => reject(error));
+    };
+    
+    existingTabsRequest.onerror = () => reject(existingTabsRequest.error);
     tx.onerror = () => reject(tx.error);
   });
 };
