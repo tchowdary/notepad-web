@@ -429,9 +429,33 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     editorProps: {
       handlePaste: (view, event) => {
         const items = Array.from(event.clipboardData?.items || []);
+        const htmlItem = items.find(item => item.type === 'text/html');
         const textItem = items.find(item => item.type === 'text/plain');
         
-        if (textItem) {
+        if (htmlItem) {
+          event.preventDefault();
+          htmlItem.getAsString(html => {
+            const { state } = view;
+            const { selection } = state;
+            const { $from } = selection;
+            
+            // Check if we're inside a code block
+            const isInCodeBlock = $from.parent.type.name === 'codeBlock';
+            
+            if (isInCodeBlock) {
+              // For code blocks, use plain text
+              textItem?.getAsString(text => {
+                view.dispatch(view.state.tr.insertText(text));
+              });
+            } else {
+              // For regular content, parse and insert HTML
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(html, 'text/html');
+              const slice = view.state.schema.parser.parseSlice(doc);
+              view.dispatch(view.state.tr.replaceSelection(slice));
+            }
+          });
+        } else if (textItem) {
           event.preventDefault();
           textItem.getAsString(text => {
             const { state } = view;
@@ -445,14 +469,12 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
               // Insert text directly in code block
               view.dispatch(view.state.tr.insertText(text));
             } else {
-              // Use default paste handling
+              // Use default paste handling for text
               const transaction = view.state.tr.insertText(text, selection.from, selection.to);
               view.dispatch(transaction);
             }
           });
-          return true;
         }
-        return false;
       },
       handleCopy: (view, event) => {
         const { state, dispatch } = view;
@@ -808,8 +830,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     {
       icon: <Code />,
       title: 'Code',
-      action: () => editor.chain().focus().toggleCode().run(),
-      isActive: () => editor.isActive('code'),
+      action: () => editor.chain().focus().toggleCodeBlock().run(),
+      isActive: () => editor.isActive('codeBlock'),
     },
     {
       icon: <FormatQuote />,
