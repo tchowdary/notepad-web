@@ -76,7 +76,7 @@ const codeBlockStyles = {
   'pre': {
     'background': darkMode => darkMode ? '#1e1e1e' : '#f8f9fa',
     'color': darkMode => darkMode ? '#d4d4d4' : '#24292e',
-    'fontFamily': '"Fira Code", "Consolas", "Monaco", "Andale Mono", monospace',
+    'fontFamily': '"JetBrains Mono", "Consolas", "Monaco", "Andale Mono", monospace',
     'padding': '0.75rem 1rem',
     'margin': '0.5rem 0',
     'borderRadius': '6px',
