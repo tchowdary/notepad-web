@@ -422,7 +422,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
-    autofocus: false,
+    autofocus: true,
     onCreate: ({ editor }) => {
       isEditorReady.current = true;
     },
@@ -1034,7 +1034,19 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   }), [editor]);
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', position: 'relative' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      height: '100vh', 
+      position: 'relative',
+      '& .ProseMirror, & .ProseMirror-focused, & > div': {
+        scrollbarWidth: 'none',
+        '&::-webkit-scrollbar': {
+          display: 'none'
+        },
+        '-ms-overflow-style': 'none',
+        overflow: 'auto'
+      }
+    }}>
       {/* Editor Container */}
       <Box
         ref={editorRef}
