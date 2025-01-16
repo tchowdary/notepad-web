@@ -1038,14 +1038,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       display: 'flex', 
       height: '100vh', 
       position: 'relative',
-      '& .ProseMirror, & .ProseMirror-focused, & > div': {
-        scrollbarWidth: 'none',
-        '&::-webkit-scrollbar': {
-          display: 'none'
-        },
-        '-ms-overflow-style': 'none',
-        overflow: 'auto'
-      }
+      
     }}>
       {/* Editor Container */}
       <Box
