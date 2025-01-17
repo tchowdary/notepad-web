@@ -1059,6 +1059,13 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           borderColor: darkMode ? 'rgba(255, 255, 255, 0.12)' : 'divider',
           position: 'relative',
           bgcolor: darkMode ? '#09090B' : '#FFFCF0',
+          '&:hover': {
+            '&::-webkit-scrollbar': {
+              display: 'none'
+            },
+            '-ms-overflow-style': 'none',
+            'scrollbarWidth': 'none',
+          }
         }}
       >
         {/* TOC Content */}
@@ -1073,6 +1080,13 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             },
             '-ms-overflow-style': 'none',
             'scrollbarWidth': 'none',
+            '&:hover': {
+              '&::-webkit-scrollbar': {
+                display: 'none'
+              },
+              '-ms-overflow-style': 'none',
+              'scrollbarWidth': 'none',
+            }
           }}
         >
           <ToC items={tocItems} editor={editor} />
