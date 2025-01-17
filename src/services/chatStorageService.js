@@ -1,7 +1,7 @@
 const DB_NAME = 'chatDB';
 const DB_VERSION = 3;  // Incrementing version to add title field
 const STORE_NAME = 'chatSessions';
-const MAX_SESSIONS = 200;
+//const MAX_SESSIONS = 500;
 
 class ChatStorageService {
   constructor() {
@@ -129,10 +129,10 @@ class ChatStorageService {
           }
 
           // Remove oldest session if we're at the limit
-          if (allSessions.length >= MAX_SESSIONS && !allSessions.find(s => s.id === session.id)) {
-            const oldestSession = allSessions[allSessions.length - 1];
-            store.delete(oldestSession.id);
-          }
+          // if (allSessions.length >= MAX_SESSIONS && !allSessions.find(s => s.id === session.id)) {
+          //   const oldestSession = allSessions[allSessions.length - 1];
+          //   store.delete(oldestSession.id);
+          // }
 
           // Save the updated session
           const putRequest = store.put(sessionToSave);
