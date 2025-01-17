@@ -378,11 +378,32 @@ export const converters = {
   },
   lowerCaseConverter: {
     name: 'Convert to Lowercase',
-    convert: function(input) {
-      if (!input || typeof input !== 'string') {
-        throw new Error('Please provide text to convert');
-      }
+    convert(input) {
       return input.toLowerCase();
+    }
+  },
+  sqlStringConverter: {
+    name: 'Format as SQL Strings',
+    convert(input) {
+      if (!input.trim()) {
+        throw new Error("Please enter some text to convert");
+      }
+
+      // Split input by newlines and filter out empty lines
+      const lines = input.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+      // Process each line
+      const processedLines = lines.map(line => {
+        // Remove any existing quotes (both single and double)
+        const cleanLine = line.replace(/['"]/g, '');
+        // Wrap in single quotes
+        return `'${cleanLine}'`;
+      });
+
+      // Join with commas
+      return processedLines.join(',');
     }
   }
 };
