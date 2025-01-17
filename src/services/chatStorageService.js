@@ -1,7 +1,7 @@
 const DB_NAME = 'chatDB';
 const DB_VERSION = 3;  // Incrementing version to add title field
 const STORE_NAME = 'chatSessions';
-const MAX_SESSIONS = 100;
+const MAX_SESSIONS = 200;
 
 class ChatStorageService {
   constructor() {
