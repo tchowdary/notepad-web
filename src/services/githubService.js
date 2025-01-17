@@ -309,7 +309,7 @@ class GitHubService {
     try {
       // Open chatDB with the correct version
       const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open('chatDB', 2);
+        const request = indexedDB.open('chatDB', 3);
         
         request.onerror = () => reject(request.error);
         
