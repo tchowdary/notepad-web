@@ -68,6 +68,39 @@ import { customInstructionsStorage } from '../services/customInstructionsService
 import ApiKeyInput from './ApiKeyInput';
 import VoiceRecorder from './VoiceRecorder';
 import { processTranscription } from '../services/llmService';
+import { generateText } from '../services/llmService';
+
+const generateTitleFromUserMessage = async ({ message }) => {
+  try {
+    let messageText = '';
+    if (Array.isArray(message.content)) {
+      const textContent = message.content.find(item => item.type === 'text');
+      messageText = textContent ? textContent.text : 'New Chat';
+    } else if (typeof message.content === 'string') {
+      messageText = message.content;
+    }
+
+    const { text: title } = await generateText({
+      model: 'gpt-4o-mini',
+      system: `
+        - you will generate a short title based on the first message a user begins a conversation with
+        - ensure it is not more than 80 characters long
+        - the title should be a summary of the user's message
+        - do not use quotes or colons`,
+      prompt: messageText
+    });
+
+    return title || messageText.slice(0, 80); // Fallback to simple title if AI fails
+  } catch (error) {
+    console.error('Error generating title:', error);
+    // Fallback to simple title generation if AI fails
+    if (Array.isArray(message.content)) {
+      const textContent = message.content.find(item => item.type === 'text');
+      return textContent ? textContent.text.slice(0, 80) : 'New Chat';
+    }
+    return typeof message.content === 'string' ? message.content.slice(0, 80) : 'New Chat';
+  }
+};
 
 const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNewSessionOnMount, onMessageSent }) => {
   const [sessions, setSessions] = useState([]);
@@ -151,6 +184,25 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
       const updatedMessages = [...messages, newMessage];
       setMessages(updatedMessages);
       
+      // Generate title if this is the first message in the session
+      if (messages.length === 0) {
+        const title = await generateTitleFromUserMessage({ message: newMessage });
+        const session = await chatStorage.getSession(activeSessionId);
+        if (session) {
+          const updatedSession = {
+            ...session,
+            title,
+            messages: updatedMessages,
+            lastUpdated: new Date().toISOString()
+          };
+          await chatStorage.saveSession(updatedSession);
+          
+          // Update sessions state to reflect the new title
+          const updatedSessions = await chatStorage.getAllSessions();
+          setSessions(updatedSessions);
+        }
+      }
+      
       setInput('');
       setSelectedFile(null);
       if (inputRef.current) {
@@ -171,8 +223,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
           setMessages(newUpdatedMessages);
           
           if (activeSessionId) {
+            const existingSession = await chatStorage.getSession(activeSessionId);
             await chatStorage.saveSession({
-              id: activeSessionId,
+              ...existingSession,
               messages: newUpdatedMessages,
               lastUpdated: new Date().toISOString()
             });
@@ -205,8 +258,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
           setMessages(finalUpdatedMessages);
           
           if (activeSessionId) {
+            const existingSession = await chatStorage.getSession(activeSessionId);
             await chatStorage.saveSession({
-              id: activeSessionId,
+              ...existingSession,
               messages: finalUpdatedMessages,
               lastUpdated: new Date().toISOString()
             });
@@ -454,6 +508,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
         messages: [],
         created: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
+        title: 'New Chat'  // Default title
       };
       await chatStorage.saveSession(newSession);
       const updatedSessions = await chatStorage.getAllSessions();
@@ -998,6 +1053,29 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
     </Box>
   );
 
+  const renderSessionPreview = (session) => {
+    if (!session.messages || session.messages.length === 0) {
+      return 'Empty chat';
+    }
+
+    // Use title if available, otherwise use preview from first message
+    if (session.title) {
+      return session.title;
+    }
+
+    const firstMessage = session.messages[0];
+    let preview = '';
+    
+    if (Array.isArray(firstMessage.content)) {
+      const textContent = firstMessage.content.find(item => item.type === 'text');
+      preview = textContent ? textContent.text : 'No text content';
+    } else if (typeof firstMessage.content === 'string') {
+      preview = firstMessage.content;
+    }
+    
+    return preview.length > 80 ? preview.slice(0, 77) + '...' : preview;
+  };
+
   return (
     <>
       {isFullscreen ? (
@@ -1042,12 +1120,13 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
             {/* Sidebar */}
             <Box
               sx={{
-                width: isSidebarOpen ? 250 : 0,
-                flexShrink: 0,
+                width: isSidebarOpen ? '250px' : '0px',  
+                height: '100%',
+                bgcolor: 'background.paper',
                 transition: 'width 0.2s',
                 overflow: 'hidden',
-                borderRight: `1px solid ${theme.palette.divider}`,
-                bgcolor: theme.palette.background.paper,
+                borderRight: 1,
+                borderColor: 'divider',
                 display: 'flex',
                 flexDirection: 'column',
               }}
@@ -1097,83 +1176,78 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
               </Box>
 
               <List sx={{ flex: 1, overflowY: 'auto' }}>
-                {filteredSessions.map((session) => {
-                  const firstMessage = session.messages?.[0];
-                  let preview = '';
-                  
-                  if (firstMessage) {
-                    if (typeof firstMessage.content === 'string') {
-                      preview = firstMessage.content;
-                    } else if (Array.isArray(firstMessage.content)) {
-                      const textContent = firstMessage.content.find(item => item.type === 'text');
-                      preview = textContent ? textContent.text : '';
-                    } else if (firstMessage.content?.type === 'image') {
-                      preview = '[Image]';
-                    }
-                  }
-                  
-                  preview = preview || 'New Chat';
-                  preview = preview.length > 30 ? preview.substring(0, 30) + '...' : preview;
-                  
-                  return (
-                    <ListItem
-                      key={session.id}
-                      button
-                      selected={session.id === activeSessionId}
-                      onClick={() => {
-                        setActiveSessionId(session.id);
-                        setMessages(session.messages);
-                      }}
-                      sx={{
-                        borderRadius: 1,
-                        mx: 1,
-                        mb: 0.5,
-                        position: 'relative',
-                        '&:hover .delete-button': {
-                          opacity: 1,
+                {filteredSessions.map((session) => (
+                  <ListItem
+                    key={session.id}
+                    button
+                    selected={session.id === activeSessionId}
+                    onClick={() => {
+                      setActiveSessionId(session.id);
+                      setMessages(session.messages);
+                    }}
+                    sx={{
+                      borderRadius: 1,
+                      mx: 1,
+                      mb: 0.5,
+                      position: 'relative',
+                      minHeight: '64px',  // Increased height for two lines
+                      py: 1,  // Added vertical padding
+                      '&:hover .delete-button': {
+                        opacity: 1,
+                      },
+                      ...(session.id === activeSessionId && {
+                        backgroundColor: theme.palette.primary.main + '1A', // 10% opacity
+                        '&:hover': {
+                          backgroundColor: theme.palette.primary.main + '26', // 15% opacity
                         },
-                        ...(session.id === activeSessionId && {
-                          backgroundColor: theme.palette.primary.main + '1A', // 10% opacity
-                          '&:hover': {
-                            backgroundColor: theme.palette.primary.main + '26', // 15% opacity
-                          },
-                        }),
+                      }),
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 36, alignSelf: 'flex-start', mt: 0.5 }}>
+                      <ChatBubbleOutlineIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={renderSessionPreview(session)}
+                      primaryTypographyProps={{
+                        sx: {
+                          fontFamily: 'Geist, sans-serif',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'normal',  
+                          fontSize: '0.9rem',
+                          fontWeight: session.title ? 500 : 400,
+                          WebkitLineClamp: 2,  
+                          display: '-webkit-box',
+                          WebkitBoxOrient: 'vertical',
+                          lineHeight: '1.2em',
+                          maxHeight: '2.4em'  
+                        }
+                      }}
+                      secondaryTypographyProps={{
+                        sx: {
+                          fontSize: '0.7rem',
+                          opacity: 0.7
+                        }
+                      }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleDeleteSession(session.id, e)}
+                      className="delete-button"
+                      sx={{
+                        position: 'absolute',
+                        right: 8,
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
                       }}
                     >
-                      <ListItemIcon sx={{ minWidth: 36 }}>
-                        <ChatBubbleOutlineIcon fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={preview}
-                        primaryTypographyProps={{
-                          sx: {
-                            fontFamily: 'Geist, sans-serif',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            fontSize: '0.9rem'
-                          }
-                        }}
-                      />
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleDeleteSession(session.id, e)}
-                        className="delete-button"
-                        sx={{
-                          position: 'absolute',
-                          right: 8,
-                          opacity: 0,
-                          transition: 'opacity 0.2s',
-                          '&:hover': {
-                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                          },
-                        }}
-                      >
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </ListItem>
-                  );
-                })}
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </ListItem>
+                ))}
                 {filteredSessions.length === 0 && (
                   <Box sx={{ p: 2, textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
@@ -1484,7 +1558,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
               selected={session.id === activeSessionId}
               sx={{ 
                 whiteSpace: 'normal',
-                minWidth: '300px'
+                minWidth: '400px'
               }}
             >
               <ListItemText 

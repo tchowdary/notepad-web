@@ -11,6 +11,32 @@ const getOpenAIClient = () => {
   });
 };
 
+export const generateText = async ({ model, system, prompt }) => {
+  try {
+    const openai = getOpenAIClient();
+    const selectedModel = model || localStorage.getItem('openai_model') || 'gpt-4o-mini';
+
+    const completion = await openai.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: system
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      model: selectedModel,
+    });
+
+    return { text: completion.choices[0].message.content };
+  } catch (error) {
+    console.error('Error generating text:', error);
+    throw error;
+  }
+};
+
 export const processTranscription = async (transcription) => {
   try {
     const openai = getOpenAIClient();

@@ -1,5 +1,5 @@
 const DB_NAME = 'chatDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;  // Incrementing version to add title field
 const STORE_NAME = 'chatSessions';
 const MAX_SESSIONS = 100;
 
@@ -48,6 +48,23 @@ class ChatStorageService {
               });
             };
           }
+        }
+        // For upgrading to version 3
+        else if (event.oldVersion === 2) {
+          console.log('Adding title field to existing store');
+          // No need to add an index for title since we don't query by it
+          const store = event.currentTarget.transaction.objectStore(STORE_NAME);
+          const getAllRequest = store.getAll();
+          getAllRequest.onsuccess = () => {
+            const records = getAllRequest.result;
+            records.forEach(record => {
+              const updatedRecord = {
+                ...record,
+                title: undefined // Initialize title as undefined
+              };
+              store.put(updatedRecord);
+            });
+          };
         }
       };
 
