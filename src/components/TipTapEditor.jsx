@@ -141,7 +141,7 @@ const getTableStyles = (darkMode) => ({
     width: '100%',
     margin: '0',
     overflow: 'hidden',
-    backgroundColor: darkMode ? '#09090B' : '#FFFCF0',
+    backgroundColor: darkMode ? '#09090B' : '#FAFAFA',
     borderRadius: '6px',
     border: `1px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
   },
@@ -152,12 +152,12 @@ const getTableStyles = (darkMode) => ({
     verticalAlign: 'top',
     boxSizing: 'border-box',
     position: 'relative',
-    backgroundColor: darkMode ? '#09090B' : '#FFFCF0',
+    backgroundColor: darkMode ? '#09090B' : '#FAFAFA',
   },
   '& th': {
     fontWeight: '600',
     textAlign: 'left',
-    backgroundColor: darkMode ? '#09090B' : '#FFFCF0',
+    backgroundColor: darkMode ? '#09090B' : '#FAFAFA',
     borderBottom: `2px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
     fontSize: '0.95em',
     color: darkMode ? '#e6edf3' : '#24292f',
@@ -1005,7 +1005,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           'scrollbarWidth': 'none',
           height: '100%',
           position: 'relative',
-          bgcolor: darkMode ? '#09090B' : '#FFFCF0',
+          bgcolor: darkMode ? '#09090B' : '#FAFAFA',
           scrollBehavior: 'smooth'
         }}
       >
@@ -1013,11 +1013,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           className="editor-content"
           sx={{
             flex: 1,
-            maxWidth: '50em',
+            maxWidth: '55em',
             margin: '0 auto',
             padding: '16px',
             outline: 'none',
-            backgroundColor: darkMode ? '#09090B' : '#FFFCF0',
+            backgroundColor: darkMode ? '#09090B' : '#FAFAFA',
             color: darkMode ? '#e6edf3' : '#24292f',
             fontFamily: '"Rubik", sans-serif',
             fontSize: '17px',
@@ -1058,7 +1058,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           borderLeft: 1,
           borderColor: darkMode ? 'rgba(255, 255, 255, 0.12)' : 'divider',
           position: 'relative',
-          bgcolor: darkMode ? '#09090B' : '#FFFCF0',
+          bgcolor: darkMode ? '#09090B' : '#FAFAFA',
         }}
       >
         {/* TOC Content */}
