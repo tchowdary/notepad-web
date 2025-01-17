@@ -1068,6 +1068,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             height: '100%',
             overflow: 'auto',
             p: 2,
+            '&::-webkit-scrollbar': {
+              display: 'none'
+            },
+            '-ms-overflow-style': 'none',
+            'scrollbarWidth': 'none',
           }}
         >
           <ToC items={tocItems} editor={editor} />

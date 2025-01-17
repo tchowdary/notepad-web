@@ -23,6 +23,12 @@
   height: 100%;
   overflow: hidden;
   background: #fff;
+  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;  /* Internet Explorer 11 */
+}
+
+.editor-sidebar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .editor-sidebar-content {
