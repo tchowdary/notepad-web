@@ -309,41 +309,39 @@ const Editor = forwardRef(({
                 ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
                 : undefined
             }
-            PaperProps={{
-              sx: {
-                padding: '4px',
-              }
-            }}
           >
-            <Stack direction="row" spacing={1}>
-              <IconButton
-                size="small"
-                onClick={autodetectAndApplyLanguage}
-                title="Auto-detect Syntax"
-              >
-                <CodeIcon />
-              </IconButton>
-              <IconButton
-                size="small"
+            <MenuItem onClick={autodetectAndApplyLanguage}>
+              Auto-detect Syntax
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                if (!editorInstance) return;
+                try {
+                  const currentValue = editorInstance.getValue();
+                  const parsedJson = JSON.parse(currentValue);
+                  const formattedJson = JSON.stringify(parsedJson, null, 2);
+                  editorInstance.setValue(formattedJson);
+                  setIsJsonMode(true);
+                  editorInstance.setOption('mode', { name: 'javascript', json: true });
+                } catch (e) {
+                  console.error('Invalid JSON');
+                }
+                handleContextMenuClose();
+              }}
+            >
+              Format JSON
+            </MenuItem>
+            {Object.entries(converters).map(([key, converter]) => (
+              <MenuItem 
+                key={key} 
                 onClick={() => {
-                  if (!editorInstance) return;
-                  try {
-                    const currentValue = editorInstance.getValue();
-                    const parsedJson = JSON.parse(currentValue);
-                    const formattedJson = JSON.stringify(parsedJson, null, 2);
-                    editorInstance.setValue(formattedJson);
-                    setIsJsonMode(true);
-                    editorInstance.setOption('mode', { name: 'javascript', json: true });
-                  } catch (e) {
-                    console.error('Invalid JSON');
-                  }
+                  handleConvert(converter);
                   handleContextMenuClose();
                 }}
-                title="Format JSON"
               >
-                <FormatIcon />
-              </IconButton>
-            </Stack>
+                {converter.name}
+              </MenuItem>
+            ))}
           </Menu>
         </Box>
       ) : (

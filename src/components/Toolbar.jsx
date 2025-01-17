@@ -193,7 +193,7 @@ const Toolbar = ({
           </IconButton>
         </Tooltip> */}
 
-        <Tooltip title="Convert Text">
+        {/* <Tooltip title="Convert Text">
           <IconButton 
             onClick={handleConvertClick}
             size="small"
@@ -213,7 +213,7 @@ const Toolbar = ({
               {converter.name}
             </MenuItem>
           ))}
-        </Menu>
+        </Menu> */}
 
         {/* <Tooltip title="Format JSON">
           <IconButton onClick={onFormatJson} size="small">
