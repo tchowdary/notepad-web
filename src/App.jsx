@@ -60,8 +60,8 @@ function App() {
     palette: {
       mode: darkMode ? 'dark' : 'light',
       background: {
-        default: darkMode ? '#09090B' : '#FAFAFA',
-        paper: darkMode ? '#09090B' : '#FAFAFA',
+        default: darkMode ? '#09090B' : '#FFFCF0',
+        paper: darkMode ? '#09090B' : '#FFFCF0',
       },
       divider: darkMode ? '#333333' : '#e0e0e0',
     },
