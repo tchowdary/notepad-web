@@ -195,7 +195,7 @@ const MarkdownPreview = ({ content, darkMode, isFullScreen = false, onClose }) =
 
   const MermaidComponent = ({ content }) => (
     <MermaidWrapper darkMode={darkMode}>
-      <div className="mermaid" style={{ background: darkMode ? '#1e1e1e' : '#FFFCF0' }}>
+      <div className="mermaid" style={{ background: darkMode ? '#09090B' : '#FAFAFA' }}>
         {content}
       </div>
     </MermaidWrapper>
@@ -219,7 +219,7 @@ const MarkdownPreview = ({ content, darkMode, isFullScreen = false, onClose }) =
             margin: '1em 0',
             borderRadius: '6px',
             fontSize: '14px',
-            backgroundColor: darkMode ? '#1e1e1e' : '#f6f8fa',
+            backgroundColor: darkMode ? '#09090B' : '#f6f8fa',
           }}
           {...props}
         >
@@ -241,7 +241,7 @@ const MarkdownPreview = ({ content, darkMode, isFullScreen = false, onClose }) =
         height: '100%',
         overflow: 'auto',
         padding: '20px',
-        bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
+        bgcolor: darkMode ? '#09090B' : '#FAFAFA',
       }}
       className={`markdown-body ${darkMode ? 'markdown-dark' : ''}`}
     >
@@ -269,7 +269,7 @@ const MarkdownPreview = ({ content, darkMode, isFullScreen = false, onClose }) =
         sx={{
           width: '100%',
           height: '100vh',
-          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
+          bgcolor: darkMode ? '#09090B' : '#FAFAFA',
           outline: 'none',
         }}
       >

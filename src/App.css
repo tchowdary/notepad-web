@@ -30,21 +30,21 @@ body {
 
 /* Dark theme overrides */
 .CodeMirror.cm-s-material {
-  background-color: #1e1e1e;
+  background-color: #09090B;
 }
 
 .cm-s-material .CodeMirror-gutters {
-  background-color: #1e1e1e;
+  background-color: #09090B;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Light theme overrides */
 .CodeMirror.cm-s-default {
-  background-color: #FFFCF0;
+  background-color: #FAFAFA;
 }
 
 .cm-s-default .CodeMirror-gutters {
-  background-color: #FFFCF0;
+  background-color: #FAFAFA;
   border-right: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -64,7 +64,7 @@ body {
 
 .markdown-body.markdown-dark {
   color: #e6edf3;
-  background-color: #1e1e1e;
+  background-color: #09090B;
 }
 
 .markdown-body pre {
@@ -84,7 +84,7 @@ body {
 /* Light mode */
 .markdown-body:not(.markdown-dark) {
   color: #24292f;
-  background-color: #FFFCF0;
+  background-color: #FAFAFA;
 }
 
 .markdown-body:not(.markdown-dark) code {
@@ -223,14 +223,14 @@ body {
 
 /* TipTap Editor light mode styles */
 .ProseMirror table {
-  background-color: #FFFCF0;
+  background-color: #FAFAFA;
   border-radius: 6px;
   border: 1px solid #e0e0e0;
 }
 
 .ProseMirror td,
 .ProseMirror th {
-  background-color: #FFFCF0;
+  background-color: #FAFAFA;
   border: 1px solid #e0e0e0;
   padding: 8px 12px;
 }
@@ -248,14 +248,14 @@ body {
 
 /* Light mode table styles */
 .markdown-body:not(.markdown-dark) table {
-  background-color: #FFFCF0;
+  background-color: #FAFAFA;
   border-radius: 6px;
   border: 1px solid #e0e0e0;
 }
 
 .markdown-body:not(.markdown-dark) td,
 .markdown-body:not(.markdown-dark) th {
-  background-color: #FFFCF0;
+  background-color: #FAFAFA;
   border: 1px solid #e0e0e0;
   padding: 8px 12px;
 }
@@ -310,16 +310,16 @@ body {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #FFFCF0;
+    background-color: #FAFAFA;
   }
   a:hover {
     color: #747bff;
   }
   button {
-    background-color: #FFFCF0;
+    background-color: #FAFAFA;
   }
   .MuiAppBar-root {
-    background-color: #FFFCF0 !important;
+    background-color: #FAFAFA !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   }
   
