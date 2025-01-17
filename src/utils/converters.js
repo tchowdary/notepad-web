@@ -397,7 +397,7 @@ export const converters = {
       // Process each line
       const processedLines = lines.map(line => {
         // Remove any existing quotes (both single and double)
-        const cleanLine = line.replace(/['"]/g, '');
+        const cleanLine = line.replace(/['",]/g, '');
         // Wrap in single quotes
         return `'${cleanLine}'`;
       });
