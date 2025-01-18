@@ -296,11 +296,12 @@ class GitHubService {
     }
   }
 
-  getChatFilePath(sessionId) {
+  getChatFilePath(sessionId, title) {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    return `chats/${year}/${month}/chat-${sessionId}.md`;
+    const sanitizedTitle = title && typeof title === 'string' ? `${title.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}-` : '';
+    return `chats/${year}/${month}/${sanitizedTitle}${sessionId}.md`;
   }
 
   async syncChats() {
@@ -352,7 +353,7 @@ class GitHubService {
 
           if (needsSync) {
             // Format chat content in markdown
-            let content = `# Chat Session ${session.id}\n\nLast updated: ${session.lastUpdated}\n\n`;
+            let content = `# ${session.title}\n\nLast updated: ${session.lastUpdated}\n\n`;
             content += session.messages.map(msg => {
               let messageContent = '';
               
@@ -395,7 +396,7 @@ class GitHubService {
               return `### ${msg.role === 'user' ? 'User' : 'Assistant'}\n\n${messageContent}\n\n---\n`;
             }).join('\n');
 
-            const path = this.getChatFilePath(session.id);
+            const path = this.getChatFilePath(session.id, session.title);
             await this.uploadFile(path, content);
 
             // Update lastSynced timestamp
