@@ -62,7 +62,7 @@ class GitHubService {
 
   shouldSyncFile(filename) {
     // Skip untitled.md files
-    if (filename === 'untitled.md' || filename.startsWith('Note') || filename.startsWith('Code')) {
+    if (filename.startsWith('Note') || filename.startsWith('Code') || filename.endsWith('.tldraw')) {
       return false;
     }
     
@@ -301,7 +301,7 @@ class GitHubService {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const sanitizedTitle = title && typeof title === 'string' ? `${title.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}-` : '';
-    return `chats/${year}/${month}/${sanitizedTitle}${sessionId}.md`;
+    return sanitizedTitle === ' ' ? `chats/${year}/${month}/${sessionId}.md` : `chats/${year}/${month}/${sanitizedTitle}${sessionId}.md`;
   }
 
   async syncChats() {
