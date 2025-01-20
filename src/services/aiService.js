@@ -66,18 +66,23 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
       messagePayload.unshift({ role: 'system', content: customInstruction.content });
     }
 
+    const bodyConfig = {
+      model,
+      messages: messagePayload.map(({ role, content }) => ({ role, content })),
+      stream: Boolean(onStream),
+    };
+
+    if (model != 'deepseek-reasoner') {
+      bodyConfig.temperature = getAISettings().deepseek.temperature;
+    }
+
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: messagePayload.map(({ role, content }) => ({ role, content })),
-        stream: Boolean(onStream),
-        temperature: getAISettings().deepseek.temperature,
-      }),
+      body: JSON.stringify(bodyConfig),
     });
 
     if (!response.ok) {
