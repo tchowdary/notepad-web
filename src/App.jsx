@@ -15,10 +15,12 @@ import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
 import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
+import QuickChat from './components/QuickChat';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
 import { converters } from './utils/converters';
+import { chatStorage } from './services/chatStorageService';
 import './App.css';
 
 function App() {
@@ -46,7 +48,10 @@ function App() {
   });
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [isChatFullscreen, setIsChatFullscreen] = useState(false);
   const [showApiSettings, setShowApiSettings] = useState(false);
+  const [showQuickChat, setShowQuickChat] = useState(false);
+  const [quickChatInput, setQuickChatInput] = useState('');
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
@@ -55,8 +60,8 @@ function App() {
     palette: {
       mode: darkMode ? 'dark' : 'light',
       background: {
-        default: darkMode ? '#1e1e1e' : '#FFFCF0',
-        paper: darkMode ? '#252526' : '#FFFCF0',
+        default: darkMode ? '#09090B' : '#FFFCF0',
+        paper: darkMode ? '#09090B' : '#FFFCF0',
       },
       divider: darkMode ? '#333333' : '#e0e0e0',
     },
@@ -64,7 +69,7 @@ function App() {
       MuiAppBar: {
         styleOverrides: {
           root: ({ theme }) => ({
-            backgroundColor: theme.palette.mode === 'dark' ? '#252526' : '#f5f5f5',
+            backgroundColor: theme.palette.mode === 'dark' ? '#09090B' : '#f5f5f5',
             borderBottom: `1px solid ${theme.palette.mode === 'dark' ? '#333333' : '#e0e0e0'}`,
             boxShadow: 'none',
           }),
@@ -73,7 +78,7 @@ function App() {
       MuiTabs: {
         styleOverrides: {
           root: ({ theme }) => ({
-            backgroundColor: theme.palette.mode === 'dark' ? '#252526' : '#f5f5f5',
+            backgroundColor: theme.palette.mode === 'dark' ? '#09090B' : '#f5f5f5',
             '& .MuiTabs-indicator': {
               backgroundColor: theme.palette.mode === 'dark' ? '#007acc' : '#1976d2',
             },
@@ -83,10 +88,10 @@ function App() {
       MuiTab: {
         styleOverrides: {
           root: ({ theme }) => ({
-            backgroundColor: theme.palette.mode === 'dark' ? '#252526' : '#f5f5f5',
+            backgroundColor: theme.palette.mode === 'dark' ? '#09090B' : '#f5f5f5',
             color: theme.palette.mode === 'dark' ? '#cccccc' : '#333333',
             '&.Mui-selected': {
-              backgroundColor: theme.palette.mode === 'dark' ? '#1e1e1e' : '#ffffff',
+              backgroundColor: theme.palette.mode === 'dark' ? '#09090B' : '#ffffff',
               color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
             },
           }),
@@ -174,13 +179,36 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = async (e) => {
-      // Exit focus mode on Escape key
-      if (e.key === 'Escape' && focusMode) {
-        setFocusMode(false);
-        setShowSidebar(true);
+      // Alt + C for quick chat
+      if (e.ctrlKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        setShowQuickChat(true);
+        return;
+      }
+
+      // Exit focus mode and chat on Escape key
+      if (e.key === 'Escape') {
+        if (focusMode) {
+          setFocusMode(false);
+          setShowSidebar(true);
+        }
+        if (isChatFullscreen) {
+          setIsChatFullscreen(false);
+          setShowChat(false);
+          setShowSidebar(true);
+        } else if (showChat) {
+          handleChatToggle();
+        }
         return;
       }
       
+      // Open chat in fullscreen with Ctrl/Cmd + Shift + C
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        handleChatFullscreen();
+        return;
+      }
+
       // Handle Ctrl+K before any other key combinations
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -197,7 +225,7 @@ function App() {
     // Use capture phase to handle the event before React's event system
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [focusMode]);
+  }, [focusMode, showChat, isChatFullscreen]);
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -547,12 +575,16 @@ function App() {
   const handleChatToggle = () => {
     const newChatState = !showChat;
     setShowChat(newChatState);
-    // Only hide sidebar when opening chat, restore it when closing
-    if (newChatState) {
-      setShowSidebar(false);
-    } else {
-      setShowSidebar(true);
+    // Reset fullscreen when toggling chat
+    if (!newChatState) {
+      setIsChatFullscreen(false);
     }
+  };
+
+  const handleChatFullscreen = () => {
+    setShowChat(true);
+    setIsChatFullscreen(true);
+    setShowSidebar(false);
   };
 
   const handleSplitViewToggle = () => {
@@ -609,6 +641,16 @@ function App() {
         setTabs(updatedTabs);
       }
     }
+  };
+
+  const handleQuickChatSubmit = (text) => {
+    setQuickChatInput(text);
+    setShowChat(true);
+    setShowQuickChat(false);
+  };
+
+  const handleMessageSent = () => {
+    setQuickChatInput('');
   };
 
   const renderTab = (tab) => {
@@ -828,20 +870,33 @@ function App() {
                 </Box>
                 
                 {showChat && (
-                  <Box
-                    sx={{
-                      width: { xs: '100%', md: '50%' },
-                      flexShrink: 0,
-                      borderLeft: `1px solid ${theme.palette.divider}`,
-                      bgcolor: theme.palette.background.paper,
-                      position: { xs: 'fixed', md: 'relative' },
-                      right: { xs: 0, md: 'auto' },
-                      top: { xs: 0, md: 'auto' },
-                      height: { xs: '100%', md: 'auto' },
-                      zIndex: { xs: theme.zIndex.drawer + 1, md: 1 },
+                  <Box 
+                    sx={{ 
+                      ...(isChatFullscreen ? {
+                        position: 'fixed',
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        left: 0,
+                        zIndex: theme.zIndex.drawer + 2,
+                        bgcolor: 'background.default',
+                      } : {
+                        width: '40%',
+                        minWidth: '400px',
+                        maxWidth: '800px',
+                        height: '100%',
+                        position: 'relative',
+                        borderLeft: `1px solid ${theme.palette.divider}`,
+                      })
                     }}
                   >
-                    <ChatBox />
+                    <ChatBox 
+                      onFullscreenChange={setIsChatFullscreen} 
+                      initialFullscreen={isChatFullscreen}
+                      initialInput={quickChatInput}
+                      createNewSessionOnMount={quickChatInput !== ''} // Only create new session if coming from quick chat
+                      onMessageSent={handleMessageSent}
+                    />
                   </Box>
                 )}
               </Box>
@@ -889,6 +944,11 @@ function App() {
         style={{ display: 'none' }}
         onChange={handleFileSelect}
         accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
+      />
+      <QuickChat
+        open={showQuickChat}
+        onClose={() => setShowQuickChat(false)}
+        onSubmit={handleQuickChatSubmit}
       />
     </ThemeProvider>
   );

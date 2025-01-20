@@ -1,4 +1,4 @@
-import React, { useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, forwardRef, useImperativeHandle, useState, useRef, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextStyle from '@tiptap/extension-text-style';
@@ -12,24 +12,127 @@ import TableHeader from '@tiptap/extension-table-header';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
-import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
+import { getHierarchicalIndexes, TableOfContents } from '@tiptap-pro/extension-table-of-contents';
+import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText } from '@mui/material';
 import {
-  FormatQuote,
+  FormatBold,
+  FormatItalic,
+  FormatUnderlined,
   Code,
-  HorizontalRule as HorizontalRuleIcon,
-  FormatColorText,
+  FormatQuote,
+  FormatListBulleted,
+  FormatListNumbered,
   TableChart,
-  AutoFixHigh,
-  AddCircleOutline,
   DeleteOutline,
-  DeleteForever,
+  ContentCopy,
+  Mic as MicIcon,
+  List as ListIcon,
+  ChevronLeft,
+  Remove,
+  AutoFixHigh,
   TextFields,
   CheckBox,
-  ContentCopy,
+  AddCircleOutline,
+  DeleteForever,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
 import { compressImage } from '../utils/imageUtils';
+import RecordRTC from 'recordrtc';
+import RecordingDialog from './RecordingDialog';
+import { ToC } from './ToC';
+import './toc.css';
+import { sendAnthropicMessage } from '../services/aiService';
+import { createLowlight } from 'lowlight';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import css from 'highlight.js/lib/languages/css';
+import xml from 'highlight.js/lib/languages/xml';
+import json from 'highlight.js/lib/languages/json';
+import bash from 'highlight.js/lib/languages/bash';
+import yaml from 'highlight.js/lib/languages/yaml';
+import markdown from 'highlight.js/lib/languages/markdown';
+
+// Create a new lowlight instance
+const lowlight = createLowlight();
+
+// Register languages
+lowlight.register('javascript', javascript);
+lowlight.register('js', javascript);
+lowlight.register('typescript', typescript);
+lowlight.register('ts', typescript);
+lowlight.register('css', css);
+lowlight.register('html', xml);
+lowlight.register('xml', xml);
+lowlight.register('json', json);
+lowlight.register('bash', bash);
+lowlight.register('shell', bash);
+lowlight.register('markdown', markdown);
+lowlight.register('md', markdown);
+lowlight.register('yaml', yaml);
+
+const codeBlockStyles = {
+  'pre': {
+    'background': darkMode => darkMode ? '#09090B' : '#f8f9fa',
+    'color': darkMode => darkMode ? '#d4d4d4' : '#24292e',
+    'fontFamily': '"JetBrains Mono", "Consolas", "Monaco", "Andale Mono", monospace',
+    'padding': '0.75rem 1rem',
+    'margin': '0.5rem 0',
+    'borderRadius': '6px',
+    'overflow': 'auto',
+    'fontSize': '0.9em',
+    'lineHeight': '1.5',
+    'border': darkMode => darkMode ? '1px solid #2d2d2d' : '1px solid #e1e4e8',
+    'position': 'relative',
+    '&:hover .copy-button': {
+      opacity: 1,
+    }
+  },
+  'code': {
+    'backgroundColor': 'transparent',
+    'padding': '0',
+    'margin': '0',
+  },
+  '.copy-button': {
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    opacity: 0,
+    transition: 'opacity 0.2s',
+    backgroundColor: darkMode => darkMode ? '#2d2d2d' : '#f0f0f0',
+    border: darkMode => darkMode ? '1px solid #404040' : '1px solid #d0d0d0',
+    borderRadius: '4px',
+    padding: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    '&:hover': {
+      backgroundColor: darkMode => darkMode ? '#404040' : '#e0e0e0',
+    }
+  },
+  // VSCode-like syntax highlighting
+  '.hljs-comment,.hljs-quote': { color: '#6a737d' },
+  '.hljs-variable,.hljs-template-variable,.hljs-tag,.hljs-name,.hljs-selector-id,.hljs-selector-class,.hljs-regexp,.hljs-deletion': { 
+    color: darkMode => darkMode ? '#e06c75' : '#d73a49'
+  },
+  '.hljs-number,.hljs-built_in,.hljs-literal,.hljs-type,.hljs-params,.hljs-meta,.hljs-link': { 
+    color: darkMode => darkMode ? '#d19a66' : '#005cc5'
+  },
+  '.hljs-attribute': { 
+    color: darkMode => darkMode ? '#98c379' : '#22863a'
+  },
+  '.hljs-string,.hljs-symbol,.hljs-bullet,.hljs-addition': { 
+    color: darkMode => darkMode ? '#98c379' : '#032f62'
+  },
+  '.hljs-title,.hljs-section': { 
+    color: darkMode => darkMode ? '#61aeee' : '#005cc5'
+  },
+  '.hljs-keyword,.hljs-selector-tag': { 
+    color: darkMode => darkMode ? '#c678dd' : '#d73a49'
+  }
+};
 
 const getTableStyles = (darkMode) => ({
   '& table': {
@@ -38,7 +141,7 @@ const getTableStyles = (darkMode) => ({
     width: '100%',
     margin: '0',
     overflow: 'hidden',
-    backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
+    backgroundColor: darkMode ? '#09090B' : '#FFFCF0',
     borderRadius: '6px',
     border: `1px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
   },
@@ -49,12 +152,12 @@ const getTableStyles = (darkMode) => ({
     verticalAlign: 'top',
     boxSizing: 'border-box',
     position: 'relative',
-    backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
+    backgroundColor: darkMode ? '#09090B' : '#FFFCF0',
   },
   '& th': {
     fontWeight: '600',
     textAlign: 'left',
-    backgroundColor: darkMode ? '#252526' : '#FFFCF0',
+    backgroundColor: darkMode ? '#09090B' : '#FFFCF0',
     borderBottom: `2px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
     fontSize: '0.95em',
     color: darkMode ? '#e6edf3' : '#24292f',
@@ -129,24 +232,19 @@ const getEditorStyles = (darkMode) => ({
       marginRight: 0,
       paddingLeft: '1rem',
     },
-    '& code': {
-      backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
-      color: darkMode ? '#e6edf3' : '#24292f',
-      borderRadius: '6px',
-      padding: '0.2em 0.4em',
-      fontSize: '85%',
-      fontFamily: '"Rubik", sans-serif',
-    },
     '& pre': {
-      backgroundColor: darkMode ? '#30363d' : '#f6f8fa',
-      padding: '1em',
+      backgroundColor: darkMode ? '#09090B' : '#f6f8fa',
       borderRadius: '6px',
-      overflow: 'auto',
-      '& code': {
-        backgroundColor: 'transparent',
-        padding: 0,
-        fontSize: '90%',
-      },
+      color: darkMode ? '#e6edf3' : '#24292f',
+      fontFamily: 'monospace',
+      padding: '0.75rem 1rem',
+      margin: '0.5rem 0',
+    },
+    '& code': {
+      backgroundColor: 'transparent',
+      color: 'inherit',
+      fontSize: '0.9em',
+      padding: 0,
     },
     '& hr': {
       border: 'none',
@@ -181,23 +279,118 @@ const getEditorStyles = (darkMode) => ({
       borderRadius: '4px',
     },
     ...getTableStyles(darkMode),
+    '& .table-of-contents': {
+      background: darkMode ? '#09090B' : '#f6f8fa',
+      padding: '1rem',
+      margin: '1rem 0',
+      borderRadius: '4px',
+      border: `1px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
+      '& ul': {
+        listStyle: 'none',
+        padding: 0,
+        margin: 0,
+      },
+      '& li': {
+        margin: '0.5rem 0',
+        '& a': {
+          color: darkMode ? '#58a6ff' : '#0969da',
+          textDecoration: 'none',
+          '&:hover': {
+            textDecoration: 'underline',
+          },
+        },
+      },
+    },
+    ...Object.entries(codeBlockStyles).reduce((acc, [selector, styles]) => {
+      acc[`& ${selector}`] = typeof styles === 'function' ? styles(darkMode) : styles;
+      return acc;
+    }, {}),
   },
 });
 
 const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange }, ref) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
+
+  const [tocItems, setTocItems] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [recordingInterval, setRecordingInterval] = useState(null);
+  const [recorder, setRecorder] = useState(null);
+  const [recordingStream, setRecordingStream] = useState(null);
+  const [recordingError, setRecordingError] = useState(null);
   const editorRef = React.useRef(null);
   const menuRef = React.useRef(null);
   const isRestoringCursor = React.useRef(false);
   const isEditorReady = React.useRef(false);
   const lastKnownPosition = React.useRef(null);
+  const [isTocOpen, setIsTocOpen] = useState(() => {
+    const saved = localStorage.getItem('tocOpen');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tocOpen', JSON.stringify(isTocOpen));
+  }, [isTocOpen]);
+
+  const toggleToc = useCallback(() => {
+    setIsTocOpen(prev => !prev);
+  }, []);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        horizontalRule: false,
+        codeBlock: false,
       }),
+      CodeBlockLowlight
+        .extend({
+          addNodeView() {
+            return ({ node, HTMLAttributes, getPos }) => {
+              const dom = document.createElement('pre');
+              const content = document.createElement('code');
+              const wrapper = document.createElement('div');
+              wrapper.style.position = 'relative';
+              
+              const copyButton = document.createElement('button');
+              copyButton.className = 'copy-button';
+              copyButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/></svg>';
+              
+              copyButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigator.clipboard.writeText(node.textContent).then(() => {
+                  const originalContent = copyButton.innerHTML;
+                  copyButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" fill="currentColor"/></svg>';
+                  setTimeout(() => {
+                    copyButton.innerHTML = originalContent;
+                  }, 2000);
+                });
+              });
+
+              Object.entries(HTMLAttributes).forEach(([key, value]) => {
+                dom.setAttribute(key, value);
+              });
+
+              if (node.textContent) {
+                content.textContent = node.textContent;
+              }
+
+              dom.appendChild(content);
+              wrapper.appendChild(dom);
+              wrapper.appendChild(copyButton);
+
+              return {
+                dom: wrapper,
+                contentDOM: content,
+              };
+            };
+          },
+        })
+        .configure({
+          lowlight,
+        }),
       TextStyle,
       Color,
       Link.configure({
@@ -218,49 +411,22 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         inline: false,
         allowBase64: true,
       }),
+      TableOfContents.configure({
+        getIndex: getHierarchicalIndexes,
+        onUpdate: (items) => {
+          setTocItems(items);
+        },
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
-    autofocus: false,
+    autofocus: true,
     onCreate: ({ editor }) => {
       isEditorReady.current = true;
     },
     editorProps: {
-      handlePaste: async (view, event) => {
-        if (event.clipboardData && event.clipboardData.files && event.clipboardData.files[0]) {
-          const file = event.clipboardData.files[0];
-          if (file.type.startsWith('image/')) {
-            event.preventDefault();
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-              const base64Image = e.target.result;
-              // Compress image before storing
-              const compressedImage = await compressImage(base64Image);
-              editor.commands.setImage({ src: compressedImage });
-            };
-            reader.readAsDataURL(file);
-            return true;
-          }
-        }
-        if (event.clipboardData) {
-          // Try to get HTML content first
-          const html = event.clipboardData.getData('text/html');
-          if (html) {
-            editor.commands.insertContent(html);
-            return true;
-          }
-          // If no HTML, try plain text and convert from markdown
-          const text = event.clipboardData.getData('text/plain');
-          if (text) {
-            const html = marked.parse(text);
-            editor.commands.insertContent(html);
-            return true;
-          }
-        }
-        return false;
-      },
       handleCopy: (view, event) => {
         const { state, dispatch } = view;
         const { empty, content } = state.selection;
@@ -372,13 +538,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const handleImproveText = async () => {
     if (improving) return;
+    
+    // Always get HTML content to preserve formatting
     const text = editor?.state.selection.empty ? 
       editor?.getHTML() : 
-      editor?.state.doc.textBetween(
-        editor.state.selection.from,
-        editor.state.selection.to,
-        ' '
-      );
+      editor?.state.selection.empty ? editor?.getMarkdown() : editor?.getHTML();
 
     if (!text?.trim()) return;
 
@@ -390,10 +554,13 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           editor?.chain()
             .focus()
             .deleteSelection()
-            .insertContent(improvedText)
+            .setContent(improvedText, false, { preserveWhitespace: true })
             .run();
         } else {
-          editor?.commands.setContent(improvedText);
+          editor?.chain()
+            .focus()
+            .setContent(improvedText, false, { preserveWhitespace: true })
+            .run();
           onChange(improvedText);
         }
       }
@@ -414,72 +581,243 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     handleClose();
   };
 
-  const formatOptions = [
-    {
-      title: 'Copy as Plain Text',
-      icon: <ContentCopy />,
-      action: handleCopyPlainText,
-    },
-    {
-      title: 'H2',
-      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>H2</Typography>,
-      action: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(),
-    },
-    {
-      title: 'H3',
-      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>H3</Typography>,
-      action: () => editor?.chain().focus().toggleHeading({ level: 3 }).run(),
-    },
-    {
-      title: 'H4',
-      icon: <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}>H4</Typography>,
-      action: () => editor?.chain().focus().toggleHeading({ level: 4 }).run(),
-    },
-    {
-      title: 'Code Block',
-      icon: <Code />,
-      action: () => editor?.chain().focus().toggleCodeBlock().run(),
-    },
-    {
-      title: 'Block Quote',
-      icon: <FormatQuote />,
-      action: () => editor?.chain().focus().toggleBlockquote().run(),
-    },
-    {
-      title: 'Horizontal Rule',
-      icon: <HorizontalRuleIcon />,
-      action: () => editor?.chain().focus().setHorizontalRule().run(),
-    },
-    {
-      title: 'Highlight',
-      icon: <FormatColorText />,
-      action: () => editor?.chain().focus().setColor('#3AA99F').run(),
-    },
-    {
-      title: 'Insert Table',
-      icon: <TableChart />,
-      action: () => {
-        editor?.chain()
+  const handleStartRecording = async () => {
+    try {
+      setRecordingError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setRecordingStream(stream);
+      
+      const newRecorder = new RecordRTC(stream, {
+        type: 'audio',
+        mimeType: 'audio/webm',
+        recorderType: RecordRTC.StereoAudioRecorder,
+        numberOfAudioChannels: 1,
+        desiredSampRate: 16000,
+      });
+
+      newRecorder.startRecording();
+      setRecorder(newRecorder);
+      setIsRecording(true);
+      setContextMenu(null);
+      const interval = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+      }, 1000);
+      setRecordingInterval(interval);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      setRecordingError(error.message || 'Error accessing microphone');
+      setIsRecording(false);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      if (recorder) {
+        return new Promise((resolve) => {
+          recorder.stopRecording(async () => {
+            try {
+              const blob = await recorder.getBlob();
+              await transcribeAudio(blob);
+            } catch (err) {
+              console.error('Transcription error:', err);
+              setRecordingError(err.message || 'Error transcribing audio');
+            } finally {
+              cleanup();
+              resolve();
+            }
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      setRecordingError(error.message || 'Error stopping recording');
+      cleanup();
+    }
+  };
+
+  const cleanup = () => {
+    if (recordingStream) {
+      recordingStream.getTracks().forEach(track => track.stop());
+      setRecordingStream(null);
+    }
+    if (recorder) {
+      try {
+        recorder.destroy();
+      } catch (err) {
+        console.error('Error destroying recorder:', err);
+      }
+      setRecorder(null);
+    }
+    if (recordingInterval) {
+      clearInterval(recordingInterval);
+      setRecordingInterval(null);
+      setElapsedTime(0);
+    }
+    setIsRecording(false);
+    setIsProcessing(false);
+  };
+
+  const transcribeAudio = async (audioBlob) => {
+    try {
+      setIsProcessing(true);
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.webm');
+      formData.append('model', 'whisper-1');
+
+      const apiKey = localStorage.getItem('openai_api_key');
+      if (!apiKey) {
+        throw new Error('OpenAI API key not found. Please set your API key in settings.');
+      }
+
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Transcription failed');
+      }
+
+      const data = await response.json();
+      
+      // Process the transcription with Claude
+      const anthropicKey = localStorage.getItem('anthropic_api_key');
+      if (!anthropicKey) {
+        throw new Error('Anthropic API key not found. Please set your API key in settings.');
+      }
+
+      const messages = [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `You are an AI assistant specialized in processing and improving transcribed voice notes. Your task is to edit the provided text for clarity, readability, and correctness, and then extract any task items mentioned.\n\nHere is the transcribed text you need to work with:\n\n<transcribed_text>\n${data.text}\n</transcribed_text>\n\nPlease follow these steps:\n\n1. Edit and format the text:\n   - Correct any spelling mistakes.\n   - Fix grammar issues.\n   - Adjust punctuation for clarity.\n   - Improve overall readability and flow.\n   - Format the text into appropriately sized paragraphs.\n\n2. After editing, carefully review the text to identify and extract any task items mentioned. Task items are typically actions, assignments, or to-do list entries that the speaker intends to complete or delegate.\n\nYour final output should be formatted as follows:\n\n# Edited Text\n[Insert the edited and formatted version of the transcribed text here]\n\n# Task Items\n- [List each extracted task item on a new line, starting with a dash]\n\nImportant notes:\n- Make your best effort to improve the text while maintaining the original meaning and intent of the speaker.\n- If you're unsure about a particular edit or task item, err on the side of caution and preserve the original content.\n- Do not include any commentary or explanations in your final output.`
+            }
+          ]
+        }
+      ];
+
+      const aiResponse = await sendAnthropicMessage(
+        messages,
+        'claude-3-5-sonnet-20241022',
+        anthropicKey
+      );
+
+      if (editor) {
+        // Get the current selection position
+        const { from } = editor.state.selection;
+        
+        // If we're at the start of a line, don't add an extra newline
+        const needsNewline = from > 0 && editor.state.doc.textBetween(from - 1, from) !== '\n';
+        
+        // Format the content with proper nodes
+        editor
+          .chain()
           .focus()
-          .insertTable({
-            rows: 2,
-            cols: 2,
-            withHeaderRow: true
+          // Add initial newline if needed
+          .insertContent(needsNewline ? '\n' : '')
+          // Original Transcription section
+          .setNode('heading', { level: 1 })
+          .insertContent('Original Transcription')
+          .insertContent('\n')
+          .setParagraph()
+          .insertContent(data.text)
+          .insertContent('\n\n')
+          // Add the AI processed content with proper markdown parsing
+          .insertContent(aiResponse.content, {
+            parseOptions: {
+              preserveWhitespace: 'full'
+            }
           })
           .run();
-        handleClose();
-      },
-    },
+      }
+    } catch (err) {
+      console.error('Transcription error:', err);
+      throw new Error('Failed to transcribe audio: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Cleanup recording resources on unmount
+  useEffect(() => {
+    return cleanup;
+  }, []);
+
+  const formatOptions = [
     {
-      title: 'Improve Text',
       icon: <AutoFixHigh />,
+      title: 'Improve Text',
       action: handleImproveText,
     },
     {
-      title: 'Task List',
-      icon: <CheckBox />,
-      action: () => editor?.chain().focus().toggleTaskList().run(),
+      icon: <MicIcon />,
+      title: 'Voice Input',
+      action: handleStartRecording,
     },
+    {
+      icon: <FormatBold />,
+      title: 'Bold',
+      action: () => editor.chain().focus().toggleBold().run(),
+      isActive: () => editor.isActive('bold'),
+    },
+    {
+      icon: <FormatItalic />,
+      title: 'Italic',
+      action: () => editor.chain().focus().toggleItalic().run(),
+      isActive: () => editor.isActive('italic'),
+    },
+    {
+      icon: <FormatUnderlined />,
+      title: 'Underline',
+      action: () => editor.chain().focus().toggleUnderline().run(),
+      isActive: () => editor.isActive('underline'),
+    },
+    {
+      icon: <Code />,
+      title: 'Code',
+      action: () => editor.chain().focus().toggleCodeBlock().run(),
+      isActive: () => editor.isActive('codeBlock'),
+    },
+    {
+      icon: <FormatQuote />,
+      title: 'Blockquote',
+      action: () => editor.chain().focus().toggleBlockquote().run(),
+      isActive: () => editor.isActive('blockquote'),
+    },
+    {
+      icon: <FormatListBulleted />,
+      title: 'Bullet List',
+      action: () => editor.chain().focus().toggleBulletList().run(),
+      isActive: () => editor.isActive('bulletList'),
+    },
+    {
+      icon: <FormatListNumbered />,
+      title: 'Ordered List',
+      action: () => editor.chain().focus().toggleOrderedList().run(),
+      isActive: () => editor.isActive('orderedList'),
+    },
+    {
+      icon: <Remove />,
+      title: 'Horizontal Rule',
+      action: () => editor.chain().focus().setHorizontalRule().run(),
+    },
+    {
+      icon: <TableChart />,
+      title: 'Insert Table',
+      action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    },
+    {
+      icon: <TextFields />,
+      title: 'Clear Format',
+      action: () => editor.chain().focus().clearNodes().unsetAllMarks().run(),
+    },
+    
   ];
 
   const tableOptions = [
@@ -487,7 +825,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Add Column Before',
       icon: <AddCircleOutline sx={{ transform: 'rotate(90deg)' }} />,
       action: () => {
-        editor?.chain().focus().addColumnBefore().run();
+        editor.chain().focus().addColumnBefore().run();
         handleClose();
       },
     },
@@ -495,7 +833,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Add Column After',
       icon: <AddCircleOutline sx={{ transform: 'rotate(-90deg)' }} />,
       action: () => {
-        editor?.chain().focus().addColumnAfter().run();
+        editor.chain().focus().addColumnAfter().run();
         handleClose();
       },
     },
@@ -503,7 +841,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Delete Column',
       icon: <DeleteOutline sx={{ transform: 'rotate(90deg)' }} />,
       action: () => {
-        editor?.chain().focus().deleteColumn().run();
+        editor.chain().focus().deleteColumn().run();
         handleClose();
       },
     },
@@ -511,7 +849,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Add Row Before',
       icon: <AddCircleOutline />,
       action: () => {
-        editor?.chain().focus().addRowBefore().run();
+        editor.chain().focus().addRowBefore().run();
         handleClose();
       },
     },
@@ -519,7 +857,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Add Row After',
       icon: <AddCircleOutline sx={{ transform: 'rotate(180deg)' }} />,
       action: () => {
-        editor?.chain().focus().addRowAfter().run();
+        editor.chain().focus().addRowAfter().run();
         handleClose();
       },
     },
@@ -527,7 +865,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Delete Row',
       icon: <DeleteOutline />,
       action: () => {
-        editor?.chain().focus().deleteRow().run();
+        editor.chain().focus().deleteRow().run();
         handleClose();
       },
     },
@@ -535,7 +873,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Delete Table',
       icon: <DeleteForever />,
       action: () => {
-        editor?.chain().focus().deleteTable().run();
+        editor.chain().focus().deleteTable().run();
         handleClose();
       },
     },
@@ -545,41 +883,52 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       action: () => {
         const { state } = editor;
         const { selection } = state;
-        const tablePos = selection.$anchor.pos;
-        let table = null;
-        let tableEndPos = null;
+        const { $from } = selection;
+        
+        // Check if we're inside a table
+        const isInTable = $from.parent.type.name === 'table';
+        
+        if (isInTable) {
+          // Insert text below table
+          const tablePos = $from.pos;
+          let table = null;
+          let tableEndPos = null;
 
-        state.doc.nodesBetween(0, state.doc.content.size, (node, pos) => {
-          if (node.type.name === 'table' && pos <= tablePos && pos + node.nodeSize >= tablePos) {
-            table = node;
-            tableEndPos = pos + node.nodeSize;
-            return false;
+          state.doc.nodesBetween(0, state.doc.content.size, (node, pos) => {
+            if (node.type.name === 'table' && pos <= tablePos && pos + node.nodeSize >= tablePos) {
+              table = node;
+              tableEndPos = pos + node.nodeSize;
+              return false;
+            }
+          });
+
+          if (tableEndPos !== null) {
+            editor.chain()
+              .insertContentAt(tableEndPos, { type: 'paragraph' })
+              .focus(tableEndPos)
+              .run();
           }
-        });
-
-        if (tableEndPos !== null) {
-          editor.chain()
-            .insertContentAt(tableEndPos, { type: 'paragraph' })
-            .focus(tableEndPos)
-            .run();
         }
         handleClose();
       },
     },
   ];
 
-  const handleContextMenu = (event) => {
-    event.preventDefault();
-    setContextMenu({
-      mouseX: event.clientX,
-      mouseY: event.clientY,
-      isInTable: editor?.isActive('table'),
-    });
-  };
+  const handleContextMenu = useCallback((event) => {
+    if (event.button === 2) {
+      event.preventDefault();
+      const isInTable = editor?.isActive('table');
+      setContextMenu({
+        mouseX: event.clientX + 2,
+        mouseY: event.clientY - 6,
+        isInTable
+      });
+    }
+  }, [editor]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setContextMenu(null);
-  };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -605,6 +954,25 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     }
   }, [contextMenu]);
 
+  const handleKeyDown = useCallback((event) => {
+    if (event.ctrlKey || event.metaKey) {
+      if (event.key === ']') {
+        event.preventDefault();
+        setIsTocOpen(false);
+      } else if (event.key === '[') {
+        event.preventDefault();
+        setIsTocOpen(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
   // Expose editor instance through ref
   useImperativeHandle(ref, () => ({
     editor,
@@ -617,107 +985,170 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   }), [editor]);
 
   return (
-    <Box 
-      ref={editorRef}
-      onContextMenu={handleContextMenu}
-      sx={{
-        height: { xs: 'calc(100vh - 30px)', sm: 'calc(100vh - 30px)', md: '100%' },
-        width: '100%',
-        position: 'relative',
-        overflow: 'auto',
-        mb: { xs: '30px', sm: '30px', md: 0 },
-        py: 3,
-      }}
-    >
+    <Box sx={{ 
+      display: 'flex', 
+      height: '100vh', 
+      position: 'relative',
+      
+    }}>
+      {/* Editor Container */}
       <Box
+        ref={editorRef}
+        onContextMenu={handleContextMenu}
         sx={{
-          maxWidth: '50em',
-          margin: '0 auto',
-          padding: '16px',
-          outline: 'none',
-          backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
-          color: darkMode ? '#e6edf3' : '#24292f',
-          fontFamily: '"Rubik", sans-serif',
-          fontSize: '17px',
-          lineHeight: '1.8',
+          flexGrow: 1,
+          overflowY: 'scroll',
+          '&::-webkit-scrollbar': {
+            display: 'none'
+          },
+          '-ms-overflow-style': 'none',
+          'scrollbarWidth': 'none',
+          height: '100%',
           position: 'relative',
-          minHeight: '100%',
-          ...getEditorStyles(darkMode),
+          bgcolor: darkMode ? '#09090B' : '#FFFCF0',
+          scrollBehavior: 'smooth'
         }}
       >
-        <EditorContent editor={editor} onContextMenu={handleContextMenu} />
-        {improving && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
-              padding: '10px 20px',
-              borderRadius: '4px',
-              zIndex: 1000,
-            }}
-          >
-            Improving text...
-          </Box>
-        )}
-      </Box>
-      {contextMenu && (
-        <Stack
-          ref={menuRef}
-          direction="row"
-          spacing={1}
+        <Box
+          className="editor-content"
           sx={{
-            position: 'fixed',
-            left: contextMenu.mouseX,
-            top: contextMenu.mouseY,
-            backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
-            borderRadius: 1,
-            boxShadow: 3,
-            p: 1,
-            zIndex: 1000,
+            flex: 1,
+            maxWidth: '55em',
+            margin: '0 auto',
+            padding: '16px',
+            outline: 'none',
+            backgroundColor: darkMode ? '#09090B' : '#FFFCF0',
+            color: darkMode ? '#e6edf3' : '#24292f',
+            fontFamily: '"Rubik", sans-serif',
+            fontSize: '17px',
+            lineHeight: '1.8',
+            position: 'relative',
+            minHeight: '100%',
+            overflow: 'auto',
+            ...getEditorStyles(darkMode),
           }}
         >
-          {contextMenu.isInTable ? (
-            tableOptions.map((option, index) => (
-              <Tooltip key={index} title={option.title}>
-                <IconButton
-                  size="small"
-                  onClick={option.action}
-                  sx={{
-                    color: darkMode ? '#e6edf3' : '#24292f',
-                  }}
-                >
-                  {option.icon}
-                </IconButton>
-              </Tooltip>
-            ))
-          ) : (
-            formatOptions.map((option, index) => (
-              <Tooltip key={index} title={option.title}>
-                <IconButton
-                  size="small"
-                  onClick={option.action}
-                  sx={{
-                    color: darkMode ? '#e6edf3' : '#24292f',
-                    '& .MuiSvgIcon-root': {
-                      fontSize: '1.2rem',
-                    },
-                    ...(option.title.startsWith('H') && {
-                      padding: '4px 8px',
-                      minWidth: '32px',
-                    }),
-                  }}
-                >
-                  {option.icon}
-                </IconButton>
-              </Tooltip>
-            ))
+          {editor && <EditorContent editor={editor} />}
+          {improving && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                color: 'white',
+                padding: '10px 20px',
+                borderRadius: '4px',
+                zIndex: 1000,
+              }}
+            >
+              Improving text...
+            </Box>
           )}
-        </Stack>
-      )}
+        </Box>
+      </Box>
+
+      {/* TOC Container */}
+      <Box
+        sx={{
+          width: isTocOpen ? '300px' : '0px',
+          transition: 'width 0.3s ease',
+          overflow: 'hidden',
+          borderLeft: 1,
+          borderColor: darkMode ? 'rgba(255, 255, 255, 0.12)' : 'divider',
+          position: 'relative',
+          bgcolor: darkMode ? '#09090B' : '#FFFCF0',
+          '&:hover': {
+            '&::-webkit-scrollbar': {
+              display: 'none'
+            },
+            '-ms-overflow-style': 'none',
+            'scrollbarWidth': 'none',
+          }
+        }}
+      >
+        {/* TOC Content */}
+        <Box
+          sx={{
+            width: '300px',
+            height: '100%',
+            overflow: 'auto',
+            p: 2,
+            '&::-webkit-scrollbar': {
+              display: 'none'
+            },
+            '-ms-overflow-style': 'none',
+            'scrollbarWidth': 'none',
+            '&:hover': {
+              '&::-webkit-scrollbar': {
+                display: 'none'
+              },
+              '-ms-overflow-style': 'none',
+              'scrollbarWidth': 'none',
+            }
+          }}
+        >
+          <ToC items={tocItems} editor={editor} />
+        </Box>
+      </Box>
+
+      <Menu
+        open={Boolean(contextMenu)}
+        onClose={handleClose}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu
+            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+            : undefined
+        }
+        PaperProps={{
+          sx: {
+            backgroundColor: darkMode ? '#09090B' : '#ffffff',
+            color: darkMode ? '#e6edf3' : '#24292f',
+            borderRadius: '8px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          }
+        }}
+        MenuListProps={{
+          sx: {
+            display: 'flex',
+            flexDirection: 'row',
+            padding: '4px',
+          }
+        }}
+      >
+        {(contextMenu?.isInTable ? tableOptions : formatOptions).map((option, index) => (
+          <MenuItem 
+            key={index} 
+            onClick={() => { option.action(); handleClose(); }}
+            sx={{
+              minWidth: 'auto',
+              padding: '4px',
+              borderRadius: '4px',
+              '&:hover': {
+                backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)',
+              }
+            }}
+          >
+            <IconButton
+              size="small"
+              sx={{
+                color: option.isActive?.() ? 'primary.main' : 'inherit',
+              }}
+            >
+              {option.icon}
+            </IconButton>
+          </MenuItem>
+        ))}
+      </Menu>
+
+      <RecordingDialog
+        open={isRecording}
+        elapsedTime={elapsedTime}
+        isProcessing={isProcessing}
+        onClose={handleStopRecording}
+      />
     </Box>
   );
 });

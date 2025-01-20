@@ -15,6 +15,7 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
         model,
         messages: messagePayload.map(({ role, content }) => ({ role, content })),
         stream: Boolean(onStream),
+        temperature: getAISettings().openai.temperature,
       }),
     });
 
@@ -54,6 +55,70 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
     return data.choices[0].message;
   } catch (error) {
     console.error('OpenAI API error:', error);
+    throw error;
+  }
+};
+
+const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, onStream) => {
+  try {
+    const messagePayload = [...messages];
+    if (customInstruction) {
+      messagePayload.unshift({ role: 'system', content: customInstruction.content });
+    }
+
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: messagePayload.map(({ role, content }) => ({ role, content })),
+        stream: Boolean(onStream),
+        temperature: getAISettings().deepseek.temperature,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`DeepSeek API error: ${response.statusText}`);
+    }
+
+    if (onStream) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value);
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const json = JSON.parse(line.slice(5));
+              const content = json.choices[0]?.delta?.content;
+              if (content) onStream(content);
+            } catch (e) {
+              console.error('Error parsing stream:', e);
+            }
+          }
+        }
+      }
+      return { role: 'assistant', content: '' };
+    }
+
+    const data = await response.json();
+    return {
+      role: 'assistant',
+      content: data.choices[0].message.content,
+    };
+  } catch (error) {
+    console.error('DeepSeek API error:', error);
     throw error;
   }
 };
@@ -103,8 +168,8 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
         model,
         messages: formattedMessages,
         system: customInstruction ? customInstruction.content : undefined,
-        max_tokens: 1024,
-        temperature: 0,
+        max_tokens: 5000,
+        temperature: getAISettings().anthropic.temperature,
         stream: Boolean(onStream),
       }),
     });
@@ -157,10 +222,28 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
 
 const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => {
   try {
-    const messagePayload = messages.map(({ role, content }) => ({
-      role: role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: Array.isArray(content) ? content[0].text : content }]
-    }));
+    const messagePayload = messages.map(({ role, content }) => {
+      const parts = [];
+      const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
+
+      formattedContent.forEach(item => {
+        if (item.type === 'image') {
+          parts.push({
+            inlineData: {
+              mimeType: item.source.media_type,
+              data: item.source.data,
+            }
+          });
+        } else if (item.type === 'text') {
+          parts.push({ text: item.text });
+        }
+      });
+
+      return {
+        role: role === 'assistant' ? 'model' : 'user',
+        parts
+      };
+    });
 
     if (customInstruction) {
       messagePayload.unshift({ role: 'user', parts: [{ text: customInstruction.content }] });
@@ -170,11 +253,11 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
       const baseConfig = {
         contents: messagePayload,
         generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
+          temperature: getAISettings().gemini.temperature,
+          maxOutputTokens: 8000,
         }
       };
-    
+
       // Only add tools for the specific model
       if (model === 'gemini-2.0-flash-exp') {
         baseConfig.tools = {
@@ -182,7 +265,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
         };
         baseConfig.generationConfig.response_modalities = ["TEXT"];
       }
-    
+
       return baseConfig;
     };
 
@@ -208,7 +291,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
 
     return {
       role: 'assistant',
-      content: data.candidates[0].content.parts[0].text,
+      content: data.candidates[0].content.parts.map(part => part.text).join(''),
       timestamp: new Date().toISOString()
     };
   } catch (error) {
@@ -221,9 +304,10 @@ const getAISettings = () => {
   const settings = localStorage.getItem('ai_settings');
   if (!settings) {
     return {
-      openai: { key: '', models: [], selectedModel: '' },
-      anthropic: { key: '', models: [], selectedModel: '' },
-      gemini: { key: '', models: [], selectedModel: '' },
+      openai: { key: '', models: [], selectedModel: '', temperature: 0 },
+      anthropic: { key: '', models: [], selectedModel: '', temperature: 0 },
+      gemini: { key: '', models: [], selectedModel: '', temperature: 0 },
+      deepseek: { key: '', models: [], selectedModel: '', temperature: 0 },
     };
   }
   return JSON.parse(settings);
@@ -242,6 +326,7 @@ const getAvailableProviders = () => {
 
 export {
   sendOpenAIMessage,
+  sendDeepSeekMessage,
   sendAnthropicMessage,
   sendGeminiMessage,
   getAISettings,

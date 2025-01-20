@@ -58,19 +58,22 @@ const Tab = ({ id, label, active, onClose, onSelect, onRename, setRightTab, spli
               fontSize: '13px',
               textAlign: 'left',
               color: 'text.primary',
-              opacity: active ? 1 : 0.7
+              opacity: active ? 1 : 0.7,
+              fontFamily: 'Rubik, sans-serif'
             }}
           />
         </form>
       ) : (
-        <Typography
-          noWrap
+        <Typography 
+          variant="body1" 
+          noWrap 
           sx={{
             flex: 1,
             fontSize: '13px',
             textAlign: 'left',
             color: 'text.primary',
-            opacity: active ? 1 : 0.7
+            opacity: active ? 1 : 0.7,
+            fontFamily: 'Rubik, sans-serif'
           }}
         >
           {label}

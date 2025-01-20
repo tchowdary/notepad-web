@@ -20,14 +20,15 @@ import 'codemirror/addon/fold/brace-fold';
 import 'codemirror/addon/fold/indent-fold';
 import 'codemirror/addon/fold/comment-fold';
 import 'codemirror/addon/fold/foldgutter.css';
-import { Box, IconButton, Tooltip, Menu, MenuItem } from '@mui/material';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import FormatAlignJustifyIcon from '@mui/icons-material/FormatAlignJustify';
+import { Box, Menu, MenuItem, IconButton, Stack } from '@mui/material';
 import MarkdownPreview from './MarkdownPreview';
-import ApiKeyInput from './ApiKeyInput';
 import TipTapEditor from './TipTapEditor';
-import { improveText } from '../utils/textImprovement';
 import { converters } from '../utils/converters';
+import {
+  Code as CodeIcon,
+  DataObject as JsonIcon,
+  FormatAlignCenter as FormatIcon,
+} from '@mui/icons-material';
 
 const Editor = forwardRef(({ 
   content, 
@@ -48,6 +49,7 @@ const Editor = forwardRef(({
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isJsonMode, setIsJsonMode] = useState(false);
   const [fileMode, setFileMode] = useState('markdown');
+  const [contextMenu, setContextMenu] = useState(null);
 
   // Restore cursor position when editor instance or cursorPosition changes
   useEffect(() => {
@@ -110,6 +112,40 @@ const Editor = forwardRef(({
       }
     }
   }, [editorInstance, content]);
+
+  const detectLanguage = (content) => {
+    // Try to detect JSON
+    try {
+      JSON.parse(content);
+      return { name: 'javascript', json: true };
+    } catch (e) {
+      // Not JSON
+    }
+
+    // Check for YAML patterns (key: value structure, indentation)
+    const yamlPattern = /^[\w\s-]+:\s*.+$/m;
+    if (yamlPattern.test(content) && content.includes(':') && !content.includes('{')) {
+      return 'yaml';
+    }
+
+    // Check for JavaScript patterns (function declarations, var/let/const, etc.)
+    const jsPattern = /(function|const|let|var|import|export|class|=>)/;
+    if (jsPattern.test(content)) {
+      return 'javascript';
+    }
+
+    // Default to markdown
+    return 'markdown';
+  };
+
+  const autodetectAndApplyLanguage = () => {
+    if (!editorInstance) return;
+    const content = editorInstance.getValue();
+    const detectedMode = detectLanguage(content);
+    setFileMode(detectedMode);
+    editorInstance.setOption('mode', detectedMode);
+    handleContextMenuClose();
+  };
 
   useImperativeHandle(ref, () => ({
     setConverterMenuAnchor: (anchor) => {
@@ -177,27 +213,17 @@ const Editor = forwardRef(({
     handleConverterClose();
   };
 
-  const handleImproveText = async () => {
-    if (improving) return;
-    
-    const text = editorInstance?.getSelection() || content;
-    if (!text.trim()) return;
+  // Handle right-click context menu
+  const handleContextMenuClose = () => {
+    setContextMenu(null);
+  };
 
-    setImproving(true);
-    try {
-      const improvedText = await improveText(text);
-      if (improvedText) {
-        if (editorInstance?.somethingSelected()) {
-          editorInstance.replaceSelection(improvedText);
-        } else {
-          onChange(improvedText);
-        }
-      }
-    } catch (error) {
-      console.error('Error improving text:', error);
-    } finally {
-      setImproving(false);
+  const handleLanguageChange = (mode) => {
+    setFileMode(mode);
+    if (editorInstance) {
+      editorInstance.setOption('mode', mode);
     }
+    handleContextMenuClose();
   };
 
   const options = {
@@ -213,7 +239,7 @@ const Editor = forwardRef(({
     dragDrop: true,
     styleActiveLine: true,
     foldGutter: true,
-    gutters:  !focusMode && ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    gutters: !focusMode && ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
     readOnly: false,
     extraKeys: {
       "Ctrl-Q": function(cm) {
@@ -253,21 +279,70 @@ const Editor = forwardRef(({
         <Box sx={{ position: 'relative', height: '100%' }}>
           <CodeMirror
             value={content}
-            options={{
-              ...options,
-              inputStyle: 'contenteditable',
-              configureMouse: () => ({ addNew: false })
-            }}
+            options={options}
             onBeforeChange={handleChange}
+            onContextMenu={(editor, e) => {
+              e.preventDefault();
+              const { left, top } = editor.getWrapperElement().getBoundingClientRect();
+              const { clientX, clientY } = e;
+              setContextMenu({
+                mouseX: clientX - left,
+                mouseY: clientY - top,
+              });
+            }}
             editorDidMount={editor => {
               setEditorInstance(editor);
               editor.on('cursorActivity', () => {
-                if (onCursorChange && !editor.somethingSelected()) {
+                if (onCursorChange) {
                   onCursorChange(editor.getCursor());
                 }
               });
             }}
           />
+          {/* Context Menu */}
+          <Menu
+            open={contextMenu !== null}
+            onClose={handleContextMenuClose}
+            anchorReference="anchorPosition"
+            anchorPosition={
+              contextMenu !== null
+                ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+                : undefined
+            }
+          >
+            <MenuItem onClick={autodetectAndApplyLanguage}>
+              Auto-detect Syntax
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                if (!editorInstance) return;
+                try {
+                  const currentValue = editorInstance.getValue();
+                  const parsedJson = JSON.parse(currentValue);
+                  const formattedJson = JSON.stringify(parsedJson, null, 2);
+                  editorInstance.setValue(formattedJson);
+                  setIsJsonMode(true);
+                  editorInstance.setOption('mode', { name: 'javascript', json: true });
+                } catch (e) {
+                  console.error('Invalid JSON');
+                }
+                handleContextMenuClose();
+              }}
+            >
+              Format JSON
+            </MenuItem>
+            {Object.entries(converters).map(([key, converter]) => (
+              <MenuItem 
+                key={key} 
+                onClick={() => {
+                  handleConvert(converter);
+                  handleContextMenuClose();
+                }}
+              >
+                {converter.name}
+              </MenuItem>
+            ))}
+          </Menu>
         </Box>
       ) : (
         <TipTapEditor
@@ -292,34 +367,6 @@ const Editor = forwardRef(({
         ))}
       </Menu>
       
-      {improving && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            padding: '10px 20px',
-            borderRadius: '4px',
-          }}
-        >
-          Improving text...
-        </Box>
-      )}
-      {!showPreview && editorType === 'codemirror' && (
-        <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1 }}>
-          <Tooltip title="Improve Text">
-            <IconButton 
-              onClick={handleImproveText}
-              disabled={improving}
-            >
-              <AutoFixHighIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      )}
     </Box>
   );
 

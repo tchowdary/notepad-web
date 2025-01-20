@@ -62,7 +62,7 @@ class GitHubService {
 
   shouldSyncFile(filename) {
     // Skip untitled.md files
-    if (filename === 'untitled.md' || filename.startsWith('Note') || filename.startsWith('Code')) {
+    if (filename.startsWith('Note') || filename.startsWith('Code') || filename.endsWith('.tldraw')) {
       return false;
     }
     
@@ -154,49 +154,38 @@ class GitHubService {
     }
   }
 
-  async uploadFile(filename, content) {
+  async uploadFile(filename, content, tab = null) {
     if (!this.isConfigured()) return;
 
     try {
-      const currentPath = filename === 'todo.md' ? this.getTodoFilePath() : this.getFilePath(filename);
+      const path = this.getFilePath(filename);
+      const sha = await this.getLatestFileSHA(path);
       
-      // Find where the file currently exists (if anywhere)
-      const existingPath = await this.findExistingFilePath(currentPath);
+      // Create base64 content
+      const contentBase64 = btoa(unescape(encodeURIComponent(content)));
       
-      const latestSHA = await this.getLatestFileSHA(existingPath);
-      
-      // Always use the existing path if we found a SHA, otherwise use current path
-      const uploadPath = existingPath || currentPath;
-      
-      const apiUrl = `https://api.github.com/repos/${this.settings.repo}/contents/${uploadPath}`;
-
-      // Ensure the directory exists before uploading
-      await this.createDirectory(uploadPath);
-
-      // Convert content to UTF-8 encoded string, handling base64 images properly
-      const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
-      const contentBytes = new TextEncoder().encode(contentStr);
-      const base64Content = btoa(String.fromCharCode(...contentBytes));
-
-      const body = {
-        message: `Update ${uploadPath}`,
-        content: base64Content,
+      const requestBody = {
+        message: `Update ${filename}`,
+        content: contentBase64,
         branch: this.settings.branch
       };
-
-      if (latestSHA) {
-        body.sha = latestSHA;
+      
+      if (sha) {
+        requestBody.sha = sha;
       }
 
-      const response = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `token ${this.settings.token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
+      const response = await fetch(
+        `https://api.github.com/repos/${this.settings.repo}/contents/${path}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${this.settings.token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github.v3+json'
+          },
+          body: JSON.stringify(requestBody)
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -205,7 +194,20 @@ class GitHubService {
       }
 
       const responseData = await response.json();
+
+      // If a tab was provided, update its lastSynced timestamp
+      if (tab) {
+        const db = await openDB();
+        const tx = db.transaction(TABS_STORE, 'readwrite');
+        const store = tx.objectStore(TABS_STORE);
+        
+        await store.put({
+          ...tab,
+          lastSynced: new Date().toISOString()
+        });
+      }
       
+      return responseData;
     } catch (error) {
       console.error('Error uploading file:', error);
       throw error;
@@ -294,25 +296,46 @@ class GitHubService {
     }
   }
 
-  getChatFilePath(sessionId) {
+  getChatFilePath(sessionId, title) {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    return `chats/${year}/${month}/chat-${sessionId}.md`;
+    const sanitizedTitle = title && typeof title === 'string' ? `${title.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}-` : '';
+    return sanitizedTitle === ' ' ? `chats/${year}/${month}/${sessionId}.md` : `chats/${year}/${month}/${sanitizedTitle}${sessionId}.md`;
   }
 
   async syncChats() {
     if (!this.isConfigured()) return;
 
     try {
-      // Open chatDB instead of notepadDB
+      // Open chatDB with the correct version
       const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open('chatDB', 1);
+        const request = indexedDB.open('chatDB', 3);
+        
         request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
+        
+        request.onupgradeneeded = (event) => {
+          console.log('Upgrading chat database in GitHub service');
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains('chatSessions')) {
+            const store = db.createObjectStore('chatSessions', { keyPath: 'id' });
+            store.createIndex('lastUpdated', 'lastUpdated');
+            store.createIndex('lastSynced', 'lastSynced');
+          } else if (event.oldVersion === 1) {
+            const store = event.currentTarget.transaction.objectStore('chatSessions');
+            if (!store.indexNames.contains('lastSynced')) {
+              store.createIndex('lastSynced', 'lastSynced');
+            }
+          }
+        };
+        
+        request.onsuccess = () => {
+          console.log('Successfully opened chat database for sync, version:', request.result.version);
+          resolve(request.result);
+        };
       });
 
-      const tx = db.transaction('chatSessions', 'readonly');
+      const tx = db.transaction('chatSessions', 'readwrite');
       const store = tx.objectStore('chatSessions');
       const sessions = await new Promise((resolve, reject) => {
         const request = store.getAll();
@@ -320,30 +343,125 @@ class GitHubService {
         request.onsuccess = () => resolve(request.result);
       });
 
+      let syncCount = 0;
       for (const session of sessions) {
         if (!session.messages || session.messages.length === 0) continue;
 
-        // Format chat content in markdown
-        const content = session.messages.map(msg => {
-          const messageContent = typeof msg.content === 'string' 
-            ? msg.content 
-            : msg.content.type === 'text' 
-              ? msg.content.text
-              : `[${msg.content.type} content]`;
-              
-          return `### ${msg.role === 'user' ? 'User' : 'Assistant'}\n\n${messageContent}\n\n---\n`;
-        }).join('\n');
+        try {
+          const needsSync = !session.lastSynced || 
+                          (session.lastUpdated && this.compareDates(session.lastUpdated, session.lastSynced));
 
-        const path = this.getChatFilePath(session.id);
-        await this.uploadFile(path, content);
+          if (needsSync) {
+            // Format chat content in markdown
+            let content = `# ${session.title}\n\nLast updated: ${session.lastUpdated}\n\n`;
+            content += session.messages.map(msg => {
+              let messageContent = '';
+              
+              // Handle different message content types
+              if (typeof msg.content === 'string') {
+                messageContent = msg.content;
+              } else if (Array.isArray(msg.content)) {
+                messageContent = msg.content.map(item => {
+                  if (typeof item === 'string') return item;
+                  if (item.text) return item.text;
+                  if (item.content) return item.content;
+                  return JSON.stringify(item);
+                }).join('\n');
+              } else if (msg.content?.type === 'text') {
+                messageContent = msg.content.text;
+              } else if (typeof msg.content?.content === 'string') {
+                messageContent = msg.content.content;
+              } else if (msg.content?.content?.text) {
+                messageContent = msg.content.content.text;
+              } else if (msg.content) {
+                messageContent = JSON.stringify(msg.content, null, 2);
+              } else {
+                messageContent = '[Empty message]';
+              }
+
+              // Special handling for code blocks
+              const parts = messageContent.split(/(```[^`]*```)/g);
+              messageContent = parts.map((part, index) => {
+                if (part.startsWith('```') && part.endsWith('```')) {
+                  return part;
+                } else {
+                  return part
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                    .join('\n\n');
+                }
+              }).join('\n\n');
+
+              return `### ${msg.role === 'user' ? 'User' : 'Assistant'}\n\n${messageContent}\n\n---\n`;
+            }).join('\n');
+
+            const path = this.getChatFilePath(session.id, session.title);
+            await this.uploadFile(path, content);
+
+            // Update lastSynced timestamp
+            const now = new Date().toISOString();
+            const updatedSession = {
+              ...session,
+              lastSynced: now
+            };
+            
+            // Use a separate transaction to update the lastSynced timestamp
+            const updateTx = db.transaction('chatSessions', 'readwrite');
+            const updateStore = updateTx.objectStore('chatSessions');
+            
+            await new Promise((resolve, reject) => {
+              const updateRequest = updateStore.put(updatedSession);
+              
+              updateRequest.onsuccess = () => {
+                console.log(`Updated lastSynced for session ${session.id} to:`, now);
+                resolve();
+              };
+              
+              updateRequest.onerror = (error) => {
+                console.error(`Failed to update lastSynced for session ${session.id}:`, error);
+                reject(updateRequest.error);
+              };
+              
+              updateTx.oncomplete = () => {
+                console.log(`Transaction completed for session ${session.id}`);
+              };
+              
+              updateTx.onerror = (error) => {
+                console.error(`Transaction failed for session ${session.id}:`, error);
+              };
+            });
+
+            syncCount++;
+            //console.log(`Successfully synced chat session ${session.id}`);
+          } else {
+            //console.log(`Skipping chat session ${session.id} - no changes since last sync`);
+          }
+        } catch (sessionError) {
+          console.error(`Error processing chat session ${session.id}:`, sessionError);
+          continue;
+        }
       }
+
+      console.log(`Synced ${syncCount} chat sessions to GitHub`);
     } catch (error) {
       console.error('Error syncing chats:', error);
       throw error;
     }
   }
 
-  // Method to sync all files
+  // Helper function to safely parse dates and compare them
+  compareDates(date1, date2) {
+    try {
+      const d1 = new Date(date1).getTime();
+      const d2 = new Date(date2).getTime();
+      return d1 > d2;
+    } catch (error) {
+      console.error('Error comparing dates:', error, { date1, date2 });
+      return true; // If there's an error, sync to be safe
+    }
+  }
+
   async syncAllFiles() {
     if (!this.isConfigured()) {
       return;
@@ -378,17 +496,32 @@ class GitHubService {
       let syncCount = 0;
       for (const tab of tabs) {
         if (this.shouldSyncFile(tab.name)) {
-          try {
-            await this.uploadFile(tab.name, tab.content);
-            syncCount++;
-          } catch (error) {
-            console.error(`Failed to sync file ${tab.name}:`, error);
+          const needsSync = !tab.lastSynced || (tab.lastModified && this.compareDates(tab.lastModified, tab.lastSynced));
+          
+          console.log(`Tab ${tab.name} sync status:`, {
+            lastModified: tab.lastModified,
+            lastSynced: tab.lastSynced,
+            needsSync
+          });
+
+          if (needsSync) {
+            try {
+              await this.uploadFile(tab.name, tab.content, tab);
+              syncCount++;
+              console.log(`Synced ${tab.name} to GitHub`);
+            } catch (error) {
+              console.error(`Failed to sync file ${tab.name}:`, error);
+            }
+          } else {
+            console.log(`Skipping ${tab.name} - no changes since last sync`);
           }
         }
       }
 
       // Sync chats
       await this.syncChats();
+      
+      console.log(`Synced ${syncCount} files to GitHub`);
     } catch (error) {
       console.error('Error in syncAllFiles:', error);
     }
