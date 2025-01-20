@@ -1,0 +1,53 @@
+.tiptap .details {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1.5rem 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.tiptap .details summary {
+  font-weight: 700;
+}
+
+.tiptap .details > button {
+  align-items: center;
+  background: transparent;
+  border-radius: 4px;
+  display: flex;
+  font-size: 0.625rem;
+  height: 1.25rem;
+  justify-content: center;
+  line-height: 1;
+  margin-top: 0.1rem;
+  padding: 0;
+  width: 1.25rem;
+}
+
+.tiptap .details > button:hover {
+  background-color: #f0f0f0;
+}
+
+.tiptap .details > button::before {
+  content: '\25B6';
+}
+
+.tiptap .details.is-open > button::before {
+  transform: rotate(90deg);
+}
+
+.tiptap .details > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.tiptap .details > div > [data-type="detailsContent"] > :last-child {
+  margin-bottom: 0.5rem;
+}
+
+.tiptap .details .details {
+  margin: 0.5rem 0;
+}

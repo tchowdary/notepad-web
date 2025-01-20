@@ -14,7 +14,11 @@ import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
 import Highlight from '@tiptap/extension-highlight'
 import { getHierarchicalIndexes, TableOfContents } from '@tiptap-pro/extension-table-of-contents';
-import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText } from '@mui/material';
+import Placeholder from '@tiptap/extension-placeholder'
+import Details from '@tiptap-pro/extension-details'
+import DetailsContent from '@tiptap-pro/extension-details-content'
+import DetailsSummary from '@tiptap-pro/extension-details-summary'
+import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText, ToggleButton } from '@mui/material';
 import {
   FormatBold,
   FormatItalic,
@@ -35,6 +39,7 @@ import {
   CheckBox,
   AddCircleOutline,
   DeleteForever,
+  Expand,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
@@ -43,6 +48,7 @@ import RecordRTC from 'recordrtc';
 import RecordingDialog from './RecordingDialog';
 import { ToC } from './ToC';
 import './toc.css';
+import './TipTapEditor.css';
 import { sendAnthropicMessage } from '../services/aiService';
 import { createLowlight } from 'lowlight';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
@@ -421,6 +427,23 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           setTocItems(items);
         },
       }),
+      Details.configure({
+        persist: true,
+        HTMLAttributes: {
+          class: 'details',
+        },
+      }),
+      DetailsSummary,
+      DetailsContent,
+      Placeholder.configure({
+        includeChildren: true,
+        placeholder: ({ node }) => {
+          if (node.type.name === 'detailsSummary') {
+            return 'Summary'
+          }
+          return null
+        },
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -758,6 +781,18 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       icon: <AutoFixHigh />,
       title: 'Improve Text',
       action: handleImproveText,
+    },
+    {
+      icon: <Expand />,
+      title: 'Toggle Details',
+      action: () => {
+        if (editor.isActive('details')) {
+          editor.chain().focus().unsetDetails().run();
+        } else {
+          editor.chain().focus().setDetails().run();
+        }
+      },
+      isActive: () => editor.isActive('details'),
     },
     {
       icon: <MicIcon />,
