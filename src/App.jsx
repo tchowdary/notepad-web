@@ -175,10 +175,9 @@ function App() {
   useEffect(() => {
     const handleKeyDown = async (e) => {
       // Exit focus mode on Escape key
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && focusMode) {
         setFocusMode(false);
-        setShowSidebar(true); 
-        setShowPreview(false);       
+        setShowSidebar(true);
         return;
       }
       
@@ -206,10 +205,6 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'a') {
         e.preventDefault();
         setQuickAddOpen(true);
-      }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
-        e.preventDefault();
-        setFocusMode(true)
       }
     };
 
