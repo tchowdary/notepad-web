@@ -517,6 +517,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
       setMessages([]);
       setHistoryAnchorEl(null);
       setIsNewMessage(true); // Auto-scroll for new sessions
+      setSelectedInstruction(null);
+      localStorage.removeItem('last_selected_instruction');
+      setInstructionMenuAnchorEl(null);
     } catch (error) {
       console.error('Error creating new session:', error);
       setError('Failed to create new chat session');
