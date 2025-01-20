@@ -12,6 +12,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
+import Highlight from '@tiptap/extension-highlight'
 import { getHierarchicalIndexes, TableOfContents } from '@tiptap-pro/extension-table-of-contents';
 import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText } from '@mui/material';
 import {
@@ -396,6 +397,9 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       Link.configure({
         openOnClick: true,
       }),
+      Highlight.configure({
+        multicolor: true,
+      }),       
       HorizontalRule,
       Table.configure({
         resizable: true,
