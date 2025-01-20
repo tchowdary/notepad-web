@@ -126,6 +126,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [parsedStreamingContent, setParsedStreamingContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const streamingContentRef = useRef('');
@@ -233,11 +234,14 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
         } else {
           setIsStreaming(true);
           setStreamingContent('');
+          setParsedStreamingContent('');
           streamingContentRef.current = '';
           
           const handleStream = (content) => {
             streamingContentRef.current += content;
             setStreamingContent(streamingContentRef.current);
+            // Parse the markdown in real-time
+            setParsedStreamingContent(renderMessageContent(streamingContentRef.current));
           };
 
           await (providerName === 'openai' 
@@ -254,6 +258,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
 
           setIsStreaming(false);
           setStreamingContent('');
+          setParsedStreamingContent('');
           const finalUpdatedMessages = [...updatedMessages, finalResponse];
           setMessages(finalUpdatedMessages);
           
@@ -696,8 +701,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
           component="div"
           sx={{ 
             fontFamily: 'Geist, sans-serif',
-            fontSize: '17px',
-            lineHeight: 1.8,
+            fontSize: '16px',
+            lineHeight: 1.7,
             '& h1, & h2, & h3, & h4, & h5, & h6': {
               fontWeight: 600,
               lineHeight: 1.3,
@@ -1329,20 +1334,21 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
                     </Box>
                   </Box>
                 ))}
-                {isStreaming && streamingContent && (
-                  <Box
+                {isStreaming && (
+                  <Box 
                     sx={{
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      maxWidth: '100%',
+                      alignItems: 'center',
+                      width: '100%',
+                      maxWidth: isFullscreen ? '1100px' : '100%',
                       px: 2,
                       py: 1,
                     }}
                   >
                     <Box
                       sx={{
-                        maxWidth: '80%',
+                        width: '100%',
                         position: 'relative',
                         backgroundColor: theme.palette.background.paper,
                         color: theme.palette.text.primary,
@@ -1350,11 +1356,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
                         p: 2,
                       }}
                     >
-                      <Box sx={{ position: 'relative' }}>
-                        <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
-                          {streamingContent}
-                        </Typography>
-                      </Box>
+                      {parsedStreamingContent}
                     </Box>
                   </Box>
                 )}
@@ -1447,8 +1449,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
                   </Box>
                 </Box>
               ))}
-              {isStreaming && streamingContent && (
-                <Box
+              {isStreaming && (
+                <Box 
                   sx={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -1468,11 +1470,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
                       p: 2,
                     }}
                   >
-                    <Box sx={{ position: 'relative' }}>
-                      <Typography sx={{ whiteSpace: 'pre-wrap', pr: 4, fontFamily: 'Rubik, sans-serif', lineHeight: 1.8 }}>
-                        {streamingContent}
-                      </Typography>
-                    </Box>
+                    {parsedStreamingContent}
                   </Box>
                 </Box>
               )}
