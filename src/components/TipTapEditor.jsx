@@ -18,6 +18,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Details from '@tiptap-pro/extension-details'
 import DetailsContent from '@tiptap-pro/extension-details-content'
 import DetailsSummary from '@tiptap-pro/extension-details-summary'
+import Emoji, { gitHubEmojis } from '@tiptap-pro/extension-emoji'
 import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText, ToggleButton } from '@mui/material';
 import {
   FormatBold,
@@ -443,6 +444,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           }
           return null
         },
+      }),
+      Emoji.configure({
+        emojis: gitHubEmojis,
+        enableEmoticons: true,
       }),
     ],
     content,
