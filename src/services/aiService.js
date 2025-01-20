@@ -107,7 +107,9 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
             try {
               const json = JSON.parse(line.slice(5));
               const content = json.choices[0]?.delta?.content;
+              const reasoningContent = json.choices[0]?.delta?.reasoning_content;
               if (content) onStream(content);
+              if (reasoningContent) onStream(reasoningContent);
             } catch (e) {
               console.error('Error parsing stream:', e);
             }
@@ -118,10 +120,16 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
     }
 
     const data = await response.json();
-    return {
+    const responseMessage = {
       role: 'assistant',
       content: data.choices[0].message.content,
     };
+
+    if (model === 'deepseek-reasoner' && data.choices[0].message.reasoning_content) {
+      responseMessage.reasoning_content = data.choices[0].message.reasoning_content;
+    }
+
+    return responseMessage;
   } catch (error) {
     console.error('DeepSeek API error:', error);
     throw error;
