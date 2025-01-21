@@ -145,19 +145,6 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
         return {
           role: role === 'assistant' ? 'assistant' : 'user',
           content: content.map(item => {
-            if (item.type === 'pdf') {
-              return {
-                type: 'document',
-                source: {
-                  type: 'base64',
-                  media_type: 'application/pdf',
-                  data: item.data
-                },
-                cache_control: {
-                  type: 'ephemeral'
-                }
-              };
-            }
             return item;
           })
         };

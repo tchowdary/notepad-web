@@ -155,6 +155,18 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
             type: 'text',
             text: selectedFile.data
           });
+        } else if (selectedFile.type === 'pdf') {
+          messageContent.push({
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: selectedFile.mediaType,
+              data: selectedFile.data
+            },
+            cache_control: {
+              type: 'ephemeral'
+            }
+          });
         } else {
           messageContent.push({
             type: selectedFile.type,
@@ -600,9 +612,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
       reader.onload = (e) => {
         const base64Data = e.target.result.split(',')[1];
         setSelectedFile({
-          type: 'pdf',
+          type: 'document',
           name: file.name,
-          data: base64Data
+          data: base64Data,
+          mediaType: 'application/pdf'
         });
       };
     } else if (file.type === 'text/markdown' || file.name.endsWith('.md') || 
@@ -823,6 +836,17 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
               <embed 
                 src={`data:application/pdf;base64,${item.data}`}
                 type="application/pdf"
+                width="100%"
+                height="500"
+              />
+            </Box>
+          );
+        } else if (item.type === 'document') {
+          return (
+            <Box key={index} sx={{ my: 2 }}>
+              <embed 
+                src={`data:${item.source.media_type};base64,${item.source.data}`}
+                type={item.source.media_type}
                 width="100%"
                 height="500"
               />
