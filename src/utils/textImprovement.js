@@ -23,9 +23,8 @@ export async function improveText(text) {
             {
               type: "text",
               text:
-                "Your task is to take the HTML text provided and improve it while preserving all HTML formatting, including links, bullet points, and other markup. Rewrite it into a clear, grammatically correct version while preserving the original meaning as closely as possible. Correct any spelling mistakes, punctuation errors, verb tense issues, word choice problems, and other grammatical mistakes.Maintain the original HTML structure and only improve the content and return the result as valid HTML.\n\nHere is the text to improve:\n\n<text_to_improve>\n" +
+                "Your task is to take the HTML text provided and improve it while preserving all HTML formatting, including links, bullet points, and other markup. Rewrite it into a clear, grammatically correct version while preserving the original meaning as closely as possible. Correct any spelling mistakes, punctuation errors, verb tense issues, word choice problems, and other grammatical mistakes.Maintain the original HTML structure and only improve the content and return the result as valid HTML.\n\nHere is the text to improve:\n" +
                 text +
-                "\n</text_to_improve>\n" +
                 "\nReturn only the edited text. Do not wrap your response in quotes. Do not offer anything else other than the edited text in the response.",
             },
           ],
