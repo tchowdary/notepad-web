@@ -654,17 +654,20 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
         const file = item.getAsFile();
         if (!file) continue;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const base64Data = e.target.result.split(',')[1];
-          setSelectedFile({
-            type: 'image',
-            name: 'pasted-image.png',
-            data: base64Data,
-            mediaType: file.type
-          });
-        };
-        reader.readAsDataURL(file);
+        try {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64Data = event.target.result.split(',')[1];
+            setSelectedFile({
+              type: 'image',
+              mediaType: file.type,
+              data: base64Data
+            });
+          };
+          reader.readAsDataURL(file);
+        } catch (error) {
+          console.error('Error processing pasted image:', error);
+        }
         break;
       }
     }
@@ -1054,6 +1057,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
                   handleSendMessage();
                 }
               }}
+              onPaste={handlePaste}
               multiline
               maxRows={6} 
               ref={inputRef}
