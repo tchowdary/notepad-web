@@ -16,6 +16,7 @@ import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
 import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
 import QuickChat from './components/QuickChat';
+import TabSwitcher from './components/TabSwitcher';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
@@ -55,6 +56,7 @@ function App() {
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
+  const [showTabSwitcher, setShowTabSwitcher] = useState(false);
 
   const theme = createTheme({
     palette: {
@@ -179,6 +181,14 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = async (e) => {
+      // Open tab switcher on Shift+Tab
+      if (e.shiftKey && e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowTabSwitcher(true);
+        return;
+      }
+
       // Alt + C for quick chat
       if (e.ctrlKey && e.key.toLowerCase() === 'g') {
         e.preventDefault();
@@ -268,14 +278,14 @@ function App() {
     saveTodoState();
   }, [todoData]);
 
-  const handleNewTab = () => {
+  const handleNewTab = ({ type = 'codemirror' } = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     const newTab = {
       id: newId,
-      name: `Code-${newId}.txt`,
+      name: type === 'tiptap' ? `Note-${newId}.md` : `Code-${newId}.txt`,
       content: '',
       type: 'markdown',
-      editorType: 'codemirror'
+      editorType: type
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
     // Use requestAnimationFrame for smoother focus handling
@@ -949,6 +959,13 @@ function App() {
         open={showQuickChat}
         onClose={() => setShowQuickChat(false)}
         onSubmit={handleQuickChatSubmit}
+      />
+      <TabSwitcher
+        open={showTabSwitcher}
+        onClose={() => setShowTabSwitcher(false)}
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabSelect={handleTabSelect}
       />
     </ThemeProvider>
   );

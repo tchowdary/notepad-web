@@ -47,11 +47,19 @@ export const createCommandList = ({
 }) => {
   const mainCommands = [
     {
+      id: 'new-code-file',
+      label: 'New Code File',
+      description: 'Create a new code file',
+      icon: CodeIcon,
+      action: () => onNewTab({ type: 'codemirror' }),
+      shortcut: 'Ctrl+Shift+N'
+    },
+    {
       id: 'new-file',
-      label: 'New File',
-      description: 'Create a new file',
+      label: 'New Note',
+      description: 'Create a new note with rich text editor',
       icon: AddIcon,
-      action: onNewTab,
+      action: () => onNewTab({ type: 'tiptap' }),
       shortcut: 'Ctrl+N'
     },
     {
