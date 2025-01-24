@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
 import Editor from './components/Editor';
 import TabList from './components/TabList';
@@ -57,6 +58,20 @@ function App() {
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
   const [showTabSwitcher, setShowTabSwitcher] = useState(false);
+
+  const location = useLocation();
+
+  // Handle direct hash URLs for tabs
+  useEffect(() => {
+    const hash = location.hash;
+    if (hash && !location.pathname.includes('chat')) {
+      const tabId = hash.slice(1); // Remove the # symbol
+      const tab = tabs.find(t => t.id === tabId);
+      if (tab) {
+        setActiveTab(tabId);
+      }
+    }
+  }, [location.hash, tabs]);
 
   const theme = createTheme({
     palette: {
@@ -754,200 +769,214 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {!isLoading && (
-          <>
-            <Box sx={{ 
-              display: focusMode ? 'none' : 'block',
-              '@media (max-width: 960px)': {
-                display: 'none'
-              }
-            }}>
-              <Toolbar 
-                onNewTab={handleNewTab}
-                onOpenFile={handleOpenFile}
-                onSaveFile={handleSaveFile}
-                wordWrap={wordWrap}
-                onWordWrapChange={() => setWordWrap(!wordWrap)}
-                darkMode={darkMode}
-                onDarkModeChange={() => setDarkMode(!darkMode)}
-                focusMode={focusMode}
-                onFocusModeChange={() => {
-                  setFocusMode(!focusMode);
-                  setShowSidebar(focusMode);
-                }}
-                showPreview={showPreview}
-                onShowPreviewChange={() => setShowPreview(!showPreview)}
-                onNewDrawing={handleNewDrawing}
-                onConvert={(converterId) => handleConvert(converterId)}
-                onFormatJson={() => editorRef.current?.formatJson()}
-                currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
-                setShowGitHubSettings={setShowGitHubSettings}
-                onTodoClick={handleTodoClick}
-                onQuickAddClick={handleQuickAddClick}
-                showChat={showChat}
-                onChatToggle={handleChatToggle}
-                setSplitView={setSplitView}
-                setRightTab={setRightTab}
-                splitView={splitView}
-              />
-            </Box>
-
-            <CommandBar
-              open={showCommandBar}
-              onClose={() => setShowCommandBar(false)}
-              commands={commandList}
-            />
-            <GitHubSettingsModal
-              open={showGitHubSettings}
-              onClose={() => setShowGitHubSettings(false)}
-            />
-            <ApiKeyInput
-              open={showApiSettings}
-              onClose={() => setShowApiSettings(false)}
-            />
-            <QuickAddTask
-              open={quickAddOpen}
-              onClose={() => setQuickAddOpen(false)}
-              onAddTask={handleQuickAddTask}
+      <Routes>
+        <Route path="/chat" element={
+          <Box sx={{ height: '100vh', width: '100vw' }}>
+            <ChatBox 
               darkMode={darkMode}
+              setDarkMode={setDarkMode}
+              fullScreen={true}
             />
-            <CommandPalette
-              isOpen={showCommandPalette}
-              onClose={() => setShowCommandPalette(false)}
-              onFileSelect={handleFileSelectFromCommandPalette}
-              darkMode={darkMode}
-            />
-            
-            <ResponsiveToolbar
-              darkMode={darkMode}
-              onDarkModeChange={() => setDarkMode(!darkMode)}
-              onChatToggle={() => setShowChat(!showChat)}
-              showChat={showChat}
-              onSidebarToggle={() => setShowSidebar(!showSidebar)}
-              showSidebar={showSidebar}
-              onCopy={handleCopyContent}
-              onClear={handleClearContent}
-            />
-            <Box sx={{ 
-              display: 'flex', 
-              flex: 1,
-              overflow: 'hidden'
-            }}>
-              {/* Main Content Area */}
-              <Box sx={{ 
-                flex: 1,
-                display: 'flex',
-                flexDirection: showChat ? 'row' : 'column',
-                overflow: 'hidden',
-                position: 'relative'
-              }}>
-                {/* Editor Area */}
-                <Box 
-                  onClick={handleEditorClick}
-                  sx={{ 
-                    flex: 1,
-                    minWidth: 0,
-                    position: 'relative',
-                    overflow: 'auto',
-                    // Add overlay when sidebar is shown in mobile
-                    '&::after': {
-                      content: '""',
-                      display: { xs: showSidebar ? 'block' : 'none', md: 'none' },
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      bgcolor: 'rgba(0, 0, 0, 0.3)',
-                      zIndex: 1,
-                      pointerEvents: 'none' // Allow scrolling when overlay is shown
-                    }
-                  }}
-                >
-                  {splitView ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'row', width: '100%', height: '100%' }}>
-                      <Box sx={{ flex: 1, overflow: 'auto' }}>
-                        {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
-                      </Box>
-                      <Box sx={{ flex: 1, overflow: 'auto', borderLeft: `1px solid ${theme.palette.divider}` }}>
-                        {rightTab && renderTab(tabs.find(tab => tab.id === rightTab))}
-                      </Box>
-                    </Box>
-                  ) : (
-                    activeTab && renderTab(tabs.find(tab => tab.id === activeTab))
-                  )}
-                </Box>
-                
-                {showChat && (
-                  <Box 
-                    sx={{ 
-                      ...(isChatFullscreen ? {
-                        position: 'fixed',
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        left: 0,
-                        zIndex: theme.zIndex.drawer + 2,
-                        bgcolor: 'background.default',
-                      } : {
-                        width: '40%',
-                        minWidth: '400px',
-                        maxWidth: '800px',
-                        height: '100%',
-                        position: 'relative',
-                        borderLeft: `1px solid ${theme.palette.divider}`,
-                      })
+          </Box>
+        } />
+        <Route path="/*" element={
+          <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+            {/* Rest of your existing App UI */}
+            {!isLoading && (
+              <>
+                <Box sx={{ 
+                  display: focusMode ? 'none' : 'block',
+                  '@media (max-width: 960px)': {
+                    display: 'none'
+                  }
+                }}>
+                  <Toolbar 
+                    onNewTab={handleNewTab}
+                    onOpenFile={handleOpenFile}
+                    onSaveFile={handleSaveFile}
+                    wordWrap={wordWrap}
+                    onWordWrapChange={() => setWordWrap(!wordWrap)}
+                    darkMode={darkMode}
+                    onDarkModeChange={() => setDarkMode(!darkMode)}
+                    focusMode={focusMode}
+                    onFocusModeChange={() => {
+                      setFocusMode(!focusMode);
+                      setShowSidebar(focusMode);
                     }}
-                  >
-                    <ChatBox 
-                      onFullscreenChange={setIsChatFullscreen} 
-                      initialFullscreen={isChatFullscreen}
-                      initialInput={quickChatInput}
-                      createNewSessionOnMount={quickChatInput !== ''} // Only create new session if coming from quick chat
-                      onMessageSent={handleMessageSent}
-                    />
-                  </Box>
-                )}
-              </Box>
-
-              {/* Right Sidebar */}
-              {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && (
-                <Box
-              
-                  sx={{
-                    width: 250,
-                    flexShrink: 0,
-                    borderLeft: `1px solid ${theme.palette.divider}`,
-                    bgcolor: theme.palette.background.paper,
-                    overflowY: 'auto',
-                    position: 'relative',
-                    zIndex: 1,
-                    '@media (max-width: 960px)': {
-                      position: 'fixed',
-                      right: 0,
-                      height: '100%',
-                      transform: showSidebar ? 'translateX(0)' : 'translateX(100%)',
-                      transition: 'transform 0.3s ease-in-out'
-                    }
-                  }}
-                >
-                  <TabList
-                    tabs={tabs}
-                    activeTab={activeTab}
-                    onTabSelect={handleTabSelect}
-                    onTabClose={handleTabClose}
-                    onTabRename={handleTabRename}
-                    onTabAreaDoubleClick={handleTabAreaDoubleClick}
+                    showPreview={showPreview}
+                    onShowPreviewChange={() => setShowPreview(!showPreview)}
+                    onNewDrawing={handleNewDrawing}
+                    onConvert={(converterId) => handleConvert(converterId)}
+                    onFormatJson={() => editorRef.current?.formatJson()}
+                    currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
+                    setShowGitHubSettings={setShowGitHubSettings}
+                    onTodoClick={handleTodoClick}
+                    onQuickAddClick={handleQuickAddClick}
+                    showChat={showChat}
+                    onChatToggle={handleChatToggle}
+                    setSplitView={setSplitView}
                     setRightTab={setRightTab}
                     splitView={splitView}
                   />
                 </Box>
-              )}
-            </Box>
-          </>
-        )}
-      </Box>
+
+                <CommandBar
+                  open={showCommandBar}
+                  onClose={() => setShowCommandBar(false)}
+                  commands={commandList}
+                />
+                <GitHubSettingsModal
+                  open={showGitHubSettings}
+                  onClose={() => setShowGitHubSettings(false)}
+                />
+                <ApiKeyInput
+                  open={showApiSettings}
+                  onClose={() => setShowApiSettings(false)}
+                />
+                <QuickAddTask
+                  open={quickAddOpen}
+                  onClose={() => setQuickAddOpen(false)}
+                  onAddTask={handleQuickAddTask}
+                  darkMode={darkMode}
+                />
+                <CommandPalette
+                  isOpen={showCommandPalette}
+                  onClose={() => setShowCommandPalette(false)}
+                  onFileSelect={handleFileSelectFromCommandPalette}
+                  darkMode={darkMode}
+                />
+                
+                <ResponsiveToolbar
+                  darkMode={darkMode}
+                  onDarkModeChange={() => setDarkMode(!darkMode)}
+                  onChatToggle={() => setShowChat(!showChat)}
+                  showChat={showChat}
+                  onSidebarToggle={() => setShowSidebar(!showSidebar)}
+                  showSidebar={showSidebar}
+                  onCopy={handleCopyContent}
+                  onClear={handleClearContent}
+                />
+                <Box sx={{ 
+                  display: 'flex', 
+                  flex: 1,
+                  overflow: 'hidden'
+                }}>
+                  {/* Main Content Area */}
+                  <Box sx={{ 
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: showChat ? 'row' : 'column',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}>
+                    {/* Editor Area */}
+                    <Box 
+                      onClick={handleEditorClick}
+                      sx={{ 
+                        flex: 1,
+                        minWidth: 0,
+                        position: 'relative',
+                        overflow: 'auto',
+                        // Add overlay when sidebar is shown in mobile
+                        '&::after': {
+                          content: '""',
+                          display: { xs: showSidebar ? 'block' : 'none', md: 'none' },
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          bgcolor: 'rgba(0, 0, 0, 0.3)',
+                          zIndex: 1,
+                          pointerEvents: 'none' // Allow scrolling when overlay is shown
+                        }
+                      }}
+                    >
+                      {splitView ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'row', width: '100%', height: '100%' }}>
+                          <Box sx={{ flex: 1, overflow: 'auto' }}>
+                            {activeTab && renderTab(tabs.find(tab => tab.id === activeTab))}
+                          </Box>
+                          <Box sx={{ flex: 1, overflow: 'auto', borderLeft: `1px solid ${theme.palette.divider}` }}>
+                            {rightTab && renderTab(tabs.find(tab => tab.id === rightTab))}
+                          </Box>
+                        </Box>
+                      ) : (
+                        activeTab && renderTab(tabs.find(tab => tab.id === activeTab))
+                      )}
+                    </Box>
+                    
+                    {showChat && (
+                      <Box 
+                        sx={{ 
+                          ...(isChatFullscreen ? {
+                            position: 'fixed',
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                            left: 0,
+                            zIndex: theme.zIndex.drawer + 2,
+                            bgcolor: 'background.default',
+                          } : {
+                            width: '40%',
+                            minWidth: '400px',
+                            maxWidth: '800px',
+                            height: '100%',
+                            position: 'relative',
+                            borderLeft: `1px solid ${theme.palette.divider}`,
+                          })
+                        }}
+                      >
+                        <ChatBox 
+                          onFullscreenChange={setIsChatFullscreen} 
+                          initialFullscreen={isChatFullscreen}
+                          initialInput={quickChatInput}
+                          createNewSessionOnMount={quickChatInput !== ''} // Only create new session if coming from quick chat
+                          onMessageSent={handleMessageSent}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* Right Sidebar */}
+                  {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && (
+                    <Box
+                  
+                      sx={{
+                        width: 250,
+                        flexShrink: 0,
+                        borderLeft: `1px solid ${theme.palette.divider}`,
+                        bgcolor: theme.palette.background.paper,
+                        overflowY: 'auto',
+                        position: 'relative',
+                        zIndex: 1,
+                        '@media (max-width: 960px)': {
+                          position: 'fixed',
+                          right: 0,
+                          height: '100%',
+                          transform: showSidebar ? 'translateX(0)' : 'translateX(100%)',
+                          transition: 'transform 0.3s ease-in-out'
+                        }
+                      }}
+                    >
+                      <TabList
+                        tabs={tabs}
+                        activeTab={activeTab}
+                        onTabSelect={handleTabSelect}
+                        onTabClose={handleTabClose}
+                        onTabRename={handleTabRename}
+                        onTabAreaDoubleClick={handleTabAreaDoubleClick}
+                        setRightTab={setRightTab}
+                        splitView={splitView}
+                      />
+                    </Box>
+                  )}
+                </Box>
+              </>
+            )}
+          </Box>
+        } />
+      </Routes>
       <input
         type="file"
         ref={fileInputRef}

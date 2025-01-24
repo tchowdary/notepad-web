@@ -51,6 +51,8 @@ import {
   Description as MarkdownIcon,
   Check as CheckIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -102,7 +104,7 @@ const generateTitleFromUserMessage = async ({ message }) => {
   }
 };
 
-const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNewSessionOnMount, onMessageSent }) => {
+const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', createNewSessionOnMount = false, onMessageSent, fullScreen = false, darkMode, setDarkMode }) => {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -122,7 +124,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
   const [newInstructionContent, setNewInstructionContent] = useState('');
   const [instructionMenuAnchorEl, setInstructionMenuAnchorEl] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [isFullscreen, setIsFullscreen] = useState(initialFullscreen || false);
+  const [isFullscreen, setIsFullscreen] = useState(fullScreen || initialFullscreen || false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -482,8 +484,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
   }, [isFullscreen, onFullscreenChange]);
 
   useEffect(() => {
-    setIsFullscreen(initialFullscreen || false);
-  }, [initialFullscreen]);
+    setIsFullscreen(fullScreen || initialFullscreen || false);
+  }, [fullScreen, initialFullscreen]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -510,6 +512,18 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const originalTitle = document.title;
+    if (isFullscreen) {
+      document.title = 'Chat';
+    }
+    return () => {
+      if (isFullscreen) {
+        document.title = originalTitle;
+      }
+    };
+  }, [isFullscreen]);
 
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
@@ -1113,7 +1127,37 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
   };
 
   return (
-    <>
+    <Box sx={{ 
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      bgcolor: 'background.default',
+      position: 'relative',
+    }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        p: 1, 
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        justifyContent: 'space-between'
+      }}>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          Chat
+        </Typography>
+        <Box>
+          {setDarkMode && (
+            <IconButton onClick={() => setDarkMode(!darkMode)} size="small">
+              {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
+          )}
+          {!fullScreen && (
+            <IconButton onClick={() => setIsFullscreen(!isFullscreen)} size="small">
+              <FullscreenIcon />
+            </IconButton>
+          )}
+        </Box>
+      </Box>
       {isFullscreen ? (
         <Modal
           open={isFullscreen}
@@ -1740,7 +1784,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput, createNe
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 };
 
