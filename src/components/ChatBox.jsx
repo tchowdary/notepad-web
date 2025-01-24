@@ -71,6 +71,7 @@ import ApiKeyInput from './ApiKeyInput';
 import VoiceRecorder from './VoiceRecorder';
 import { processTranscription } from '../services/llmService';
 import { generateText } from '../services/llmService';
+import { setJarvisFavicon, restoreOriginalFavicon } from '../utils/faviconUtils';
 
 const generateTitleFromUserMessage = async ({ message }) => {
   try {
@@ -517,10 +518,12 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
     const originalTitle = document.title;
     if (isFullscreen) {
       document.title = 'Jarvis';
+      setJarvisFavicon();
     }
     return () => {
       if (isFullscreen) {
         document.title = originalTitle;
+        restoreOriginalFavicon();
       }
     };
   }, [isFullscreen]);
