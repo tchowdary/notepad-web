@@ -770,7 +770,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Routes>
-        <Route path="/chat" element={
+        <Route path="/jarvis" element={
           <Box sx={{ height: '100vh', width: '100vw' }}>
             <ChatBox 
               darkMode={darkMode}

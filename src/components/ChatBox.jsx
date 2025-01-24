@@ -516,7 +516,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
   useEffect(() => {
     const originalTitle = document.title;
     if (isFullscreen) {
-      document.title = 'Chat';
+      document.title = 'Jarvis';
     }
     return () => {
       if (isFullscreen) {
