@@ -84,6 +84,11 @@ const generateTitleFromUserMessage = async ({ message }) => {
       messageText = message.content;
     }
 
+    // Truncate message to first 300 characters for title generation
+    const truncatedMessage = messageText.slice(0, 300);
+    const isMessageTruncated = messageText.length > 300;
+    const titlePrompt = isMessageTruncated ? `${truncatedMessage}...` : truncatedMessage;
+
     const { text: title } = await generateText({
       model: 'gpt-4o-mini',
       system: `
@@ -91,7 +96,7 @@ const generateTitleFromUserMessage = async ({ message }) => {
         - ensure it is not more than 80 characters long
         - the title should be a summary of the user's message
         - do not use quotes or colons`,
-      prompt: messageText
+      prompt: titlePrompt
     });
 
     return title || messageText.slice(0, 80); // Fallback to simple title if AI fails
