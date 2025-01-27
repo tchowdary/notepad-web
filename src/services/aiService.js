@@ -59,6 +59,70 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
   }
 };
 
+const sendGroqMessage = async (messages, model, apiKey, customInstruction, onStream) => {
+  try {
+    const messagePayload = [...messages];
+    if (customInstruction) {
+      messagePayload.unshift({ role: 'system', content: customInstruction.content });
+    }
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: messagePayload.map(({ role, content }) => ({ role, content })),
+        stream: Boolean(onStream),
+        temperature: getAISettings().groq.temperature,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.statusText}`);
+    }
+
+    if (onStream) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value);
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const json = JSON.parse(line.slice(5));
+              const content = json.choices[0]?.delta?.content;
+              if (content) onStream(content);
+            } catch (e) {
+              console.error('Error parsing stream:', e);
+            }
+          }
+        }
+      }
+      return { role: 'assistant', content: '' };
+    }
+
+    const data = await response.json();
+    return {
+      role: 'assistant',
+      content: data.choices[0].message.content,
+    };
+  } catch (error) {
+    console.error('Error in Groq API call:', error);
+    throw error;
+  }
+};
+
 const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
     const messagePayload = [...messages];
@@ -308,6 +372,7 @@ const getAISettings = () => {
       anthropic: { key: '', models: [], selectedModel: '', temperature: 0 },
       gemini: { key: '', models: [], selectedModel: '', temperature: 0 },
       deepseek: { key: '', models: [], selectedModel: '', temperature: 0 },
+      groq: { key: '', models: [], selectedModel: '', temperature: 0 },
     };
   }
   return JSON.parse(settings);
@@ -326,6 +391,7 @@ const getAvailableProviders = () => {
 
 export {
   sendOpenAIMessage,
+  sendGroqMessage,
   sendDeepSeekMessage,
   sendAnthropicMessage,
   sendGeminiMessage,

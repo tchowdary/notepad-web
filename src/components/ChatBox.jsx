@@ -63,6 +63,7 @@ import {
   sendAnthropicMessage,
   sendGeminiMessage,
   sendDeepSeekMessage,
+  sendGroqMessage,
   getAvailableProviders,
 } from '../services/aiService';
 import { chatStorage } from '../services/chatStorageService';
@@ -261,6 +262,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
 
           await (providerName === 'openai' 
             ? sendOpenAIMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
+            : providerName === 'groq'
+            ? sendGroqMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
             : providerName === 'deepseek'
             ? sendDeepSeekMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
             : sendAnthropicMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream));
