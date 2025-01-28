@@ -13,6 +13,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
 import Highlight from '@tiptap/extension-highlight'
+import Underline from '@tiptap/extension-underline'
 import { getHierarchicalIndexes, TableOfContents } from '@tiptap-pro/extension-table-of-contents';
 import Placeholder from '@tiptap/extension-placeholder'
 import Details from '@tiptap-pro/extension-details'
@@ -402,6 +403,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         }),
       TextStyle,
       Color,
+      Underline,
       Link.configure({
         openOnClick: true,
       }),
@@ -808,6 +810,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       isActive: () => editor.isActive('details'),
     },
     {
+      icon: <TextFields />,
+      title: 'Clear Format',
+      action: () => editor.chain().focus().clearNodes().unsetAllMarks().run(),
+    },
+    {
       icon: <MicIcon />,
       title: 'Voice Input',
       action: handleStartRecording,
@@ -864,11 +871,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Insert Table',
       action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
     },
-    {
-      icon: <TextFields />,
-      title: 'Clear Format',
-      action: () => editor.chain().focus().clearNodes().unsetAllMarks().run(),
-    },
+    
     
   ];
 
