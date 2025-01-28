@@ -42,6 +42,7 @@ import {
   AddCircleOutline,
   DeleteForever,
   Expand,
+  FormatPaint,
 } from '@mui/icons-material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
@@ -401,7 +402,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         .configure({
           lowlight,
         }),
-      TextStyle,
+      TextStyle.configure({ mergeNestedSpanStyles: true }),
       Color,
       Underline,
       Link.configure({
@@ -818,6 +819,12 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       icon: <MicIcon />,
       title: 'Voice Input',
       action: handleStartRecording,
+    },
+    {
+      icon: <FormatPaint />,
+      title: 'Bold',
+      action: () => editor.chain().focus().setColor('#F98181').run(),
+      isActive: () => editor.isActive('bold'),
     },
     {
       icon: <FormatBold />,
