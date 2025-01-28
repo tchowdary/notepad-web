@@ -19,7 +19,7 @@
 
 .editor-sidebar {
   width: 280px;
-  border-left: 1px solid rgba(0, 0, 0, 0.12);
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
   height: 100%;
   overflow: hidden;
   background: #fff;
@@ -78,7 +78,7 @@
 
 .dark-mode .editor-sidebar {
   background: #09090B;
-  border-left-color: rgba(255, 255, 255, 0.12);
+  border-right-color: rgba(255, 255, 255, 0.12);
 }
 
 .dark-mode .toc-link:hover {

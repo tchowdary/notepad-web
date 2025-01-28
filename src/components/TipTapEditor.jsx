@@ -1039,10 +1039,57 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   return (
     <Box sx={{ 
       display: 'flex', 
-      height: '100vh', 
-      position: 'relative',
-      
+      flexDirection: 'row',
+      height: '100vh',
+      bgcolor: darkMode ? '#09090B' : '#fff',
+      color: darkMode ? '#fff' : '#000',
     }}>
+      {/* Table of Contents */}
+      <Box
+        className="editor-sidebar"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          width: isTocOpen ? '300px' : '0px',
+          transition: 'width 0.3s ease',
+          overflow: 'hidden',
+          borderLeft: 1,
+          borderColor: darkMode ? 'rgba(255, 255, 255, 0.12)' : 'divider',
+          position: 'relative',
+          bgcolor: darkMode ? '#09090B' : '#FFFCF0',
+          '&:hover': {
+            '&::-webkit-scrollbar': {
+              display: 'none'
+            },
+            '-ms-overflow-style': 'none',
+            'scrollbarWidth': 'none',
+          }
+        }}
+      >
+        {/* TOC Content */}
+        <Box
+          sx={{
+            width: '300px',
+            height: '100%',
+            overflow: 'auto',
+            p: 2,
+            '&::-webkit-scrollbar': {
+              display: 'none'
+            },
+            '-ms-overflow-style': 'none',
+            'scrollbarWidth': 'none',
+            '&:hover': {
+              '&::-webkit-scrollbar': {
+                display: 'none'
+              },
+              '-ms-overflow-style': 'none',
+              'scrollbarWidth': 'none',
+            }
+          }}
+        >
+          <ToC items={tocItems} editor={editor} />
+        </Box>
+      </Box>
+
       {/* Editor Container */}
       <Box
         ref={editorRef}
@@ -1098,50 +1145,6 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
               Improving text...
             </Box>
           )}
-        </Box>
-      </Box>
-
-      {/* TOC Container */}
-      <Box
-        sx={{
-          width: isTocOpen ? '300px' : '0px',
-          transition: 'width 0.3s ease',
-          overflow: 'hidden',
-          borderLeft: 1,
-          borderColor: darkMode ? 'rgba(255, 255, 255, 0.12)' : 'divider',
-          position: 'relative',
-          bgcolor: darkMode ? '#09090B' : '#FFFCF0',
-          '&:hover': {
-            '&::-webkit-scrollbar': {
-              display: 'none'
-            },
-            '-ms-overflow-style': 'none',
-            'scrollbarWidth': 'none',
-          }
-        }}
-      >
-        {/* TOC Content */}
-        <Box
-          sx={{
-            width: '300px',
-            height: '100%',
-            overflow: 'auto',
-            p: 2,
-            '&::-webkit-scrollbar': {
-              display: 'none'
-            },
-            '-ms-overflow-style': 'none',
-            'scrollbarWidth': 'none',
-            '&:hover': {
-              '&::-webkit-scrollbar': {
-                display: 'none'
-              },
-              '-ms-overflow-style': 'none',
-              'scrollbarWidth': 'none',
-            }
-          }}
-        >
-          <ToC items={tocItems} editor={editor} />
         </Box>
       </Box>
 
