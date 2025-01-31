@@ -197,7 +197,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = async (e) => {
       // Open tab switcher on Shift+Tab
-      if (e.shiftKey && e.key === 'Tab') {
+      if (e.shiftKey && e.ctrlKey === 'k') {
         e.preventDefault();
         e.stopPropagation();
         setShowTabSwitcher(true);
