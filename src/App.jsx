@@ -235,7 +235,7 @@ function App() {
       }
 
       // Handle Ctrl+K before any other key combinations
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      if ((e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         e.stopPropagation();
         setShowCommandBar(true);
