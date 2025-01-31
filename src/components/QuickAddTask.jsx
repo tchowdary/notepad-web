@@ -57,7 +57,7 @@ const QuickAddTask = ({ open, onClose, onAddTask, darkMode }) => {
       }}
       PaperProps={{
         sx: {
-          bgcolor: darkMode ? '#09090B' : 'background.paper',
+          bgcolor: darkMode ? '#161D26' : 'background.paper',
           color: darkMode ? '#ffffff' : 'text.primary',
           borderRadius: 2,
           boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
@@ -106,7 +106,7 @@ const QuickAddTask = ({ open, onClose, onAddTask, darkMode }) => {
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: darkMode ? '#09090B' : 'background.paper',
+                  bgcolor: darkMode ? '#161D26' : 'background.paper',
                   borderRadius: 1.5,
                   '& fieldset': {
                     borderColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',

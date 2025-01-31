@@ -30,11 +30,11 @@ body {
 
 /* Dark theme overrides */
 .CodeMirror.cm-s-material {
-  background-color: #09090B;
+  background-color: #161D26;
 }
 
 .cm-s-material .CodeMirror-gutters {
-  background-color: #09090B;
+  background-color: #161D26;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -64,7 +64,7 @@ body {
 
 .markdown-body.markdown-dark {
   color: #e6edf3;
-  background-color: #09090B;
+  background-color: #161D26;
 }
 
 .markdown-body pre {
