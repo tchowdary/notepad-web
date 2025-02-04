@@ -31,7 +31,7 @@ const DEFAULT_MODELS = {
   openai: [
     { id: 'gpt-4o', name: 'GPT-4o' },
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-    { id: 'o1-preview-2024-09-12', name: 'o1 Preview' },
+    { id: 'o3-mini', name: 'o3 Mini' },
   ],
   groq: [
     { id: 'deepseek-r1-distill-llama-70b', name: 'DeepSeek R1 Distill LLaMA 70B' }
@@ -62,31 +62,35 @@ const ApiKeyInput = ({ open, onClose }) => {
       key: localStorage.getItem('openai_api_key') || '',
       models: DEFAULT_MODELS.openai,
       selectedModel: localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
-      temperature: parseFloat(localStorage.getItem('openai_temperature')) || 0.7,
+      modelSettings: JSON.parse(localStorage.getItem('openai_model_settings') || '{}'),
     },
     groq: {
       key: localStorage.getItem('groq_api_key') || '',
       models: DEFAULT_MODELS.groq,
       selectedModel: localStorage.getItem('groq_model') || DEFAULT_MODELS.groq[0].id,
       temperature: parseFloat(localStorage.getItem('groq_temperature')) || 0.6,
+      modelSettings: JSON.parse(localStorage.getItem('groq_model_settings') || '{}'),
     },
     deepseek: {
       key: localStorage.getItem('deepseek_api_key') || '',
       models: DEFAULT_MODELS.deepseek,
       selectedModel: localStorage.getItem('deepseek_model') || DEFAULT_MODELS.deepseek[0].id,
       temperature: parseFloat(localStorage.getItem('deepseek_temperature')) || 0,
+      modelSettings: JSON.parse(localStorage.getItem('deepseek_model_settings') || '{}'),
     },
     anthropic: {
       key: localStorage.getItem('anthropic_api_key') || '',
       models: DEFAULT_MODELS.anthropic,
       selectedModel: localStorage.getItem('anthropic_model') || DEFAULT_MODELS.anthropic[0].id,
       temperature: parseFloat(localStorage.getItem('anthropic_temperature')) || 0.7,
+      modelSettings: JSON.parse(localStorage.getItem('anthropic_model_settings') || '{}'),
     },
     gemini: {
       key: localStorage.getItem('gemini_api_key') || '',
       models: DEFAULT_MODELS.gemini,
       selectedModel: localStorage.getItem('gemini_model') || DEFAULT_MODELS.gemini[0].id,
       temperature: parseFloat(localStorage.getItem('gemini_temperature')) || 0.7,
+      modelSettings: JSON.parse(localStorage.getItem('gemini_model_settings') || '{}'),
     }
   });
 
@@ -101,31 +105,31 @@ const ApiKeyInput = ({ open, onClose }) => {
           key: parsed.openai?.key || localStorage.getItem('openai_api_key') || '',
           models: parsed.openai?.models || DEFAULT_MODELS.openai,
           selectedModel: parsed.openai?.selectedModel || localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
-          temperature: parsed.openai?.temperature || parseFloat(localStorage.getItem('openai_temperature')) || 0.7,
+          modelSettings: parsed.openai?.modelSettings || JSON.parse(localStorage.getItem('openai_model_settings') || '{}'),
         },
         groq: {
           key: parsed.groq?.key || localStorage.getItem('groq_api_key') || '',
           models: parsed.groq?.models || DEFAULT_MODELS.groq,
           selectedModel: parsed.groq?.selectedModel || localStorage.getItem('groq_model') || DEFAULT_MODELS.groq[0].id,
-          temperature: parsed.groq?.temperature || parseFloat(localStorage.getItem('groq_temperature')) || 0,
+          modelSettings: parsed.groq?.modelSettings || JSON.parse(localStorage.getItem('groq_model_settings') || '{}'),
         },
         deepseek: {
           key: parsed.deepseek?.key || localStorage.getItem('deepseek_api_key') || '',
           models: parsed.deepseek?.models || DEFAULT_MODELS.deepseek,
           selectedModel: parsed.deepseek?.selectedModel || localStorage.getItem('deepseek_model') || DEFAULT_MODELS.deepseek[0].id,
-          temperature: parsed.deepseek?.temperature || parseFloat(localStorage.getItem('deepseek_temperature')) || 0,
+          modelSettings: parsed.deepseek?.modelSettings || JSON.parse(localStorage.getItem('deepseek_model_settings') || '{}'),
         },
         anthropic: {
           key: parsed.anthropic?.key || localStorage.getItem('anthropic_api_key') || '',
           models: parsed.anthropic?.models || DEFAULT_MODELS.anthropic,
           selectedModel: parsed.anthropic?.selectedModel || localStorage.getItem('anthropic_model') || DEFAULT_MODELS.anthropic[0].id,
-          temperature: parsed.anthropic?.temperature || parseFloat(localStorage.getItem('anthropic_temperature')) || 0.7,
+          modelSettings: parsed.anthropic?.modelSettings || JSON.parse(localStorage.getItem('anthropic_model_settings') || '{}'),
         },
         gemini: {
           key: parsed.gemini?.key || localStorage.getItem('gemini_api_key') || '',
           models: parsed.gemini?.models || DEFAULT_MODELS.gemini,
           selectedModel: parsed.gemini?.selectedModel || localStorage.getItem('gemini_model') || DEFAULT_MODELS.gemini[0].id,
-          temperature: parsed.gemini?.temperature || parseFloat(localStorage.getItem('gemini_temperature')) || 0.7,
+          modelSettings: parsed.gemini?.modelSettings || JSON.parse(localStorage.getItem('gemini_model_settings') || '{}'),
         }
       };
       setProviders(updatedSettings);
@@ -140,7 +144,6 @@ const ApiKeyInput = ({ open, onClose }) => {
     if (providers.openai.key) {
       localStorage.setItem('openai_api_key', providers.openai.key);
       localStorage.setItem('openai_model', providers.openai.selectedModel);
-      localStorage.setItem('openai_temperature', providers.openai.temperature);
     }
     if (providers.groq.key) {
       localStorage.setItem('groq_api_key', providers.groq.key);
@@ -218,8 +221,8 @@ const ApiKeyInput = ({ open, onClose }) => {
         ...prev,
         [provider]: {
           ...prev[provider],
-          [field]: value,
-        },
+          [field]: value
+        }
       };
 
       // Save to localStorage
@@ -227,10 +230,29 @@ const ApiKeyInput = ({ open, onClose }) => {
         localStorage.setItem(`${provider}_api_key`, value);
       } else if (field === 'selectedModel') {
         localStorage.setItem(`${provider}_model`, value);
-      } else if (field === 'temperature') {
-        localStorage.setItem(`${provider}_temperature`, value);
       }
 
+      localStorage.setItem('ai_settings', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleModelSettingChange = (provider, modelId, setting, value) => {
+    setProviders(prev => {
+      const updated = {
+        ...prev,
+        [provider]: {
+          ...prev[provider],
+          modelSettings: {
+            ...prev[provider].modelSettings,
+            [modelId]: {
+              ...prev[provider].modelSettings[modelId],
+              [setting]: value
+            }
+          }
+        }
+      };
+      localStorage.setItem(`${provider}_model_settings`, JSON.stringify(updated[provider].modelSettings));
       localStorage.setItem('ai_settings', JSON.stringify(updated));
       return updated;
     });
@@ -304,18 +326,68 @@ const ApiKeyInput = ({ open, onClose }) => {
       </Box>
 
       <Box sx={{ mt: 2 }}>
-        <Typography gutterBottom>Temperature: {providers[provider].temperature}</Typography>
-        <TextField
-          type="range"
-          inputProps={{
-            min: 0,
-            max: 2,
-            step: 0.1
-          }}
-          value={providers[provider].temperature}
-          onChange={(e) => handleProviderChange(provider, 'temperature', parseFloat(e.target.value))}
-          fullWidth
-        />
+        <List>
+          {providers[provider].models.map((model) => (
+            <React.Fragment key={model.id}>
+              <ListItem>
+                <ListItemText
+                  primary={model.name}
+                  secondary={model.id}
+                />
+                <ListItemSecondaryAction>
+                  <IconButton edge="end" onClick={() => handleEditModel(model)}>
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton edge="end" onClick={() => handleDeleteModel(model.id)}>
+                    <DeleteIcon />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+              <Box sx={{ pl: 2, pr: 2, pb: 2 }}>
+                <FormControl fullWidth sx={{ mb: 1 }}>
+                  <InputLabel>Temperature</InputLabel>
+                  <Select
+                    value={providers[provider].modelSettings[model.id]?.temperature ?? 'none'}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleModelSettingChange(
+                        provider,
+                        model.id,
+                        'temperature',
+                        value === 'none' ? undefined : parseFloat(value)
+                      );
+                    }}
+                    label="Temperature"
+                    size="small"
+                  >
+                    <MenuItem value="none">None</MenuItem>
+                    <MenuItem value={0}>0 - Deterministic</MenuItem>
+                    <MenuItem value={0.3}>0.3 - Conservative</MenuItem>
+                    <MenuItem value={0.7}>0.7 - Balanced</MenuItem>
+                    <MenuItem value={1}>1.0 - Creative</MenuItem>
+                  </Select>
+                </FormControl>
+                {provider === 'openai' && (
+                  <FormControl fullWidth>
+                    <InputLabel>Reasoning Effort</InputLabel>
+                    <Select
+                      value={providers.openai.modelSettings[model.id]?.reasoningEffort || 'none'}
+                      onChange={(e) => handleModelSettingChange('openai', model.id, 'reasoningEffort', e.target.value)}
+                      label="Reasoning Effort"
+                      size="small"
+                    >
+                      <MenuItem value="none">None</MenuItem>
+                      <MenuItem value="low">Low</MenuItem>
+                      <MenuItem value="medium">Medium</MenuItem>
+                      <MenuItem value="high">High</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
+              </Box>
+              <Divider />
+            </React.Fragment>
+          ))}
+        </List>
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -328,28 +400,6 @@ const ApiKeyInput = ({ open, onClose }) => {
           Add Model
         </Button>
       </Box>
-
-      <List>
-        {providers[provider].models.map((model, index) => (
-          <React.Fragment key={model.id}>
-            {index > 0 && <Divider />}
-            <ListItem>
-              <ListItemText
-                primary={model.name}
-                secondary={model.id}
-              />
-              <ListItemSecondaryAction>
-                <IconButton edge="end" onClick={() => handleEditModel(model)}>
-                  <EditIcon />
-                </IconButton>
-                <IconButton edge="end" onClick={() => handleDeleteModel(model.id)}>
-                  <DeleteIcon />
-                </IconButton>
-              </ListItemSecondaryAction>
-            </ListItem>
-          </React.Fragment>
-        ))}
-      </List>
     </Box>
   );
 

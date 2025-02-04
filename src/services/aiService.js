@@ -15,7 +15,10 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
         model,
         messages: messagePayload.map(({ role, content }) => ({ role, content })),
         stream: Boolean(onStream),
-        temperature: getAISettings().openai.temperature,
+        temperature: getAISettings().openai.modelSettings[model]?.temperature,
+        ...(getAISettings().openai.modelSettings[model]?.reasoningEffort !== 'none' && {
+          reasoning_effort: getAISettings().openai.modelSettings[model].reasoningEffort
+        }),
       }),
     });
 
@@ -76,7 +79,7 @@ const sendGroqMessage = async (messages, model, apiKey, customInstruction, onStr
         model,
         messages: messagePayload.map(({ role, content }) => ({ role, content })),
         stream: Boolean(onStream),
-        temperature: getAISettings().groq.temperature,
+        temperature: getAISettings().groq.modelSettings[model]?.temperature,
       }),
     });
 
@@ -134,11 +137,8 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
       model,
       messages: messagePayload.map(({ role, content }) => ({ role, content })),
       stream: Boolean(onStream),
+      temperature: getAISettings().deepseek.modelSettings[model]?.temperature,
     };
-
-    if (model != 'deepseek-reasoner') {
-      bodyConfig.temperature = getAISettings().deepseek.temperature;
-    }
 
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
@@ -233,7 +233,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
         messages: formattedMessages,
         system: customInstruction ? customInstruction.content : undefined,
         max_tokens: 5000,
-        temperature: getAISettings().anthropic.temperature,
+        temperature: getAISettings().anthropic.modelSettings[model]?.temperature,
         stream: Boolean(onStream),
       }),
     });
@@ -317,7 +317,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
       const baseConfig = {
         contents: messagePayload,
         generationConfig: {
-          temperature: getAISettings().gemini.temperature,
+          temperature: getAISettings().gemini.modelSettings[model]?.temperature,
           maxOutputTokens: 8000,
         }
       };
@@ -368,11 +368,11 @@ const getAISettings = () => {
   const settings = localStorage.getItem('ai_settings');
   if (!settings) {
     return {
-      openai: { key: '', models: [], selectedModel: '', temperature: 0 },
-      anthropic: { key: '', models: [], selectedModel: '', temperature: 0 },
-      gemini: { key: '', models: [], selectedModel: '', temperature: 0 },
-      deepseek: { key: '', models: [], selectedModel: '', temperature: 0 },
-      groq: { key: '', models: [], selectedModel: '', temperature: 0 },
+      openai: { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} },
+      anthropic: { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} },
+      gemini: { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} },
+      deepseek: { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} },
+      groq: { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} },
     };
   }
   return JSON.parse(settings);
