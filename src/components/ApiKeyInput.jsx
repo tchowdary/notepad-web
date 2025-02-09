@@ -405,7 +405,7 @@ const ApiKeyInput = ({ open, onClose }) => {
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
         <DialogTitle>Configure AI Models</DialogTitle>
         <Tabs
           value={activeTab}

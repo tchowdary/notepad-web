@@ -63,6 +63,7 @@ const Toolbar = ({
   editorRef, // Add editor ref prop
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [convertAnchorEl, setConvertAnchorEl] = useState(null);
 
   const handleGitHubSync = async () => {
@@ -154,7 +155,7 @@ const Toolbar = ({
           </IconButton>
         </Tooltip> */}
 
-<Tooltip title="Download as Markdown">
+        <Tooltip title="Download as Markdown">
           <IconButton 
             onClick={() => {
               if (editorRef?.current && currentFile) {
@@ -181,6 +182,11 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
+        <Tooltip title="AI Settings">
+          <IconButton onClick={() => setShowApiKeyInput(true)} size="small">
+            <BrushIcon />
+          </IconButton>
+        </Tooltip>
 
         <Tooltip title={darkMode ? "Light Mode" : "Dark Mode"}>
           <IconButton onClick={onDarkModeChange} size="small">
@@ -250,10 +256,15 @@ const Toolbar = ({
           </IconButton>
         </Tooltip> */}
 
-        <ApiKeyInput onSave={() => {
-          // You can add any callback logic here if needed
-          // For example, refreshing available models in the chat
-        }} />
+        <ApiKeyInput 
+          open={showApiKeyInput}
+          onClose={() => setShowApiKeyInput(false)}
+          onSave={() => {
+            setShowApiKeyInput(false);
+            // You can add any callback logic here if needed
+            // For example, refreshing available models in the chat
+          }} 
+        />
 
         { <Tooltip title="Toggle Chat">
           <IconButton
