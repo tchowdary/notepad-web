@@ -182,12 +182,6 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="AI Settings">
-          <IconButton onClick={() => setShowApiKeyInput(true)} size="small">
-            <BrushIcon />
-          </IconButton>
-        </Tooltip>
-
         <Tooltip title={darkMode ? "Light Mode" : "Dark Mode"}>
           <IconButton onClick={onDarkModeChange} size="small">
             {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
