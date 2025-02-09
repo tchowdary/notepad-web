@@ -328,7 +328,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => 
       };
 
       // Only add tools for the specific model
-      if (model === 'gemini-2.0-flash-exp') {
+      if (model.includes('flash')) {
         baseConfig.tools = {
           "google_search": {}
         };

@@ -45,7 +45,7 @@ const DEFAULT_MODELS = {
     { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku' }
   ],
   gemini: [
-    { id: 'gemini-2.0-flash-exp', name: 'Gemini Flash' },
+    { id: 'gemini-2.0-flash', name: 'Gemini Flash' },
     { id: 'gemini-2.0-flash-thinking-exp-01-21', name: 'Gemini Thinking' }
   ]
 };
