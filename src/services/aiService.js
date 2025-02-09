@@ -5,6 +5,11 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
       messagePayload.unshift({ role: 'system', content: customInstruction.content });
     }
 
+    // Add developer message for o3-mini model to enable markdown formatting
+    if (model === 'o3-mini') {
+      messagePayload.unshift({ role: 'system', content: 'Formatting re-enabled' });
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
