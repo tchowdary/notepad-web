@@ -60,6 +60,7 @@ const Toolbar = ({
   setSplitView,
   setRightTab,
   splitView,
+  editorRef, // Add editor ref prop
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [convertAnchorEl, setConvertAnchorEl] = useState(null);
@@ -141,17 +142,45 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Save File (Ctrl+S)">
+        {/* <Tooltip title="Save File (Ctrl+S)">
           <IconButton onClick={onSaveFile} size="small">
             <DownloadIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         {/* <Tooltip title={wordWrap ? "Word Wrap: On" : "Word Wrap: Off"}>
           <IconButton onClick={onWordWrapChange} size="small">
             {wordWrap ? <WrapOnIcon /> : <WrapOffIcon />}
           </IconButton>
         </Tooltip> */}
+
+<Tooltip title="Download as Markdown">
+          <IconButton 
+            onClick={() => {
+              if (editorRef?.current && currentFile) {
+                // Get markdown content using the exposed method
+                const markdown = editorRef.current.getMarkdown();
+                const blob = new Blob([markdown], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // Use the current file name, ensure it has .md extension
+                const fileName = currentFile.name.toLowerCase().endsWith('.md') 
+                  ? currentFile.name 
+                  : `${currentFile.name}.md`;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }
+            }} 
+            size="small"
+          >
+            <DownloadIcon />
+          </IconButton>
+        </Tooltip>
+
 
         <Tooltip title={darkMode ? "Light Mode" : "Dark Mode"}>
           <IconButton onClick={onDarkModeChange} size="small">

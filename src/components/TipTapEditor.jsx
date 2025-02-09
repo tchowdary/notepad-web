@@ -20,7 +20,6 @@ import Details from '@tiptap-pro/extension-details'
 import DetailsContent from '@tiptap-pro/extension-details-content'
 import DetailsSummary from '@tiptap-pro/extension-details-summary'
 import Emoji, { gitHubEmojis } from '@tiptap-pro/extension-emoji'
-import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText, ToggleButton } from '@mui/material';
 import {
   FormatBold,
   FormatItalic,
@@ -44,6 +43,7 @@ import {
   Expand,
   FormatPaint,
 } from '@mui/icons-material';
+import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText, ToggleButton } from '@mui/material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
 import { compressImage } from '../utils/imageUtils';
@@ -63,6 +63,7 @@ import json from 'highlight.js/lib/languages/json';
 import bash from 'highlight.js/lib/languages/bash';
 import yaml from 'highlight.js/lib/languages/yaml';
 import markdown from 'highlight.js/lib/languages/markdown';
+import TurndownService from 'turndown';
 
 // Create a new lowlight instance
 const lowlight = createLowlight();
@@ -353,6 +354,9 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
         codeBlock: false,
       }),
       CodeBlockLowlight
@@ -1038,11 +1042,24 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   // Expose editor instance through ref
   useImperativeHandle(ref, () => ({
     editor,
-    clearContent: () => {
-      editor?.chain().focus().clearContent().run();
+    getMarkdown: () => {
+      if (editor) {
+        const html = editor.getHTML();
+        const turndownService = new TurndownService({
+          headingStyle: 'atx',
+          codeBlockStyle: 'fenced',
+          emDelimiter: '*'
+        });
+        const markdown = turndownService.turndown(html);
+        return markdown;
+      }
+      return '';
     },
     getText: () => {
       return editor?.getText() || '';
+    },
+    clearContent: () => {
+      editor?.chain().focus().clearContent().run();
     }
   }), [editor]);
 

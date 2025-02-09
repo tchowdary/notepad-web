@@ -817,6 +817,7 @@ function App() {
                     setSplitView={setSplitView}
                     setRightTab={setRightTab}
                     splitView={splitView}
+                    editorRef={tipTapEditorRef}
                   />
                 </Box>
 
