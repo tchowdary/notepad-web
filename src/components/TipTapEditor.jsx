@@ -343,6 +343,9 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     const saved = localStorage.getItem('tocOpen');
     return saved ? JSON.parse(saved) : false;
   });
+  const [activeSubmenu, setActiveSubmenu] = useState(null);
+  const [submenuPosition, setSubmenuPosition] = useState({ top: 0, left: 0 });
+  const submenuTimeoutRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem('tocOpen', JSON.stringify(isTocOpen));
@@ -809,9 +812,16 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     },
     {
       icon: <FormatPaint />,
-      title: 'Bold',
-      action: () => editor.chain().focus().setColor('#F98181').run(),
-      isActive: () => editor.isActive('bold'),
+      title: 'Text Color',
+      action: () => {}, // Add a default no-op action
+      submenu: [
+        { title: 'White', action: () => editor.chain().focus().setColor('#FFFFFF').run() },
+        { title: 'Black', action: () => editor.chain().focus().setColor('#000000').run() },
+        { title: 'Red', action: () => editor.chain().focus().setColor('#FF0000').run() },
+        { title: 'Orange', action: () => editor.chain().focus().setColor('#F98181').run() },
+        { title: 'Blue', action: () => editor.chain().focus().setColor('#0000FF').run() },
+      ],
+      isActive: () => false,
     },
     {
       icon: <FormatBold />,
@@ -1186,7 +1196,23 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         {(contextMenu?.isInTable ? tableOptions : formatOptions).map((option, index) => (
           <MenuItem 
             key={index} 
-            onClick={() => { option.action(); handleClose(); }}
+            onClick={() => { if (!option.submenu) { option.action(); } handleClose(); }}
+            onMouseEnter={(e) => {
+              if (submenuTimeoutRef.current) {
+                clearTimeout(submenuTimeoutRef.current);
+                submenuTimeoutRef.current = null;
+              }
+              if (option.submenu) {
+                setActiveSubmenu(option.submenu);
+                const rect = e.currentTarget.getBoundingClientRect();
+                setSubmenuPosition({ top: rect.top, left: rect.right });
+              }
+            }}
+            onMouseLeave={() => {
+              if (option.submenu) {
+                submenuTimeoutRef.current = setTimeout(() => { setActiveSubmenu(null); }, 200);
+              }
+            }}
             sx={{
               minWidth: 'auto',
               padding: '4px',
@@ -1207,6 +1233,42 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           </MenuItem>
         ))}
       </Menu>
+
+      {activeSubmenu && (
+        <Box
+          className="context-submenu"
+          style={{
+            position: 'absolute',
+            top: submenuPosition.top,
+            left: submenuPosition.left,
+            background: document.body.classList.contains('dark') ? '#333' : '#fff',
+            border: `1px solid ${document.body.classList.contains('dark') ? '#555' : '#ccc'}`,
+            color: document.body.classList.contains('dark') ? '#fff' : '#000',
+            zIndex: 1000,
+            padding: '4px'
+          }}
+          onMouseEnter={() => {
+            if (submenuTimeoutRef.current) {
+              clearTimeout(submenuTimeoutRef.current);
+              submenuTimeoutRef.current = null;
+            }
+          }}
+          onMouseLeave={() => {
+            submenuTimeoutRef.current = setTimeout(() => { setActiveSubmenu(null); }, 200);
+          }}
+        >
+          {activeSubmenu.map((subItem, subIndex) => (
+            <Box
+              key={subIndex}
+              className="context-menu-item"
+              onClick={() => { subItem.action(); setActiveSubmenu(null); }}
+              style={{ padding: '4px 8px', cursor: 'pointer' }}
+            >
+              {subItem.title}
+            </Box>
+          ))}
+        </Box>
+      )}
 
       <RecordingDialog
         open={isRecording}
