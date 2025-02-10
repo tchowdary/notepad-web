@@ -64,6 +64,7 @@ import bash from 'highlight.js/lib/languages/bash';
 import yaml from 'highlight.js/lib/languages/yaml';
 import markdown from 'highlight.js/lib/languages/markdown';
 import TurndownService from 'turndown';
+import { DOMSerializer } from 'prosemirror-model';
 
 // Create a new lowlight instance
 const lowlight = createLowlight();
@@ -579,37 +580,19 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const handleImproveText = async () => {
     if (improving) return;
     
-    let text;
-    const { from, to } = editor?.state.selection;
-    const isSelection = !editor?.state.selection.empty;
-    
-    if (isSelection) {
-      // Get only the selected text
-      text = editor?.state.doc.textBetween(from, to);
-    } else {
-      // Get full content if no selection
-      text = editor?.getHTML();
-    }
-
-    if (!text?.trim()) return;
-
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    if (from === to) return;
+    const fragment = editor.state.doc.slice(from, to).content;
+    const serializer = DOMSerializer.fromSchema(editor.schema);
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(serializer.serializeFragment(fragment));
+    const selectedHTML = tempDiv.innerHTML;
     setImproving(true);
     try {
-      const improvedText = await improveText(text);
-      if (improvedText) {
-        if (isSelection) {
-          editor?.chain()
-            .focus()
-            .deleteSelection()
-            .insertContent(improvedText)
-            .run();
-        } else {
-          editor?.chain()
-            .focus()
-            .setContent(improvedText, false, { preserveWhitespace: true })
-            .run();
-          onChange(improvedText);
-        }
+      const improvedHTML = await improveText(selectedHTML);
+      if (improvedHTML) {
+        editor.chain().focus().deleteRange({ from, to }).insertContent(improvedHTML).run();
       }
     } catch (error) {
       console.error('Error improving text:', error);
