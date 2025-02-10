@@ -815,6 +815,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       title: 'Text Color',
       action: () => {}, // Add a default no-op action
       submenu: [
+        { title: 'Default', action: () => editor.chain().focus().unsetColor().run() },
         { title: 'White', action: () => editor.chain().focus().setColor('#FFFFFF').run() },
         { title: 'Black', action: () => editor.chain().focus().setColor('#000000').run() },
         { title: 'Red', action: () => editor.chain().focus().setColor('#FF0000').run() },
