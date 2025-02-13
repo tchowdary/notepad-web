@@ -20,6 +20,7 @@ import Details from '@tiptap-pro/extension-details'
 import DetailsContent from '@tiptap-pro/extension-details-content'
 import DetailsSummary from '@tiptap-pro/extension-details-summary'
 import Emoji, { gitHubEmojis } from '@tiptap-pro/extension-emoji'
+import { Mathematics } from '@tiptap-pro/extension-mathematics'
 import {
   FormatBold,
   FormatItalic,
@@ -460,6 +461,12 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       Emoji.configure({
         emojis: gitHubEmojis,
         enableEmoticons: true,
+      }),
+      Mathematics.configure({
+        katexOptions: {
+          maxSize: 300,
+          displayMode: false
+        },
       }),
     ],
     content,
