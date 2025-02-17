@@ -54,6 +54,7 @@ import { ToC } from './ToC';
 import './toc.css';
 import './TipTapEditor.css';
 import { sendAnthropicMessage } from '../services/aiService';
+import githubService from '../services/githubService';
 import { createLowlight } from 'lowlight';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -66,6 +67,7 @@ import yaml from 'highlight.js/lib/languages/yaml';
 import markdown from 'highlight.js/lib/languages/markdown';
 import TurndownService from 'turndown';
 import { DOMSerializer } from 'prosemirror-model';
+import { Plugin } from 'prosemirror-state';
 
 // Create a new lowlight instance
 const lowlight = createLowlight();
@@ -356,6 +358,43 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     setIsTocOpen(prev => !prev);
   }, []);
 
+  const CustomImage = Image.extend({
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          props: {
+            handlePaste: (view, event) => {
+              const items = event.clipboardData?.items;
+              if (!items) return false;
+
+              const imageItem = Array.from(items).find(item => item.type.indexOf('image') === 0);
+              if (!imageItem) return false;
+
+              event.preventDefault();
+              const blob = imageItem.getAsFile();
+              if (!blob) return false;
+
+              (async () => {
+                try {
+                  const filename = `image-${Date.now()}.png`;
+                  const imageUrl = await githubService.uploadImage(blob, filename);
+                  
+                  if (imageUrl && editor) {
+                    editor.commands.setImage({ src: imageUrl });
+                  }
+                } catch (error) {
+                  console.error('Error handling pasted image:', error);
+                }
+              })();
+
+              return true;
+            }
+          }
+        })
+      ];
+    }
+  });
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -431,7 +470,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       TaskItem.configure({
         nested: true,
       }),
-      Image.configure({
+      CustomImage.configure({
         inline: false,
         allowBase64: true,
       }),
@@ -505,87 +544,9 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           dispatch(state.tr.deleteSelection());
           event.preventDefault();
         }
-      }
+      },
     }
   });
-
-  // Only restore cursor position when switching between tabs
-  useEffect(() => {
-    if (editor && isEditorReady.current && cursorPosition && cursorPosition !== lastKnownPosition.current) {
-      const pos = cursorPosition;
-      lastKnownPosition.current = pos;
-      try {
-        isRestoringCursor.current = true;
-        const docLength = editor.state.doc.content.size;
-        // Ensure position is within valid range
-        let targetPos;
-        if (typeof pos === 'number') {
-          targetPos = Math.min(Math.max(0, pos), docLength);
-        } else {
-          targetPos = {
-            from: Math.min(Math.max(0, pos.from), docLength),
-            to: Math.min(Math.max(0, pos.to), docLength)
-          };
-        }
-
-        // Set selection
-        if (typeof targetPos === 'number') {
-          editor.commands.setTextSelection(targetPos);
-        } else {
-          editor.commands.setTextSelection(targetPos);
-        }
-
-        // Get the current selection end position
-        const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
-        // Only scroll if the position is valid
-        if (end <= docLength) {
-          const resolvedPos = editor.state.doc.resolve(end);
-          editor.view.dispatch(editor.state.tr.setSelection(
-            editor.state.selection.constructor.near(resolvedPos)
-          ));
-          // Scroll into view without animation
-          const editorElement = editor.view.dom.closest('.ProseMirror');
-          if (editorElement) {
-            const rect = editor.view.coordsAtPos(end);
-            if (rect) {
-              const containerRect = editorElement.getBoundingClientRect();
-              const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
-              requestAnimationFrame(() => {
-                editorElement.scrollTop = scrollTop;
-              });
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Error restoring cursor position:', error);
-      } finally {
-        isRestoringCursor.current = false;
-      }
-    }
-  }, [editor, cursorPosition]);
-
-  // Track cursor position changes
-  useEffect(() => {
-    if (editor && onCursorChange && isEditorReady.current) {
-      const handleSelectionUpdate = () => {
-        if (isRestoringCursor.current) return;
-        const { from, to } = editor.state.selection;
-        const position = from === to ? from : { from, to };
-        lastKnownPosition.current = position;
-        onCursorChange(position);
-      };
-      editor.on('selectionUpdate', handleSelectionUpdate);
-      return () => editor.off('selectionUpdate', handleSelectionUpdate);
-    }
-  }, [editor, onCursorChange]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      isEditorReady.current = false;
-      lastKnownPosition.current = null;
-    };
-  }, []);
 
   const handleImproveText = async () => {
     if (improving) return;
