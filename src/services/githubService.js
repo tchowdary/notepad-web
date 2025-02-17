@@ -615,68 +615,6 @@ class GitHubService {
       return null;
     }
   }
-
-  async uploadImage(imageBlob, filename) {
-    if (!this.isConfigured()) return null;
-
-    try {
-      // Convert blob to base64 for GitHub API
-      const base64Data = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        };
-        reader.readAsDataURL(imageBlob);
-      });
-
-      const date = new Date();
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const path = `images/${year}/${month}/${filename}`;
-
-      console.log('Uploading to GitHub path:', path);
-      
-      const response = await fetch(
-        `https://api.github.com/repos/${this.settings.repo}/contents/${path}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `token ${this.settings.token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/vnd.github.v3+json'
-          },
-          body: JSON.stringify({
-            message: `Upload image ${filename}`,
-            content: base64Data,
-            branch: this.settings.branch
-          })
-        }
-      );
-
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        console.error('GitHub API Error:', {
-          status: response.status,
-          statusText: response.statusText,
-          data: responseData
-        });
-        throw new Error(`Failed to upload image: ${responseData.message}`);
-      }
-
-      console.log('GitHub API Response:', responseData);
-
-      // Use the content URL from the API response instead of constructing a raw URL
-      const imageUrl = responseData.content.download_url;
-      console.log('Using GitHub content URL:', imageUrl);
-      
-      return imageUrl;
-    } catch (error) {
-      console.error('Error in uploadImage:', error);
-      throw error;
-    }
-  }
 }
 
 export default new GitHubService();
