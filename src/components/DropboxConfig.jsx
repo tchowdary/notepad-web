@@ -12,23 +12,38 @@ import {
 import imageService from '../services/imageService';
 
 export default function DropboxConfig({ open, onClose }) {
-  const [accessToken, setAccessToken] = useState('');
+  const [refreshToken, setRefreshToken] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    // Load existing token if any
-    const token = localStorage.getItem('dropbox_access_token');
-    if (token) {
-      setAccessToken(token);
+    // Load existing credentials if any
+    const token = localStorage.getItem('dropbox_refresh_token');
+    const id = localStorage.getItem('dropbox_client_id');
+    const secret = localStorage.getItem('dropbox_client_secret');
+    
+    if (token) setRefreshToken(token);
+    if (id) setClientId(id);
+    if (secret) setClientSecret(secret);
+    
+    if (token && id && secret) {
       setStatus('Configured');
     }
   }, []);
 
-  const handleSave = () => {
-    if (accessToken) {
-      imageService.setAccessToken(accessToken);
-      setStatus('Configured');
-      onClose();
+  const handleSave = async () => {
+    if (refreshToken && clientId && clientSecret) {
+      try {
+        imageService.setRefreshToken(refreshToken);
+        imageService.setClientCredentials(clientId, clientSecret);
+        await imageService.generateAccessToken();
+        setStatus('Configured');
+        onClose();
+      } catch (error) {
+        setStatus('Error: Invalid credentials');
+        console.error('Error configuring Dropbox:', error);
+      }
     }
   };
 
@@ -38,23 +53,45 @@ export default function DropboxConfig({ open, onClose }) {
       <DialogContent>
         <Box sx={{ mt: 2 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            To configure Dropbox integration for image uploads, please enter your Dropbox access token.
-            You can generate this token from your Dropbox App Console.
+            To configure Dropbox integration, please enter your Dropbox app credentials.
+            You can find these in your Dropbox App Console. Make sure to enable offline access
+            to generate a refresh token.
           </Typography>
           <TextField
             fullWidth
-            label="Dropbox Access Token"
-            value={accessToken}
-            onChange={(e) => setAccessToken(e.target.value)}
+            label="Client ID"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            margin="normal"
+            helperText="Your Dropbox app's client ID"
+          />
+          <TextField
+            fullWidth
+            label="Client Secret"
+            value={clientSecret}
+            onChange={(e) => setClientSecret(e.target.value)}
             margin="normal"
             type="password"
-            helperText={status ? `Status: ${status}` : ''}
+            helperText="Your Dropbox app's client secret"
+          />
+          <TextField
+            fullWidth
+            label="Refresh Token"
+            value={refreshToken}
+            onChange={(e) => setRefreshToken(e.target.value)}
+            margin="normal"
+            type="password"
+            helperText={status ? `Status: ${status}` : 'Your Dropbox app\'s refresh token'}
           />
         </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" disabled={!accessToken}>
+        <Button 
+          onClick={handleSave} 
+          variant="contained" 
+          disabled={!refreshToken || !clientId || !clientSecret}
+        >
           Save
         </Button>
       </DialogActions>
