@@ -66,7 +66,7 @@ import yaml from 'highlight.js/lib/languages/yaml';
 import markdown from 'highlight.js/lib/languages/markdown';
 import TurndownService from 'turndown';
 import { DOMSerializer } from 'prosemirror-model';
-import imageService from '../services/imageService';
+import fileService from '../services/fileService';
 import DropboxConfig from './DropboxConfig';
 
 // Create a new lowlight instance
@@ -534,26 +534,41 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         if (!items) return;
 
         for (const item of items) {
-          if (item.type.indexOf('image') === 0) {
-            event.preventDefault();
-            const file = item.getAsFile();
-            const filename = `image-${Date.now()}.${file.type.split('/')[1]}`;
-            
-            // Upload to Dropbox and get direct link
-            imageService.uploadImage(file, filename)
-              .then(directLink => {
-                editor.chain().focus().setImage({ src: directLink }).run();
-              })
-              .catch(error => {
-                console.error('Failed to upload image:', error);
-                // Fallback to base64 if upload fails
+          const file = item.getAsFile();
+          if (!file) continue;
+
+          event.preventDefault();
+          
+          // Upload to Dropbox and get direct link
+          fileService.uploadFile(file)
+            .then(result => {
+              if (item.type.startsWith('image/')) {
+                // For images, insert them directly into the editor
+                editor.chain().focus().setImage({ src: result.url }).run();
+              } else {
+                // For other file types, insert as a link
+                const displayName = result.filename.length > 30 
+                  ? result.filename.substring(0, 27) + '...' 
+                  : result.filename;
+                editor.chain()
+                  .focus()
+                  .setLink({ href: result.url })
+                  .insertContent(displayName)
+                  .run();
+              }
+            })
+            .catch(error => {
+              console.error('Failed to upload file:', error);
+              // No fallback for non-image files
+              if (item.type.startsWith('image/')) {
+                // Fallback to base64 if upload fails for images
                 const reader = new FileReader();
                 reader.onload = (e) => {
                   editor.chain().focus().setImage({ src: e.target.result }).run();
                 };
                 reader.readAsDataURL(file);
-              });
-          }
+              }
+            });
         }
       };
 

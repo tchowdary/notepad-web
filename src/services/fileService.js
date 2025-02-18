@@ -1,6 +1,6 @@
 import { Dropbox } from 'dropbox';
 
-class ImageService {
+class FileService {
   constructor() {
     this.dropbox = null;
     this.loadSettings();
@@ -69,7 +69,7 @@ class ImageService {
     this.loadSettings();
   }
 
-  async uploadImage(file, filename) {
+  async uploadFile(file, customPath = null) {
     if (!this.isConfigured()) {
       throw new Error('Dropbox is not configured. Please set refresh token and client credentials first.');
     }
@@ -80,10 +80,20 @@ class ImageService {
         await this.generateAccessToken();
       }
 
+      // Generate a unique filename by appending timestamp to original name
+      const timestamp = Date.now();
+      const originalName = file.name || `file.${file.type.split('/')[1]}`;
+      const fileNameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
+      const fileExtension = originalName.substring(originalName.lastIndexOf('.'));
+      const filename = `${fileNameWithoutExt}-${timestamp}${fileExtension}`;
+      
+      // Use custom path if provided, otherwise use the documents folder
+      const filePath = customPath || `/documents/${filename}`;
+
       // Upload file to Dropbox
       try {
         const response = await this.dropbox.filesUpload({
-          path: `/images/${filename}`,
+          path: filePath,
           contents: file,
         });
 
@@ -97,12 +107,17 @@ class ImageService {
           .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
           .replace('?dl=0', '');
 
-        return directLink;
+        return {
+          url: directLink,
+          filename: filename,
+          path: response.result.path_display,
+          type: file.type
+        };
       } catch (error) {
         if (error.status === 401) {
           // Access token expired, generate new one and retry
           await this.generateAccessToken();
-          return this.uploadImage(file, filename);
+          return this.uploadFile(file, customPath);
         }
         throw error;
       }
@@ -113,4 +128,4 @@ class ImageService {
   }
 }
 
-export default new ImageService();
+export default new FileService();

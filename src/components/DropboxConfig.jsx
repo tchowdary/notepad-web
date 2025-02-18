@@ -9,7 +9,7 @@ import {
   Typography,
   Box,
 } from '@mui/material';
-import imageService from '../services/imageService';
+import imageService from '../services/fileService';
 
 export default function DropboxConfig({ open, onClose }) {
   const [refreshToken, setRefreshToken] = useState('');
