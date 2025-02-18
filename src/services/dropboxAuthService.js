@@ -2,8 +2,17 @@ import { Dropbox } from 'dropbox';
 
 class DropboxAuthService {
   constructor() {
-    this.redirectUri = `${window.location.origin}/auth/callback`;
+    this.redirectUri = this.getRedirectUri();
     this.loadCredentials();
+  }
+
+  getRedirectUri() {
+    // Check if we're on the production domain
+    if (window.location.hostname === 'tchowdary.github.io') {
+      return 'https://tchowdary.github.io/auth/callback';
+    }
+    // For local development
+    return `${window.location.origin}/auth/callback`;
   }
 
   loadCredentials() {
