@@ -87,8 +87,9 @@ class FileService {
       const fileExtension = originalName.substring(originalName.lastIndexOf('.'));
       const filename = `${fileNameWithoutExt}-${timestamp}${fileExtension}`;
       
-      // Use custom path if provided, otherwise use the documents folder
-      const filePath = customPath || `/documents/${filename}`;
+      // Use custom path if provided, otherwise determine folder based on file type
+      const folder = file.type.startsWith('image/') ? 'images' : 'documents';
+      const filePath = customPath || `/${folder}/${filename}`;
 
       // Upload file to Dropbox
       try {
