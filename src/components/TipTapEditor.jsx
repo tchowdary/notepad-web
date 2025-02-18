@@ -547,13 +547,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
                 editor.chain().focus().setImage({ src: result.url }).run();
               } else {
                 // For other file types, insert as a link
-                const displayName = result.filename.length > 30 
-                  ? result.filename.substring(0, 27) + '...' 
-                  : result.filename;
                 editor.chain()
                   .focus()
                   .setLink({ href: result.url })
-                  .insertContent(displayName)
+                  .insertContent(result.filename)
                   .run();
               }
             })
