@@ -51,6 +51,7 @@
     "codemirror": "^5.65.18",
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
+    "dropbox": "^10.34.0",
     "github-markdown-css": "^5.8.1",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.21",

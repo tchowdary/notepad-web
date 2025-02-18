@@ -11,7 +11,7 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import Image from '@tiptap/extension-image';
+import { Image as TiptapImage } from '@tiptap/extension-image';
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
 import { getHierarchicalIndexes, TableOfContents } from '@tiptap-pro/extension-table-of-contents';
@@ -66,6 +66,8 @@ import yaml from 'highlight.js/lib/languages/yaml';
 import markdown from 'highlight.js/lib/languages/markdown';
 import TurndownService from 'turndown';
 import { DOMSerializer } from 'prosemirror-model';
+import imageService from '../services/imageService';
+import DropboxConfig from './DropboxConfig';
 
 // Create a new lowlight instance
 const lowlight = createLowlight();
@@ -322,11 +324,27 @@ const getEditorStyles = (darkMode) => ({
   },
 });
 
+const CustomImage = TiptapImage.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      src: {
+        default: null,
+        renderHTML: attributes => ({
+          src: attributes.src,
+          style: 'cursor: pointer', // Make image clickable
+          title: 'Double-click to open image in new tab', // Add tooltip
+        }),
+      },
+    }
+  },
+});
+
 const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange }, ref) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [showCopySuccess, setShowCopySuccess] = useState(false);
+  const [dropboxConfigOpen, setDropboxConfigOpen] = useState(false);
 
   const [tocItems, setTocItems] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -431,7 +449,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       TaskItem.configure({
         nested: true,
       }),
-      Image.configure({
+      CustomImage.configure({
         inline: false,
         allowBase64: true,
       }),
@@ -508,6 +526,56 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       }
     }
   });
+
+  useEffect(() => {
+    if (editor) {
+      const handlePaste = (event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return;
+
+        for (const item of items) {
+          if (item.type.indexOf('image') === 0) {
+            event.preventDefault();
+            const file = item.getAsFile();
+            const filename = `image-${Date.now()}.${file.type.split('/')[1]}`;
+            
+            // Upload to Dropbox and get direct link
+            imageService.uploadImage(file, filename)
+              .then(directLink => {
+                editor.chain().focus().setImage({ src: directLink }).run();
+              })
+              .catch(error => {
+                console.error('Failed to upload image:', error);
+                // Fallback to base64 if upload fails
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  editor.chain().focus().setImage({ src: e.target.result }).run();
+                };
+                reader.readAsDataURL(file);
+              });
+          }
+        }
+      };
+
+      editor.view.dom.addEventListener('paste', handlePaste);
+      return () => editor.view.dom.removeEventListener('paste', handlePaste);
+    }
+  }, [editor]);
+
+  useEffect(() => {
+    if (editor) {
+      // Add double-click handler for images
+      const handleDoubleClick = (event) => {
+        const image = event.target.closest('img');
+        if (image) {
+          window.open(image.src, '_blank');
+        }
+      };
+
+      editor.view.dom.addEventListener('dblclick', handleDoubleClick);
+      return () => editor.view.dom.removeEventListener('dblclick', handleDoubleClick);
+    }
+  }, [editor]);
 
   // Only restore cursor position when switching between tabs
   useEffect(() => {
@@ -796,6 +864,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       action: handleImproveText,
     },
     {
+      icon: <ContentCopy />,
+      title: 'Copy as Plain Text',
+      action: handleCopyPlainText,
+    },
+    {
       icon: <Expand />,
       title: 'Toggle Details',
       action: () => {
@@ -882,6 +955,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       icon: <TableChart />,
       title: 'Insert Table',
       action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    },
+    {
+      icon: <ListIcon />,
+      title: 'Configure Dropbox',
+      action: () => setDropboxConfigOpen(true),
     },
     
     
@@ -1283,6 +1361,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         elapsedTime={elapsedTime}
         isProcessing={isProcessing}
         onClose={handleStopRecording}
+      />
+      <DropboxConfig 
+        open={dropboxConfigOpen}
+        onClose={() => setDropboxConfigOpen(false)}
       />
     </Box>
   );
