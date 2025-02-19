@@ -853,6 +853,9 @@ function App() {
                     setRightTab={setRightTab}
                     splitView={splitView}
                     editorRef={tipTapEditorRef}
+                    tabs={tabs}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
                   />
                 </Box>
 

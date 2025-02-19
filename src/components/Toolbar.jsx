@@ -61,7 +61,10 @@ const Toolbar = ({
   setSplitView,
   setRightTab,
   splitView,
-  editorRef, // Add editor ref prop
+  editorRef,
+  tabs,
+  activeTab,
+  setActiveTab,
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
@@ -106,6 +109,13 @@ const Toolbar = ({
     const month = startOfWeek.toLocaleString('default', { month: 'short' });
     const year = startOfWeek.getFullYear().toString().slice(-2);
     const weeklyNoteTitle = `${day}-${month}-${year}.md`;
+
+    // Check if the tab is already open
+    const existingTab = tabs.find(tab => tab.name === weeklyNoteTitle);
+    if (existingTab) {
+      setActiveTab(existingTab.id);
+      return;
+    }
 
     // If GitHub is configured, try to fetch existing content or create new file
     if (githubService.isConfigured()) {
