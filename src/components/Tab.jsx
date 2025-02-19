@@ -22,9 +22,23 @@ const Tab = ({ id, label, active, onClose, onSelect, onRename, setRightTab, spli
     }
   };
 
+  const handleDoubleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!active) {
+      onSelect(id);
+      setTimeout(() => {
+        window.open(`/?tab=${id}`, '_blank');
+      }, 100);
+    } else {
+      window.open(`/?tab=${id}`, '_blank');
+    }
+  };
+
   return (
     <Box
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       className="tab-item"
       sx={{
         display: 'flex',
