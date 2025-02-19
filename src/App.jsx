@@ -328,12 +328,12 @@ function App() {
     saveTodoState();
   }, [todoData]);
 
-  const handleNewTab = ({ type = 'codemirror' } = {}) => {
+  const handleNewTab = ({ type = 'codemirror', name = '', content = '' } = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     const newTab = {
       id: newId,
-      name: type === 'tiptap' ? `Note-${newId}.md` : `Code-${newId}.txt`,
-      content: '',
+      name: name || (type === 'tiptap' ? `Note-${newId}.md` : `Code-${newId}.txt`),
+      content: content,
       type: 'markdown',
       editorType: type
     };

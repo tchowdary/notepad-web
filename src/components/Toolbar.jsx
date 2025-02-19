@@ -30,6 +30,7 @@ import {
   TaskAlt as TodoManagerIcon,
   Chat as ChatIcon,
   ViewColumn as SplitViewIcon,
+  CalendarViewWeek as WeeklyNotesIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import ApiKeyInput from './ApiKeyInput';
@@ -92,6 +93,46 @@ const Toolbar = ({
   const handleConvertSelect = (converterId) => {
     onConvert(converterId);
     handleConvertClose();
+  };
+
+  const handleWeeklyNotes = async () => {
+    const now = new Date();
+    // Get the start of the week (Monday)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)); // If Sunday, go back to previous Monday
+    
+    // Format the date as DD-MMM-YY
+    const day = String(startOfWeek.getDate()).padStart(2, '0');
+    const month = startOfWeek.toLocaleString('default', { month: 'short' });
+    const year = startOfWeek.getFullYear().toString().slice(-2);
+    const weeklyNoteTitle = `${day}-${month}-${year}.md`;
+
+    // If GitHub is configured, try to fetch existing content or create new file
+    if (githubService.isConfigured()) {
+      try {
+        // Let githubService handle the file path structure
+        const content = await githubService.getFileContent(githubService.getFilePath(weeklyNoteTitle));
+        if (content) {
+          onNewTab({ type: 'tiptap', name: weeklyNoteTitle, content });
+          return;
+        }
+      } catch (error) {
+        console.log('No existing weekly note found, creating new one');
+      }
+
+      // Create new file in GitHub using the service's file path structure
+      try {
+        const initialContent = `# Week of ${day} ${month} ${year}\n\nCreated: ${now.toISOString()}\n\n`;
+        await githubService.uploadFile(weeklyNoteTitle, initialContent);
+        onNewTab({ type: 'tiptap', name: weeklyNoteTitle, content: initialContent });
+        return;
+      } catch (error) {
+        console.error('Error creating weekly note in GitHub:', error);
+      }
+    }
+    
+    // Create new empty tab if GitHub is not configured
+    onNewTab({ type: 'tiptap', name: weeklyNoteTitle });
   };
 
   return (
@@ -278,9 +319,15 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
         
-        <Tooltip title="New File (Ctrl+N)">
+        <Tooltip title="New Tab (Ctrl+N)">
           <IconButton onClick={onNewTab} size="small">
             <AddIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Weekly Notes">
+          <IconButton onClick={handleWeeklyNotes} size="small">
+            <WeeklyNotesIcon />
           </IconButton>
         </Tooltip>
 
