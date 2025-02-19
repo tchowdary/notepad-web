@@ -73,6 +73,18 @@ function App() {
     }
   }, [location.hash, tabs]);
 
+  // Update document title based on selected tab, if not on Jarvis route
+  useEffect(() => {
+    if (!location.pathname.toLowerCase().includes('jarvis')) {
+      const activeTabObj = tabs.find(tab => tab.id === activeTab);
+      if (activeTabObj) {
+        document.title = activeTabObj.name;
+      } else {
+        document.title = "notepad";
+      }
+    }
+  }, [activeTab, tabs, location.pathname]);
+
   const theme = createTheme({
     palette: {
       mode: darkMode ? 'dark' : 'light',
