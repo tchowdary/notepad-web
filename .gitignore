@@ -25,3 +25,6 @@ dist-ssr
 .aider*
 .env
 .npmrc
+
+# windsurf rules
+.windsurfrules
