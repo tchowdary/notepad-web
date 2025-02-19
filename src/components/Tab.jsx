@@ -30,10 +30,10 @@ const Tab = ({ id, label, active, onClose, onSelect, onRename, setRightTab, spli
     if (!active) {
       onSelect(numericId);
       setTimeout(() => {
-        window.open(`/?tab=${numericId}`, '_blank');
+        window.open(`/?tab=${numericId}&focus=true`, '_blank');
       }, 100);
     } else {
-      window.open(`/?tab=${numericId}`, '_blank');
+      window.open(`/?tab=${numericId}&focus=true`, '_blank');
     }
   };
 

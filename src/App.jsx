@@ -142,11 +142,13 @@ function App() {
         const savedTabs = await loadTabs();
         const urlParams = new URLSearchParams(window.location.search);
         const tabId = urlParams.get('tab');
+        const shouldFocus = urlParams.get('focus') === 'true';
         const numericTabId = tabId ? parseInt(tabId, 10) : null;
         
         console.log('Initializing with:', {
           tabId,
           numericTabId,
+          shouldFocus,
           savedTabs,
           hasMatchingTab: numericTabId && savedTabs.some(t => t.id === numericTabId)
         });
@@ -156,6 +158,10 @@ function App() {
           if (numericTabId && !isNaN(numericTabId) && savedTabs.some(t => t.id === numericTabId)) {
             console.log('Setting active tab to:', numericTabId);
             setActiveTab(numericTabId);
+            if (shouldFocus) {
+              setFocusMode(true);
+              setShowSidebar(false);
+            }
           } else {
             console.log('Falling back to first tab:', savedTabs[0].id);
             setActiveTab(savedTabs[0].id);
