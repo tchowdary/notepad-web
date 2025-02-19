@@ -140,9 +140,26 @@ function App() {
     const initializeApp = async () => {
       try {
         const savedTabs = await loadTabs();
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabId = urlParams.get('tab');
+        const numericTabId = tabId ? parseInt(tabId, 10) : null;
+        
+        console.log('Initializing with:', {
+          tabId,
+          numericTabId,
+          savedTabs,
+          hasMatchingTab: numericTabId && savedTabs.some(t => t.id === numericTabId)
+        });
+
         if (savedTabs && savedTabs.length > 0) {
           setTabs(savedTabs);
-          setActiveTab(savedTabs[0].id);
+          if (numericTabId && !isNaN(numericTabId) && savedTabs.some(t => t.id === numericTabId)) {
+            console.log('Setting active tab to:', numericTabId);
+            setActiveTab(numericTabId);
+          } else {
+            console.log('Falling back to first tab:', savedTabs[0].id);
+            setActiveTab(savedTabs[0].id);
+          }
         } else {
           // Create default tab if no saved tabs
           const defaultTab = { 
@@ -173,7 +190,7 @@ function App() {
     };
     
     initializeApp();
-  }, []);
+  }, [location.search]);
 
   useEffect(() => {
     if (!isLoading) {  // Don't save during initial load

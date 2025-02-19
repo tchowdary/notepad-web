@@ -25,13 +25,15 @@ const Tab = ({ id, label, active, onClose, onSelect, onRename, setRightTab, spli
   const handleDoubleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Ensure id is a number
+    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
     if (!active) {
-      onSelect(id);
+      onSelect(numericId);
       setTimeout(() => {
-        window.open(`/?tab=${id}`, '_blank');
+        window.open(`/?tab=${numericId}`, '_blank');
       }, 100);
     } else {
-      window.open(`/?tab=${id}`, '_blank');
+      window.open(`/?tab=${numericId}`, '_blank');
     }
   };
 
