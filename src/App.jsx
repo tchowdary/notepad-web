@@ -399,15 +399,16 @@ function App() {
     }));
   };
 
-  const handleTabSelect = (id) => {
-    // Save cursor position of current tab before switching
-    if (activeTab && editorRef.current?.editorInstance) {
-      const cursor = editorRef.current.editorInstance.getCursor();
-      setTabs(prevTabs => prevTabs.map(tab => 
-        tab.id === activeTab ? { ...tab, cursorPosition: cursor } : tab
-      ));
+  const handleTabSelect = async (tabId) => {
+    // Load the latest data for this tab from IndexedDB
+    try {
+      const updatedTabs = await loadTabs();
+      setTabs(updatedTabs);
+      setActiveTab(tabId);
+    } catch (error) {
+      console.error('Error loading updated tabs:', error);
+      setActiveTab(tabId); // Still switch tabs even if update fails
     }
-    setActiveTab(id);
   };
 
   const handleCursorChange = (tabId, cursor) => {
@@ -713,6 +714,27 @@ function App() {
     setQuickChatInput('');
   };
 
+  const handleTabsUpdate = async () => {
+    try {
+      const updatedTabs = await loadTabs();
+      setTabs(updatedTabs);
+    } catch (error) {
+      console.error('Error loading updated tabs:', error);
+    }
+  };
+
+  const handleSetRightTab = async (tabId) => {
+    // Load the latest data for this tab from IndexedDB
+    try {
+      const updatedTabs = await loadTabs();
+      setTabs(updatedTabs);
+      setRightTab(tabId);
+    } catch (error) {
+      console.error('Error loading updated tabs:', error);
+      setRightTab(tabId); // Still switch tabs even if update fails
+    }
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -850,7 +872,7 @@ function App() {
                     showChat={showChat}
                     onChatToggle={handleChatToggle}
                     setSplitView={setSplitView}
-                    setRightTab={setRightTab}
+                    setRightTab={handleSetRightTab}
                     splitView={splitView}
                     editorRef={tipTapEditorRef}
                     tabs={tabs}
@@ -1005,8 +1027,9 @@ function App() {
                         onTabClose={handleTabClose}
                         onTabRename={handleTabRename}
                         onTabAreaDoubleClick={handleTabAreaDoubleClick}
-                        setRightTab={setRightTab}
+                        setRightTab={handleSetRightTab}
                         splitView={splitView}
+                        onTabsUpdate={handleTabsUpdate}
                       />
                     </Box>
                   )}

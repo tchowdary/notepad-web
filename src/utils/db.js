@@ -71,7 +71,9 @@ export const saveTabs = async (tabs) => {
       });
 
       Promise.all(promises)
-        .then(() => resolve())
+        .then(() => {
+          resolve();
+        })
         .catch(error => reject(error));
     };
     
