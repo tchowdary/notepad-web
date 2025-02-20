@@ -27,13 +27,16 @@ const Tab = ({ id, label, active, onClose, onSelect, onRename, setRightTab, spli
     e.stopPropagation();
     // Ensure id is a number
     const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+    // Get base URL for GitHub Pages or local development
+    const baseUrl = window.location.hostname === 'tchowdary.github.io' ? '/notepad-react' : '';
+    
     if (!active) {
       onSelect(numericId);
       setTimeout(() => {
-        window.open(`/?tab=${numericId}&focus=true`, '_blank');
+        window.open(`${baseUrl}/?tab=${numericId}&focus=true`, '_blank');
       }, 100);
     } else {
-      window.open(`/?tab=${numericId}&focus=true`, '_blank');
+      window.open(`${baseUrl}/?tab=${numericId}&focus=true`, '_blank');
     }
   };
 
