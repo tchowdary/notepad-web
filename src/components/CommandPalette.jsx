@@ -20,14 +20,14 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
       input: '#ffffff'
     },
     dark: {
-      bg: '#161D26',
+      bg: '#1e1e1e',
       text: '#cccccc',
       secondaryText: '#666666',
       selected: '#04395e',
       selectedText: '#ffffff',
       hover: '#2a2d2e',
       border: '#333333',
-      input: '#161D26'
+      input: '#1e1e1e'
     }
   };
 

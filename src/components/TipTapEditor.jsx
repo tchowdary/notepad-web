@@ -89,7 +89,7 @@ lowlight.register('yaml', yaml);
 
 const codeBlockStyles = {
   'pre': {
-    'background': darkMode => darkMode ? '#161D26' : '#f8f9fa',
+    'background': darkMode => darkMode ? '#1e1e1e' : '#f8f9fa',
     'color': darkMode => darkMode ? '#d4d4d4' : '#24292e',
     'fontFamily': '"JetBrains Mono", "Consolas", "Monaco", "Andale Mono", monospace',
     'padding': '0.75rem 1rem',
@@ -156,7 +156,7 @@ const getTableStyles = (darkMode) => ({
     width: '100%',
     margin: '0',
     overflow: 'hidden',
-    backgroundColor: darkMode ? '#161D26' : '#FFFCF0',
+    backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
     borderRadius: '6px',
     border: `1px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
   },
@@ -167,12 +167,12 @@ const getTableStyles = (darkMode) => ({
     verticalAlign: 'top',
     boxSizing: 'border-box',
     position: 'relative',
-    backgroundColor: darkMode ? '#161D26' : '#FFFCF0',
+    backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
   },
   '& th': {
     fontWeight: '600',
     textAlign: 'left',
-    backgroundColor: darkMode ? '#161D26' : '#FFFCF0',
+    backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
     borderBottom: `2px solid ${darkMode ? '#30363d' : '#e0e0e0'}`,
     fontSize: '0.95em',
     color: darkMode ? '#e6edf3' : '#24292f',
@@ -248,7 +248,7 @@ const getEditorStyles = (darkMode) => ({
       paddingLeft: '1rem',
     },
     '& pre': {
-      backgroundColor: darkMode ? '#161D26' : '#f6f8fa',
+      backgroundColor: darkMode ? '#1e1e1e' : '#f6f8fa',
       borderRadius: '6px',
       color: darkMode ? '#e6edf3' : '#24292f',
       fontFamily: 'JetBrains Mono',
@@ -296,7 +296,7 @@ const getEditorStyles = (darkMode) => ({
     },
     ...getTableStyles(darkMode),
     '& .table-of-contents': {
-      background: darkMode ? '#161D26' : '#f6f8fa',
+      background: darkMode ? '#1e1e1e' : '#f6f8fa',
       padding: '1rem',
       margin: '1rem 0',
       borderRadius: '4px',
@@ -1159,7 +1159,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       display: 'flex', 
       flexDirection: 'row',
       height: '100vh',
-      bgcolor: darkMode ? '#161D26' : '#fff',
+      bgcolor: darkMode ? '#1e1e1e' : '#fff',
       color: darkMode ? '#fff' : '#000',
     }}>
       {/* Table of Contents */}
@@ -1173,7 +1173,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           borderLeft: 1,
           borderColor: darkMode ? 'rgba(255, 255, 255, 0.12)' : 'divider',
           position: 'relative',
-          bgcolor: darkMode ? '#161D26' : '#FFFCF0',
+          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
           '&:hover': {
             '&::-webkit-scrollbar': {
               display: 'none'
@@ -1222,7 +1222,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           'scrollbarWidth': 'none',
           height: '100%',
           position: 'relative',
-          bgcolor: darkMode ? '#161D26' : '#FFFCF0',
+          bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
           scrollBehavior: 'smooth'
         }}
       >
@@ -1234,7 +1234,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             margin: '0 auto',
             padding: '16px',
             outline: 'none',
-            backgroundColor: darkMode ? '#161D26' : '#FFFCF0',
+            backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
             color: darkMode ? '#e6edf3' : '#24292f',
             fontFamily: '"Rubik", sans-serif',
             fontSize: '17px',
@@ -1277,7 +1277,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         }
         PaperProps={{
           sx: {
-            backgroundColor: darkMode ? '#161D26' : '#ffffff',
+            backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
             color: darkMode ? '#e6edf3' : '#24292f',
             borderRadius: '8px',
             boxShadow: '0 2px 10px rgba(0,0,0,0.1)',

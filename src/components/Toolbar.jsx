@@ -172,8 +172,8 @@ const Toolbar = ({
         '&:hover': {
           transform: 'translateX(0)'
         },
-        borderRight: `1px solid ${darkMode ? '#161D26' : '#FFFCF0'}`,
-        bgcolor: darkMode ? '#161D26' : '#FFFCF0',
+        borderRight: `1px solid ${darkMode ? '#1e1e1e' : '#FFFCF0'}`,
+        bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
         width: '48px',
         height: '100%',
         left: 0,
