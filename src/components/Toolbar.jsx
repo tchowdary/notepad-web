@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar as MuiToolbar,
@@ -66,6 +66,8 @@ const Toolbar = ({
   activeTab,
   setActiveTab,
 }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [mouseX, setMouseX] = useState(0);
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [convertAnchorEl, setConvertAnchorEl] = useState(null);
@@ -145,23 +147,39 @@ const Toolbar = ({
     onNewTab({ type: 'tiptap', name: weeklyNoteTitle });
   };
 
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMouseX(e.clientX);
+      if (e.clientX <= 10) {
+        setIsVisible(true);
+      } else if (e.clientX > 60) {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   return (
     <AppBar 
       position="fixed" 
-      color={darkMode ? "default" : "primary"} 
+      color={darkMode ? "default" : "primary"}
       elevation={0}
-      className={className}
-      sx={{
-        borderBottom: `1px solid ${darkMode ? '#333' : '#ccc'}`,
-        bgcolor: darkMode ? '#333' : '#fff',
+      sx={{ 
+        transition: 'transform 0.3s ease-in-out',
+        transform: isVisible ? 'translateX(0)' : 'translateX(-100%)',
+        '&:hover': {
+          transform: 'translateX(0)'
+        },
+        borderRight: `1px solid ${darkMode ? '#161D26' : '#FFFCF0'}`,
+        bgcolor: darkMode ? '#161D26' : '#FFFCF0',
         width: '48px',
-        height: '100vh',
+        height: '100%',
         left: 0,
         top: 0,
-        display: 'flex',
-        alignItems: 'center',
         '& .MuiIconButton-root': {
-          color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+          color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
           '&:hover': {
             color: darkMode ? '#fff' : '#000',
           }
