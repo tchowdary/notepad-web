@@ -383,6 +383,38 @@ const ApiKeyInput = ({ open, onClose }) => {
                     </Select>
                   </FormControl>
                 )}
+                {provider === 'anthropic' && (
+                  <>
+                    <FormControl fullWidth sx={{ mb: 1 }}>
+                      <InputLabel>Thinking</InputLabel>
+                      <Select
+                        value={providers.anthropic.modelSettings[model.id]?.thinking ?? false}
+                        onChange={(e) => handleModelSettingChange('anthropic', model.id, 'thinking', e.target.value)}
+                        label="Thinking"
+                        size="small"
+                      >
+                        <MenuItem value={false}>Disabled</MenuItem>
+                        <MenuItem value={true}>Enabled</MenuItem>
+                      </Select>
+                    </FormControl>
+                    {providers.anthropic.modelSettings[model.id]?.thinking && (
+                      <FormControl fullWidth>
+                        <InputLabel>Budget Tokens</InputLabel>
+                        <Select
+                          value={providers.anthropic.modelSettings[model.id]?.budget_tokens ?? 16000}
+                          onChange={(e) => handleModelSettingChange('anthropic', model.id, 'budget_tokens', parseInt(e.target.value))}
+                          label="Budget Tokens"
+                          size="small"
+                        >
+                          <MenuItem value={8000}>8,000 tokens</MenuItem>
+                          <MenuItem value={16000}>16,000 tokens</MenuItem>
+                          <MenuItem value={24000}>24,000 tokens</MenuItem>
+                          <MenuItem value={32000}>32,000 tokens</MenuItem>
+                        </Select>
+                      </FormControl>
+                    )}
+                  </>
+                )}
               </Box>
               <Divider />
             </React.Fragment>

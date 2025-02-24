@@ -139,6 +139,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
   const [isStreaming, setIsStreaming] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const streamingContentRef = useRef('');
+  const thinkingContentRef = useRef('');
   const theme = useTheme();
   const inputRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -257,12 +258,34 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           setStreamingContent('');
           setParsedStreamingContent('');
           streamingContentRef.current = '';
+          thinkingContentRef.current = '';
           
-          const handleStream = (content) => {
-            streamingContentRef.current += content;
-            setStreamingContent(streamingContentRef.current);
-            // Parse the markdown in real-time
-            setParsedStreamingContent(renderMessageContent(streamingContentRef.current));
+          const handleStream = (content, type) => {
+            if (type === 'thinking') {
+              thinkingContentRef.current += content;
+              setStreamingContent(thinkingContentRef.current);
+              setParsedStreamingContent(renderMessageContent([
+                {
+                  type: 'thinking',
+                  content: thinkingContentRef.current
+                }
+              ]));
+            } else {
+              // Don't clear thinking content, keep both
+              streamingContentRef.current += content;
+              setStreamingContent(streamingContentRef.current);
+              // Show both thinking and text content while streaming
+              setParsedStreamingContent(renderMessageContent([
+                {
+                  type: 'thinking',
+                  content: thinkingContentRef.current
+                },
+                {
+                  type: 'text',
+                  text: streamingContentRef.current
+                }
+              ]));
+            }
           };
 
           await (providerName === 'openai' 
@@ -275,7 +298,16 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
 
           finalResponse = {
             role: 'assistant',
-            content: streamingContentRef.current,
+            content: [
+              ...(thinkingContentRef.current ? [{
+                type: 'thinking',
+                content: thinkingContentRef.current
+              }] : []),
+              {
+                type: 'text',
+                text: streamingContentRef.current
+              }
+            ],
             timestamp: new Date().toISOString()
           };
 
@@ -848,6 +880,30 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         if (item.type === 'text' || item.type === 'markdown') {
           return renderMessageContent(item.text || item.content);
         }
+        if (item.type === 'thinking') {
+          return (
+            <Box key={`thinking-${index}`} sx={{ mb: 2 }}>
+              <Typography 
+                variant="body2" 
+                component="div"
+                sx={{ 
+                  fontFamily: 'Geist, sans-serif',
+                  fontSize: '14px',
+                  color: theme.palette.text.secondary,
+                  fontStyle: 'italic',
+                  backgroundColor: theme.palette.action.hover,
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  marginBottom: '8px',
+                  whiteSpace: 'pre-wrap'
+                }}
+              >
+                🤔 {item.content}
+              </Typography>
+            </Box>
+          );
+        }
+        // Handle other content types (image, pdf, etc.)
         if (item.type === 'image') {
           return (
             <Box key={index} sx={{ my: 2 }}>
@@ -883,6 +939,34 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         }
         return null;
       });
+    }
+
+    // If content is an object with type and content fields
+    if (content && typeof content === 'object' && 'type' in content) {
+      if (content.type === 'thinking') {
+        return (
+          <Typography 
+            variant="body2" 
+            component="div"
+            sx={{ 
+              fontFamily: 'Geist, sans-serif',
+              fontSize: '14px',
+              color: theme.palette.text.secondary,
+              fontStyle: 'italic',
+              backgroundColor: theme.palette.action.hover,
+              padding: '8px 12px',
+              borderRadius: '4px',
+              marginBottom: '8px',
+              whiteSpace: 'pre-wrap'
+            }}
+          >
+            🤔 {content.content}
+          </Typography>
+        );
+      } else if (content.type === 'text') {
+        return renderMessageContent(content.text);
+      }
+      return null;
     }
 
     // If content is undefined or null, return null

@@ -237,9 +237,15 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
         model,
         messages: formattedMessages,
         system: customInstruction ? customInstruction.content : undefined,
-        max_tokens: 5000,
+        max_tokens: 8001,
         temperature: getAISettings().anthropic.modelSettings[model]?.temperature,
         stream: Boolean(onStream),
+        ...(getAISettings().anthropic.modelSettings[model]?.thinking && {
+          thinking: {
+            type: 'enabled',
+            budget_tokens: getAISettings().anthropic.modelSettings[model]?.budget_tokens || 16000
+          }
+        })
       }),
     });
 
@@ -265,8 +271,13 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
           if (line.startsWith('data: ')) {
             try {
               const json = JSON.parse(line.slice(5));
-              if (json.type === 'content_block_delta' && json.delta?.text) {
-                onStream(json.delta.text);
+              if (json.type === 'content_block_delta') {
+                if (json.delta?.thinking) {
+                  onStream(json.delta.thinking, 'thinking');
+                }
+                if (json.delta?.text) {
+                  onStream(json.delta.text, 'text');
+                }
               }
             } catch (e) {
               console.error('Error parsing stream:', e);
@@ -278,9 +289,27 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
     }
 
     const data = await response.json();
+    const content = [];
+    
+    // Process each content block
+    for (const block of data.content) {
+      if (block.type === 'thinking') {
+        content.push({
+          type: 'thinking',
+          content: block.thinking,
+          signature: block.signature
+        });
+      } else if (block.type === 'text') {
+        content.push({
+          type: 'text',
+          content: block.text
+        });
+      }
+    }
+
     return {
       role: 'assistant',
-      content: data.content[0].text,
+      content,
       timestamp: new Date().toISOString()
     };
   } catch (error) {
