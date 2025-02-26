@@ -409,7 +409,22 @@ const getAISettings = () => {
       groq: { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} },
     };
   }
-  return JSON.parse(settings);
+  
+  // Parse the settings
+  const parsedSettings = JSON.parse(settings);
+  
+  // Ensure all providers have modelSettings initialized
+  const providers = ['openai', 'anthropic', 'gemini', 'deepseek', 'groq'];
+  providers.forEach(provider => {
+    if (!parsedSettings[provider]) {
+      parsedSettings[provider] = { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} };
+    }
+    if (!parsedSettings[provider].modelSettings) {
+      parsedSettings[provider].modelSettings = {};
+    }
+  });
+  
+  return parsedSettings;
 };
 
 const getAvailableProviders = () => {
