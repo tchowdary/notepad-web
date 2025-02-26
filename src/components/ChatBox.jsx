@@ -1660,6 +1660,27 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                   </Box>
                 )}
               </List>
+              <Box sx={{ 
+                p: 1, 
+                borderTop: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                justifyContent: 'center'
+              }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={createNewSession}
+                  fullWidth
+                  sx={{ 
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    justifyContent: 'flex-start',
+                    px: 2
+                  }}
+                >
+                  New Chat
+                </Button>
+              </Box>
             </Box>
 
             {/* Main chat area */}
