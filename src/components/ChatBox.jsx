@@ -1543,9 +1543,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                   <IconButton size="small" onClick={() => setIsFullscreen(true)}>
                     <FullscreenIcon fontSize="small" />
                   </IconButton>
-                  <IconButton size="small" onClick={() => setApiKeyDialogOpen(true)}>
-                    <KeyIcon fontSize="small" />
-                  </IconButton>
+                  
                   <VoiceRecorder onTranscriptionComplete={async (transcript) => {
                     try {
                       const response = await processTranscription(transcript);
@@ -1563,7 +1561,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                       setError('Failed to process voice input');
                     }
                   }} />
-                  <Tooltip title="Custom Instructions (also available in input box)">
+                  {/* <Tooltip title="Custom Instructions (also available in input box)">
                     <IconButton
                       size="small"
                       onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
@@ -1571,7 +1569,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                     >
                       <AutoFixHighIcon fontSize="small" />
                     </IconButton>
-                  </Tooltip>
+                  </Tooltip> */}
+                  <IconButton size="small" onClick={() => setApiKeyDialogOpen(true)}>
+                    <KeyIcon fontSize="small" />
+                  </IconButton>
                   <IconButton size="small" onClick={createNewSession}>
                     <AddIcon fontSize="small" />
                   </IconButton>
