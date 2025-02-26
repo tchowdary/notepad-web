@@ -762,6 +762,10 @@ function App() {
           darkMode={darkMode}
           cursorPosition={tab.cursorPosition}
           onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
+          onFocusModeChange={() => {
+            setFocusMode(!focusMode);
+            setShowSidebar(focusMode);
+          }}
         />
       );
     }

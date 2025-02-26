@@ -340,7 +340,7 @@ const CustomImage = TiptapImage.extend({
   },
 });
 
-const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange }, ref) => {
+const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange, onFocusModeChange }, ref) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -1115,13 +1115,15 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     if (event.ctrlKey || event.metaKey) {
       if (event.key === '[') {
         event.preventDefault();
-        setIsTocOpen(false);
+        toggleToc();
       } else if (event.key === ']') {
         event.preventDefault();
-        setIsTocOpen(true);
+        if (onFocusModeChange) {
+          onFocusModeChange();
+        }
       }
     }
-  }, []);
+  }, [toggleToc, onFocusModeChange]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
