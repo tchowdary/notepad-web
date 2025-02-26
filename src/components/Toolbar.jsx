@@ -147,19 +147,13 @@ const Toolbar = ({
 
   return (
     <AppBar 
-      position="fixed" 
+      position="static" 
       color={darkMode ? "default" : "primary"} 
       elevation={0}
       className={className}
       sx={{
         borderBottom: `1px solid ${darkMode ? '#333' : '#ccc'}`,
         bgcolor: darkMode ? '#333' : '#fff',
-        width: '48px',
-        height: '100vh',
-        left: 0,
-        top: 0,
-        display: 'flex',
-        alignItems: 'center',
         '& .MuiIconButton-root': {
           color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
           '&:hover': {
@@ -176,12 +170,10 @@ const Toolbar = ({
         variant="dense"
         sx={{
           display: 'flex',
-          flexDirection: 'column',
           justifyContent: 'center',
-          alignItems: 'center',
-          height: '100%',
           gap: 0.5,
           minHeight: '48px !important',
+          padding: '0 8px !important',
         }}
       >       
         <Tooltip title="Quick Add Task">
