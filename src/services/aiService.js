@@ -288,17 +288,17 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
         buffer += decoder.decode(value);
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
               const json = JSON.parse(line.slice(5));
               if (json.type === 'content_block_delta') {
                 if (json.delta?.thinking) {
@@ -347,82 +347,89 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
   }
 };
 
-const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => {
+const sendGeminiMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
-    const messagePayload = messages.map(({ role, content }) => {
-      const parts = [];
-      const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
 
-      formattedContent.forEach(item => {
-        if (item.type === 'image') {
-          parts.push({
-            inlineData: {
-              mimeType: item.source.media_type,
-              data: item.source.data,
-            }
-          });
-        } else if (item.type === 'text') {
-          parts.push({ text: item.text });
-        }
-      });
-
-      return {
-        role: role === 'assistant' ? 'model' : 'user',
-        parts
-      };
-    });
-
-    if (customInstruction) {
-      messagePayload.unshift({ role: 'user', parts: [{ text: customInstruction.content }] });
+    if (!proxyUrl || !proxyKey) {
+      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
     }
 
-    const generateRequestBody = (model, messagePayload) => {
-      const baseConfig = {
-        contents: messagePayload,
-        generationConfig: {
-          temperature: getAISettings().gemini.modelSettings[model]?.temperature,
-          maxOutputTokens: 8000,
-        }
-      };
+    const messagePayload = [...messages];
+    if (customInstruction) {
+      messagePayload.unshift({ role: 'system', content: customInstruction.content });
+    }
 
-      // Only add tools for the specific model
-      if (model.includes('flash')) {
-        baseConfig.tools = {
-          "google_search": {}
-        };
-        baseConfig.generationConfig.response_modalities = ["TEXT"];
-      }
-
-      return baseConfig;
+    const requestBody = {
+      provider: 'gemini',
+      model,
+      messages: messagePayload.map(({ role, content }) => ({ role, content })),
+      stream: Boolean(onStream),
     };
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
+    // Add temperature if configured
+    const temperature = getAISettings().gemini.modelSettings[model]?.temperature;
+    if (typeof temperature === 'number') {
+      requestBody.temperature = temperature;
+    }
+
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
+        'x-api-key': proxyKey,
       },
-      body: JSON.stringify(generateRequestBody(model, messagePayload)),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `Gemini API error: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    if (onStream) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                break;
+              }
+              try {
+                const { content } = JSON.parse(data);
+                if (content) {
+                  onStream(content);
+                }
+              } catch (e) {
+                console.error('Error parsing stream data:', e);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Stream reading error:', error);
+        throw error;
+      } finally {
+        reader.releaseLock();
+      }
+
+      return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
-
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No response from Gemini API');
-    }
-
-    return {
-      role: 'assistant',
-      content: data.candidates[0].content.parts.map(part => part.text).join(''),
-      timestamp: new Date().toISOString()
-    };
+    return { role: 'assistant', content: data.content };
   } catch (error) {
-    console.error('Gemini API error:', error);
+    console.error('API error:', error);
     throw error;
   }
 };
