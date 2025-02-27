@@ -1,5 +1,12 @@
 const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
+
+    if (!proxyUrl || !proxyKey) {
+      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
+    }
+
     const messagePayload = [...messages];
     if (customInstruction) {
       messagePayload.unshift({ role: 'system', content: customInstruction.content });
@@ -10,59 +17,81 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
       messagePayload.unshift({ role: 'system', content: 'Formatting re-enabled' });
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const requestBody = {
+      provider: 'openai',
+      model,
+      messages: messagePayload.map(({ role, content }) => ({ role, content })),
+      stream: Boolean(onStream),
+    };
+
+    // Add temperature if configured
+    const temperature = getAISettings().openai.modelSettings[model]?.temperature;
+    if (typeof temperature === 'number') {
+      requestBody.temperature = temperature;
+    }
+
+    // Add reasoning_effort if configured
+    const reasoningEffort = getAISettings().openai.modelSettings[model]?.reasoningEffort;
+    if (reasoningEffort && reasoningEffort !== 'none') {
+      requestBody.reasoning_effort = reasoningEffort;
+    }
+
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'x-api-key': proxyKey,
       },
-      body: JSON.stringify({
-        model,
-        messages: messagePayload.map(({ role, content }) => ({ role, content })),
-        stream: Boolean(onStream),
-        temperature: getAISettings().openai.modelSettings[model]?.temperature,
-        ...(getAISettings().openai.modelSettings[model]?.reasoningEffort !== 'none' && {
-          reasoning_effort: getAISettings().openai.modelSettings[model].reasoningEffort
-        }),
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     if (onStream) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value);
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const json = JSON.parse(line.slice(5));
-              const content = json.choices[0]?.delta?.content;
-              if (content) onStream(content);
-            } catch (e) {
-              console.error('Error parsing stream:', e);
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                break;
+              }
+              try {
+                const { content } = JSON.parse(data);
+                if (content) {
+                  onStream(content);
+                }
+              } catch (e) {
+                console.error('Error parsing stream data:', e);
+              }
             }
           }
         }
+      } catch (error) {
+        console.error('Stream reading error:', error);
+        throw error;
+      } finally {
+        reader.releaseLock();
       }
+
       return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
-    return data.choices[0].message;
+    return { role: 'assistant', content: data.content };
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('API error:', error);
     throw error;
   }
 };
@@ -149,7 +178,7 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
       method: 'POST',
       headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(bodyConfig),
     });
