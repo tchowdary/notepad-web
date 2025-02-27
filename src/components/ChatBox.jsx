@@ -174,14 +174,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         } else if (selectedFile.type === 'pdf') {
           messageContent.push({
             type: 'pdf',
-            source: {
-              type: 'base64',
-              media_type: selectedFile.mediaType,
-              data: selectedFile.data
-            },
-            cache_control: {
-              type: 'ephemeral'
-            }
+            media_type: selectedFile.mediaType,
+            data: selectedFile.data
           });
         } else if (selectedFile.type.startsWith('image')) {
           messageContent.push({
@@ -696,7 +690,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       reader.onload = (e) => {
         const base64Data = e.target.result.split(',')[1];
         setSelectedFile({
-          type: 'document',
+          type: 'pdf',
           name: file.name,
           data: base64Data,
           mediaType: 'application/pdf'
@@ -941,28 +935,30 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
               />
             </Box>
           );
-        } else if (item.type === 'pdf') {
-          return (
-            <Box key={index} sx={{ my: 2 }}>
-              <embed 
-                src={`data:application/pdf;base64,${item.data}`}
-                type="application/pdf"
-                width="100%"
-                height="500"
-              />
-            </Box>
-          );
-        } else if (item.type === 'document') {
-          return (
-            <Box key={index} sx={{ my: 2 }}>
-              <embed 
-                src={`data:${item.source.media_type};base64,${item.source.data}`}
-                type={item.source.media_type}
-                width="100%"
-                height="500"
-              />
-            </Box>
-          );
+        } else if (item.type === 'file') {
+          if (item.media_type === 'application/pdf') {
+            return (
+              <Box key={index} sx={{ my: 2 }}>
+                <embed 
+                  src={`data:application/pdf;base64,${item.data}`}
+                  type="application/pdf"
+                  width="100%"
+                  height="500"
+                />
+              </Box>
+            );
+          } else {
+            return (
+              <Box key={index} sx={{ my: 2 }}>
+                <embed 
+                  src={`data:${item.media_type};base64,${item.data}`}
+                  type={item.media_type}
+                  width="100%"
+                  height="500"
+                />
+              </Box>
+            );
+          }
         }
         return null;
       });
