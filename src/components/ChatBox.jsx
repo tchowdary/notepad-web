@@ -1494,56 +1494,59 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                 flexDirection: 'column',
               }}
             >
-              <Box sx={{ 
-                p: 2, 
-                borderBottom: `1px solid ${theme.palette.divider}`,
+              <Box sx={{
+                p: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 1
+                gap: 1,
+                borderBottom: `1px solid ${theme.palette.divider}`,
               }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  
-                  <IconButton
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1,
+                  position: 'relative',
+                }}>
+                  <TextField
                     size="small"
-                  >
-                    <ChevronLeftIcon />
-                  </IconButton>
-                </Box>
-                <TextField
-                  size="small"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                    ...(searchQuery && {
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            size="small"
-                            onClick={() => setSearchQuery('')}
-                            edge="end"
-                          >
-                            <ClearIcon fontSize="small" />
-                          </IconButton>
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    fullWidth
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" />
                         </InputAdornment>
-                      )
-                    })
-                  }}
-                />
-                <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                      ),
+                      ...(searchQuery && {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              size="small"
+                              onClick={() => setSearchQuery('')}
+                              edge="end"
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      })
+                    }}
+                  />
+                </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 1, 
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                }}>
                   <IconButton size="small" onClick={() => setHistoryAnchorEl(inputRef.current)}>
                     <HistoryIcon fontSize="small" />
                   </IconButton>
                   <IconButton size="small" onClick={() => setIsFullscreen(true)}>
                     <FullscreenIcon fontSize="small" />
                   </IconButton>
-                  
                   <VoiceRecorder onTranscriptionComplete={async (transcript) => {
                     try {
                       const response = await processTranscription(transcript);
@@ -1561,15 +1564,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                       setError('Failed to process voice input');
                     }
                   }} />
-                  {/* <Tooltip title="Custom Instructions (also available in input box)">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
-                      color={selectedInstruction ? "primary" : "default"}
-                    >
-                      <AutoFixHighIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip> */}
                   <IconButton size="small" onClick={() => setApiKeyDialogOpen(true)}>
                     <KeyIcon fontSize="small" />
                   </IconButton>
@@ -1578,7 +1572,25 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                   </IconButton>
                 </Box>
               </Box>
-
+              <IconButton
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                size="small"
+                sx={{
+                  position: 'absolute',
+                  right: -20,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: '50%',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                  zIndex: 1,
+                }}
+              >
+                <ChevronLeftIcon />
+              </IconButton>
               <List sx={{ flex: 1, overflowY: 'auto' }}>
                 {filteredSessions.map((session) => (
                   <ListItem
