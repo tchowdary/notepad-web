@@ -1713,14 +1713,23 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                   >
                     <Box
                       sx={{
-                        width: '100%',
+                        width: 'fit-content',
                         position: 'relative',
-                        backgroundColor: message.role === 'user' ? theme.palette.primary.dark : theme.palette.background.paper,
-                        color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
+                        backgroundColor: message.role === 'user' 
+                          ? theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.1)' 
+                            : 'rgba(0, 0, 0, 0.1)'
+                          : theme.palette.background.paper,
+                        color: theme.palette.text.primary,
                         borderRadius: 2,
                         p: 2,
-                        '&:hover .copy-button': {
-                          opacity: 1,
+                        mb: 2,
+                        '&:hover': {
+                          backgroundColor: message.role === 'user'
+                            ? theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.15)'
+                              : 'rgba(0, 0, 0, 0.15)'
+                            : theme.palette.action.hover,
                         },
                       }}
                     >
@@ -1830,12 +1839,21 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                     sx={{
                       maxWidth: '80%',
                       position: 'relative',
-                      backgroundColor: message.role === 'user' ? theme.palette.primary.dark : theme.palette.background.paper,
-                      color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
+                      backgroundColor: message.role === 'user'
+                        ? theme.palette.mode === 'dark'
+                          ? 'rgba(255, 255, 255, 0.1)'
+                          : 'rgba(0, 0, 0, 0.1)'
+                        : theme.palette.background.paper,
+                      color: theme.palette.text.primary,
                       borderRadius: 2,
                       p: 2,
-                      '&:hover .copy-button': {
-                        opacity: 1,
+                      mb: 2,
+                      '&:hover': {
+                        backgroundColor: message.role === 'user'
+                          ? theme.palette.mode === 'dark'
+                            ? 'rgba(255, 255, 255, 0.15)'
+                            : 'rgba(0, 0, 0, 0.15)'
+                          : theme.palette.action.hover,
                       },
                     }}
                   >
