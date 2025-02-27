@@ -236,15 +236,20 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
 
 const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
+
+    if (!proxyUrl || !proxyKey) {
+      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
+    }
+
     const formattedMessages = messages.map(({ role, content }) => {
       const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
 
       if (Array.isArray(content)) {
         return {
           role: role === 'assistant' ? 'assistant' : 'user',
-          content: content.map(item => {
-            return item;
-          })
+          content: content.map(item => item)
         };
       }
 
@@ -254,33 +259,34 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
       };
     });
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const requestBody = {
+      provider: 'anthropic',
+      model,
+      messages: formattedMessages,
+      system: customInstruction ? customInstruction.content : undefined,
+      max_tokens: 8001,
+      temperature: getAISettings().anthropic.modelSettings[model]?.temperature,
+      stream: Boolean(onStream),
+      ...(getAISettings().anthropic.modelSettings[model]?.thinking && {
+        thinking: {
+          type: 'enabled',
+          budget_tokens: getAISettings().anthropic.modelSettings[model]?.budget_tokens || 16000
+        }
+      })
+    };
+
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'x-api-key': proxyKey
       },
-      body: JSON.stringify({
-        model,
-        messages: formattedMessages,
-        system: customInstruction ? customInstruction.content : undefined,
-        max_tokens: 8001,
-        temperature: getAISettings().anthropic.modelSettings[model]?.temperature,
-        stream: Boolean(onStream),
-        ...(getAISettings().anthropic.modelSettings[model]?.thinking && {
-          thinking: {
-            type: 'enabled',
-            budget_tokens: getAISettings().anthropic.modelSettings[model]?.budget_tokens || 16000
-          }
-        })
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error?.message || `Anthropic API error: ${response.statusText}`);
+      throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
     }
 
     if (onStream) {
@@ -288,53 +294,48 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
       const decoder = new TextDecoder();
       let buffer = '';
 
+      try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-        buffer += decoder.decode(value);
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          buffer += decoder.decode(value);
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              try {
-              const json = JSON.parse(line.slice(5));
-              if (json.type === 'content_block_delta') {
-                if (json.delta?.thinking) {
-                  onStream(json.delta.thinking, 'thinking');
-                }
-                if (json.delta?.text) {
-                  onStream(json.delta.text, 'text');
-                }
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                break;
               }
-            } catch (e) {
-              console.error('Error parsing stream:', e);
+              try {
+                const { content, type } = JSON.parse(data);
+                if (content) {
+                  if (type === 'thinking') {
+                    onStream(content, 'thinking');
+                  } else {
+                    onStream(content, 'text');
+                  }
+                }
+              } catch (e) {
+                console.error('Error parsing stream data:', e);
+              }
             }
           }
         }
+      } catch (error) {
+        console.error('Stream reading error:', error);
+        throw error;
+      } finally {
+        reader.releaseLock();
       }
+
       return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
-    const content = [];
-    
-    // Process each content block
-    for (const block of data.content) {
-      if (block.type === 'thinking') {
-        content.push({
-          type: 'thinking',
-          content: block.thinking,
-          signature: block.signature
-        });
-      } else if (block.type === 'text') {
-        content.push({
-          type: 'text',
-          content: block.text
-        });
-      }
-    }
+    const content = Array.isArray(data.content) ? data.content : [{ type: 'text', content: data.content }];
 
     return {
       role: 'assistant',
@@ -342,7 +343,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
       timestamp: new Date().toISOString()
     };
   } catch (error) {
-    console.error('Anthropic API error:', error);
+    console.error('API error:', error);
     throw error;
   }
 };
