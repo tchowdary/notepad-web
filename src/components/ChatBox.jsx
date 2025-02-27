@@ -173,7 +173,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           });
         } else if (selectedFile.type === 'pdf') {
           messageContent.push({
-            type: 'document',
+            type: 'pdf',
             source: {
               type: 'base64',
               media_type: selectedFile.mediaType,
@@ -183,14 +183,11 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
               type: 'ephemeral'
             }
           });
-        } else {
+        } else if (selectedFile.type.startsWith('image')) {
           messageContent.push({
-            type: selectedFile.type,
-            source: {
-              type: 'base64',
-              media_type: selectedFile.mediaType,
-              data: selectedFile.data
-            }
+            type: 'image',
+            media_type: selectedFile.mediaType,
+            data: selectedFile.data
           });
         }
       }
@@ -938,7 +935,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           return (
             <Box key={index} sx={{ my: 2 }}>
               <img 
-                src={`data:${item.source.media_type};base64,${item.source.data}`}
+                src={`data:${item.media_type};base64,${item.data}`}
                 alt="User uploaded image"
                 style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
               />
