@@ -482,15 +482,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       }),
       Mathematics.configure({
         katexOptions: {
-          throwOnError: false,
-          displayMode: true,
-          fleqn: true,
-          output: 'html',
-          trust: true,
-          macros: {
-            "\\f": "\\text{f}",
-            "\\g": "\\text{g}",
-          },
+          maxSize: 300,
+          displayMode: true
         },
       }),
     ],
