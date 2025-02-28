@@ -162,29 +162,37 @@ const sendGroqMessage = async (messages, model, apiKey, customInstruction, onStr
 
 const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
+
+    if (!proxyUrl || !proxyKey) {
+      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
+    }
+
     const messagePayload = [...messages];
     if (customInstruction) {
       messagePayload.unshift({ role: 'system', content: customInstruction.content });
     }
 
-    const bodyConfig = {
+    const requestBody = {
+      provider: 'deepseek',
       model,
       messages: messagePayload.map(({ role, content }) => ({ role, content })),
       stream: Boolean(onStream),
       temperature: getAISettings().deepseek.modelSettings[model]?.temperature,
     };
 
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
-      'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'x-api-key': proxyKey,
       },
-      body: JSON.stringify(bodyConfig),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      throw new Error(`DeepSeek API error: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     if (onStream) {
@@ -192,44 +200,63 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value);
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          buffer += decoder.decode(value);
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const json = JSON.parse(line.slice(5));
-              const content = json.choices[0]?.delta?.content;
-              const reasoningContent = json.choices[0]?.delta?.reasoning_content;
-              if (content) onStream(content);
-              if (reasoningContent) onStream(reasoningContent);
-            } catch (e) {
-              console.error('Error parsing stream:', e);
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                break;
+              }
+              try {
+                const parsedData = JSON.parse(data);
+                
+                // Handle regular content
+                if (parsedData.content) {
+                  onStream(parsedData.content, 'content');
+                }
+                
+                // Handle reasoning content for deepseek-reasoner
+                if (parsedData.reasoning_content) {
+                  onStream(parsedData.reasoning_content, 'reasoning');
+                }
+              } catch (e) {
+                console.error('Error parsing stream data:', e);
+              }
             }
           }
         }
+      } catch (error) {
+        console.error('Stream reading error:', error);
+        throw error;
+      } finally {
+        reader.releaseLock();
       }
+
       return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
     const responseMessage = {
       role: 'assistant',
-      content: data.choices[0].message.content,
+      content: data.content
     };
 
-    if (model === 'deepseek-reasoner' && data.choices[0].message.reasoning_content) {
-      responseMessage.reasoning_content = data.choices[0].message.reasoning_content;
+    // Include reasoning content in non-streaming response if present
+    if (data.reasoning_content) {
+      responseMessage.reasoning_content = data.reasoning_content;
     }
 
     return responseMessage;
   } catch (error) {
-    console.error('DeepSeek API error:', error);
+    console.error('API error:', error);
     throw error;
   }
 };
