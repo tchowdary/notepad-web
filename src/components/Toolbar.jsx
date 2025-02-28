@@ -329,11 +329,11 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
         
-        <Tooltip title="New Tab (Ctrl+N)">
+        {/* <Tooltip title="New Tab (Ctrl+N)">
           <IconButton onClick={onNewTab} size="small">
             <AddIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         <Tooltip title="Weekly Notes">
           <IconButton onClick={handleWeeklyNotes} size="small">

@@ -344,20 +344,8 @@ function App() {
     });
   };
 
-  const handleDoubleClickSidebar = () => {
-    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    const newTab = {
-      id: newId,
-      name: `Note-${newId}.md`,
-      content: '',
-      type: 'markdown',
-      editorType: 'tiptap'
-    };
-    setTabs(prevTabs => [...prevTabs, newTab]);
-    // Use requestAnimationFrame for smoother focus handling
-    requestAnimationFrame(() => {
-      setActiveTab(newId);
-    });
+  const handleDoubleClickSidebar = (options = {}) => {
+    handleNewTab({ type: options.type || 'tiptap' });
   };
 
   const handleTabClose = async (id) => {
@@ -426,10 +414,10 @@ function App() {
     });
   };
 
-  const handleTabAreaDoubleClick = (event) => {
-    // Only create new tab if clicking on the tab area, not on existing tabs
-    if (event.target.closest('.MuiTab-root') === null) {
-      handleDoubleClickSidebar();
+  const handleTabAreaDoubleClick = (options = {}) => {
+    // If event is provided, only create new tab if clicking on the tab area, not on existing tabs
+    if (!options.event || options.event.target.closest('.MuiTab-root') === null) {
+      handleNewTab({ type: options.type || 'tiptap' });
     }
   };
 
@@ -774,6 +762,10 @@ function App() {
           darkMode={darkMode}
           cursorPosition={tab.cursorPosition}
           onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
+          onFocusModeChange={() => {
+            setFocusMode(!focusMode);
+            setShowSidebar(focusMode);
+          }}
         />
       );
     }

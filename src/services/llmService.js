@@ -13,24 +13,43 @@ const getOpenAIClient = () => {
 
 export const generateText = async ({ model, system, prompt }) => {
   try {
-    const openai = getOpenAIClient();
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
+
+    if (!proxyUrl || !proxyKey) {
+      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
+    }
+
     const selectedModel = model || localStorage.getItem('openai_model') || 'gpt-4o-mini';
 
-    const completion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: system
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      model: selectedModel,
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': proxyKey,
+      },
+      body: JSON.stringify({
+        provider: 'openai',
+        model: selectedModel,
+        messages: [
+          {
+            role: "system",
+            content: system
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
+      }),
     });
 
-    return { text: completion.choices[0].message.content };
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { text: data.content };
   } catch (error) {
     console.error('Error generating text:', error);
     throw error;

@@ -28,6 +28,7 @@ import {
   InputBase,
   InputAdornment,
   Fab,
+  Switch,
 } from '@mui/material';
 import { 
   Send as SendIcon,
@@ -65,6 +66,7 @@ import {
   sendDeepSeekMessage,
   sendGroqMessage,
   getAvailableProviders,
+  getAISettings,
 } from '../services/aiService';
 import { chatStorage } from '../services/chatStorageService';
 import { customInstructionsStorage } from '../services/customInstructionsService';
@@ -138,6 +140,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
   const [parsedStreamingContent, setParsedStreamingContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [modelSettings, setModelSettings] = useState(() => {
+    // Initialize with the current settings from localStorage
+    return getAISettings();
+  });
   const streamingContentRef = useRef('');
   const thinkingContentRef = useRef('');
   const theme = useTheme();
@@ -167,24 +173,15 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           });
         } else if (selectedFile.type === 'pdf') {
           messageContent.push({
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: selectedFile.mediaType,
-              data: selectedFile.data
-            },
-            cache_control: {
-              type: 'ephemeral'
-            }
+            type: 'pdf',
+            media_type: selectedFile.mediaType,
+            data: selectedFile.data
           });
-        } else {
+        } else if (selectedFile.type.startsWith('image')) {
           messageContent.push({
-            type: selectedFile.type,
-            source: {
-              type: 'base64',
-              media_type: selectedFile.mediaType,
-              data: selectedFile.data
-            }
+            type: 'image',
+            media_type: selectedFile.mediaType,
+            data: selectedFile.data
           });
         }
       }
@@ -568,6 +565,35 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
     };
   }, [isFullscreen]);
 
+  useEffect(() => {
+    if (selectedProvider) {
+      const [providerName, modelId] = selectedProvider.split('|');
+      const settings = getAISettings();
+      console.log('Loading settings for', providerName, modelId, settings);
+      
+      // Ensure we have the provider and model settings initialized
+      if (!settings[providerName]) {
+        settings[providerName] = { modelSettings: {} };
+      }
+      if (!settings[providerName].modelSettings) {
+        settings[providerName].modelSettings = {};
+      }
+      if (!settings[providerName].modelSettings[modelId]) {
+        settings[providerName].modelSettings[modelId] = {};
+      }
+      
+      // Save the initialized settings
+      localStorage.setItem('ai_settings', JSON.stringify(settings));
+      
+      // Update state with the settings
+      setModelSettings({...settings});
+    }
+  }, [selectedProvider]);
+
+  useEffect(() => {
+    console.log('Model settings updated:', modelSettings);
+  }, [modelSettings]);
+
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
     if (container) {
@@ -635,11 +661,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
     }
   };
 
-  const handleProviderChange = (value) => {
-    setSelectedProvider(value);
-    localStorage.setItem('last_selected_provider', value);
-  };
-
   const handleCopyMessage = async (content, index) => {
     let textToCopy = '';
     if (typeof content === 'string') {
@@ -669,7 +690,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       reader.onload = (e) => {
         const base64Data = e.target.result.split(',')[1];
         setSelectedFile({
-          type: 'document',
+          type: 'pdf',
           name: file.name,
           data: base64Data,
           mediaType: 'application/pdf'
@@ -908,34 +929,36 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           return (
             <Box key={index} sx={{ my: 2 }}>
               <img 
-                src={`data:${item.source.media_type};base64,${item.source.data}`}
+                src={`data:${item.media_type};base64,${item.data}`}
                 alt="User uploaded image"
                 style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
               />
             </Box>
           );
-        } else if (item.type === 'pdf') {
-          return (
-            <Box key={index} sx={{ my: 2 }}>
-              <embed 
-                src={`data:application/pdf;base64,${item.data}`}
-                type="application/pdf"
-                width="100%"
-                height="500"
-              />
-            </Box>
-          );
-        } else if (item.type === 'document') {
-          return (
-            <Box key={index} sx={{ my: 2 }}>
-              <embed 
-                src={`data:${item.source.media_type};base64,${item.source.data}`}
-                type={item.source.media_type}
-                width="100%"
-                height="500"
-              />
-            </Box>
-          );
+        } else if (item.type === 'file') {
+          if (item.media_type === 'application/pdf') {
+            return (
+              <Box key={index} sx={{ my: 2 }}>
+                <embed 
+                  src={`data:application/pdf;base64,${item.data}`}
+                  type="application/pdf"
+                  width="100%"
+                  height="500"
+                />
+              </Box>
+            );
+          } else {
+            return (
+              <Box key={index} sx={{ my: 2 }}>
+                <embed 
+                  src={`data:${item.media_type};base64,${item.data}`}
+                  type={item.media_type}
+                  width="100%"
+                  height="500"
+                />
+              </Box>
+            );
+          }
         }
         return null;
       });
@@ -978,12 +1001,12 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       sx={{
         position: 'absolute',
         bottom: 0,
-        left: isFullscreen ? '250px' : 0,
+        left: isFullscreen ? '300px' : 0,
         right: 0,
         backgroundColor: theme.palette.background.default,
         borderTop: `1px solid ${theme.palette.divider}`,
         zIndex: 1,
-        width: isFullscreen ? 'calc(100% - 250px)' : '100%',
+        width: isFullscreen ? 'calc(100% - 300px)' : '100%',
         display: 'flex',
         justifyContent: 'center', // Center the input container
       }}
@@ -993,207 +1016,332 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         width: '100%',
         maxWidth: isFullscreen ? '900px' : '100%', // Match message width
       }}>
-        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-          <Box 
+        <Paper
+          component="form"
+          sx={{
+            p: '8px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: 'background.paper',
+            borderRadius: '12px',
+            boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)',
+          }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage();
+          }}
+        >
+          <InputBase
             sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1, 
-              bgcolor: 'background.paper', 
-              p: 0.5, 
-              borderRadius: 1,
-              width: '100%',
-              flexWrap: 'nowrap',
-              overflow: 'hidden',
-              minHeight: '40px',
+              flex: 1,
+              minHeight: '60px', 
+              '& textarea': {
+                minHeight: '60px !important', 
+                padding: '8px 0', 
+              }
             }}
-          >
-            {/* Toolbar Icons */}
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <IconButton size="small" onClick={createNewSession}>
-                <AddIcon />
-              </IconButton>
-              <IconButton size="small" onClick={() => setHistoryAnchorEl(inputRef.current)}>
-                <HistoryIcon />
-              </IconButton>
-
-              <IconButton size="small" onClick={() => setIsFullscreen(true)}>
-                <FullscreenIcon />
-              </IconButton>
-              <IconButton size="small" onClick={() => setApiKeyDialogOpen(true)}>
-                <KeyIcon />
-              </IconButton>
-              <VoiceRecorder onTranscriptionComplete={async (transcript) => {
-                try {
-                  const response = await processTranscription(transcript);
-                  const newMessage = {
-                    role: 'assistant',
-                    content: response,
-                    timestamp: new Date().toISOString(),
-                  };
-                  setMessages(prev => [...prev, 
-                    { role: 'user', content: transcript, timestamp: new Date().toISOString() },
-                    newMessage
-                  ]);
-                } catch (error) {
-                  console.error('Error processing voice input:', error);
-                  setError('Failed to process voice input');
-                }
-              }} />
-            </Box>
-            <Select
-              value={selectedProvider}
-              onChange={(e) => {
-                setSelectedProvider(e.target.value);
-                localStorage.setItem('last_selected_provider', e.target.value);
-              }}
-              size="small"
-              sx={{ 
-                minWidth: 180,
-                flexShrink: 1  
-              }}
-            >
-              {providers.map((provider) =>
-                provider.models.map((model) => (
-                  <MenuItem
-                    key={`${provider.name}|${model.id}`}
-                    value={`${provider.name}|${model.id}`}
-                  >
-                    {model.name}
-                  </MenuItem>
-                ))
-              )}
-            </Select>
-            
-           
-            <IconButton
+            placeholder="Type your message here..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            onPaste={handlePaste}
+            multiline
+            maxRows={6} 
+            ref={inputRef}
+            startAdornment={
+              <InputAdornment position="start">
+                <IconButton
+                  sx={{ p: '8px' }}
+                  aria-label="attach file"
+                  component="label"
+                  size="small"
+                >
+                  <input
+                    type="file"
+                    hidden
+                    onChange={handleFileUpload}
+                    accept=".txt,.csv,.md,.pdf,image/*"
+                  />
+                  <AttachFileIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            }
+          />
+          {selectedFile && (
+            <Box sx={{ display: 'flex', alignItems: 'center', px: 1, mb: 1 }}>
+              <Typography variant="body2" color="textSecondary">
+                {selectedFile.name}
+              </Typography>
+              <IconButton
                 size="small"
-                onClick={(e) => setInstructionMenuAnchorEl(e.currentTarget)}
-                color={selectedInstruction ? "primary" : "default"}
-                sx={{ flexShrink: 0 }}  
+                onClick={() => setSelectedFile(null)}
+                sx={{ ml: 1 }}
               >
-                <AutoFixHighIcon />
+                <ClearIcon fontSize="small" />
               </IconButton>
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                gap: 1,
-                flexGrow: 0,
-                flexShrink: 1,
-                minWidth: 120  
-              }}
-            >
+            </Box>
+          )}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            pt: 1,
+            mt: 1,
+            borderTop: 1, 
+            borderColor: 'divider'
+          }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Select
+                  value={selectedProvider}
+                  onChange={(e) => {
+                    setSelectedProvider(e.target.value);
+                    localStorage.setItem('last_selected_provider', e.target.value);
+                  }}
+                  size="small"
+                  sx={{ 
+                    minWidth: 120,
+                    height: '32px',
+                    fontSize: '0.85rem',
+                    '& .MuiSelect-select': {
+                      padding: '4px 8px',
+                    }
+                  }}
+                  IconComponent={KeyboardArrowDownIcon}
+                >
+                  {providers.map((provider) =>
+                    provider.models.map((model) => (
+                      <MenuItem
+                        key={`${provider.name}|${model.id}`}
+                        value={`${provider.name}|${model.id}`}
+                        selected={selectedProvider === `${provider.name}|${model.id}`}
+                        onClick={() => {
+                          setSelectedProvider(`${provider.name}|${model.id}`);
+                          localStorage.setItem('last_selected_provider', `${provider.name}|${model.id}`);
+                          setSettingsAnchorEl(null);
+                        }}
+                      >
+                        {model.name}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+                
+                {/* Model-specific settings - inline */}
+                {selectedProvider && (() => {
+                  const [providerName, modelId] = selectedProvider.split('|');
+                  
+                  // OpenAI reasoning effort setting
+                  if (providerName === 'openai') {
+                    const reasoningEffort = modelSettings[providerName]?.modelSettings?.[modelId]?.reasoningEffort || 'none';
+                    
+                    console.log('OpenAI reasoning effort:', reasoningEffort);
+                    
+                    return (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        position: 'relative',
+                        zIndex: 1
+                      }}>
+                        <Typography variant="caption">Reasoning:</Typography>
+                        <Select
+                          size="small"
+                          value={reasoningEffort}
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+                            console.log('Reasoning effort changed to:', newValue);
+                            updateModelSetting(providerName, modelId, 'reasoningEffort', newValue);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          sx={{
+                            height: '32px',
+                            fontSize: '0.85rem',
+                            '.MuiSelect-select': {
+                              padding: '4px 32px 4px 8px',
+                            }
+                          }}
+                        >
+                          <MenuItem value="none">None</MenuItem>
+                          <MenuItem value="low">Low</MenuItem>
+                          <MenuItem value="medium">Medium</MenuItem>
+                          <MenuItem value="high">High</MenuItem>
+                        </Select>
+                      </Box>
+                    );
+                  }
+                  
+                  // Anthropic thinking setting
+                  if (providerName === 'anthropic') {
+                    const isThinkingEnabled = Boolean(modelSettings[providerName]?.modelSettings?.[modelId]?.thinking);
+                    const budgetTokens = modelSettings[providerName]?.modelSettings?.[modelId]?.budget_tokens || 8000;
+                    
+                    console.log('Anthropic thinking:', isThinkingEnabled, 'Budget tokens:', budgetTokens);
+                    
+                    return (
+                      <Box 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          position: 'relative',
+                          zIndex: 1
+                        }}
+                      >
+                        <Typography variant="caption">Thinking:</Typography>
+                        <Switch
+                          size="small"
+                          checked={isThinkingEnabled}
+                          onChange={(e) => {
+                            const newValue = e.target.checked;
+                            console.log('Switch changed to:', newValue);
+                            updateModelSetting(providerName, modelId, 'thinking', newValue);
+                            // If turning on thinking, set default budget tokens
+                            if (newValue && !modelSettings[providerName]?.modelSettings?.[modelId]?.budget_tokens) {
+                              updateModelSetting(providerName, modelId, 'budget_tokens', 8000);
+                            }
+                          }}
+                        />
+                        {isThinkingEnabled && (
+                          <div style={{ display: 'inline-block' }}>
+                            <select
+                              value={budgetTokens}
+                              onChange={(e) => {
+                                const newValue = parseInt(e.target.value);
+                                console.log('Token budget changed to:', newValue);
+                                updateModelSetting(providerName, modelId, 'budget_tokens', newValue);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                width: '90px',
+                                height: '28px',
+                                fontSize: '0.85rem',
+                                padding: '2px 4px',
+                                border: `1px solid ${theme.palette.divider}`,
+                                borderRadius: '4px',
+                                backgroundColor: theme.palette.background.paper,
+                                color: theme.palette.text.primary
+                              }}
+                            >
+                              <option value="8000">8,000</option>
+                              <option value="16000">16,000</option>
+                              <option value="24000">24,000</option>
+                              <option value="32000">32,000</option>
+                              <option value="64000">64,000</option>
+                            </select>
+                            <span style={{ 
+                              fontSize: '0.75rem', 
+                              marginLeft: '4px',
+                              color: theme.palette.text.secondary
+                            }}>tokens</span>
+                          </div>
+                        )}
+                      </Box>
+                    );
+                  }
+                  
+                  return null;
+                })()}
+              </Box>
+              
               <Select
                 value={selectedInstruction ? selectedInstruction.id : ''}
                 onChange={(e) => {
+                  if (e.target.value === 'create_new') {
+                    setEditingInstruction(null);
+                    setNewInstructionName('');
+                    setNewInstructionContent('');
+                    setInstructionDialogOpen(true);
+                    return;
+                  }
                   const instruction = customInstructions.find(i => i.id === e.target.value);
                   setSelectedInstruction(instruction || null);
                   localStorage.setItem('last_selected_instruction', instruction ? instruction.id : null);
                 }}
                 size="small"
                 sx={{ 
-                  flexGrow: 0,
-                  flexShrink: 1,
                   minWidth: 120,
-                  maxWidth: 150
+                  height: '32px',
+                  fontSize: '0.85rem',
+                  '& .MuiSelect-select': {
+                    padding: '4px 8px',
+                  }
                 }}
+                IconComponent={KeyboardArrowDownIcon}
+                displayEmpty
+                endAdornment={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {selectedInstruction && (
+                      <>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditInstruction(selectedInstruction);
+                          }}
+                          sx={{ mr: 0.5, p: 0.5 }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteInstruction(selectedInstruction.id);
+                          }}
+                          sx={{ mr: -1, p: 0.5 }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </>
+                    )}
+                  </Box>
+                }
               >
                 <MenuItem value="">
-                  <em>None</em>
+                  <em>No prompt</em>
                 </MenuItem>
+                <MenuItem value="create_new" sx={{ color: theme.palette.primary.main }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AddIcon fontSize="small" />
+                    <Typography variant="body2">Create New</Typography>
+                  </Box>
+                </MenuItem>
+                {customInstructions.length > 0 && <Divider />}
                 {customInstructions.map((instruction) => (
                   <MenuItem key={instruction.id} value={instruction.id}>
                     {instruction.name}
                   </MenuItem>
                 ))}
               </Select>
-              
-              
             </Box>
-            
-
-            
-            
-          </Box>
-        </Box>
-
-        <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider' }}>
-          <Paper
-            component="form"
-            sx={{
-              p: '4px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              minHeight: '45px',
-              backgroundColor: 'background.paper',
-            }}
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-          >
-            <IconButton
-              sx={{ p: '10px' }}
-              aria-label="attach file"
-              component="label"
-            >
-              <input
-                type="file"
-                hidden
-                onChange={handleFileUpload}
-                accept=".txt,.csv,.md,.pdf,image/*"
-              />
-              <AttachFileIcon />
-            </IconButton>
-            
-            <InputBase
-              sx={{ 
-                ml: 1, 
-                flex: 1,
-                minHeight: '60px', 
-                '& textarea': {
-                  minHeight: '60px !important', 
-                  padding: '8px 0', 
-                }
-              }}
-              placeholder="Type a message..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              onPaste={handlePaste}
-              multiline
-              maxRows={6} 
-              ref={inputRef}
-            />
-            
-            {selectedFile && (
-              <Box sx={{ display: 'flex', alignItems: 'center', px: 1 }}>
-                <Typography variant="body2" color="textSecondary">
-                  {selectedFile.name}
-                </Typography>
-                <IconButton size="small" onClick={() => setSelectedFile(null)}>
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            )}
-            
             <IconButton
               color="primary"
-              sx={{ p: '10px' }}
+              sx={{ 
+                p: '8px',
+                backgroundColor: theme.palette.primary.main,
+                color: theme.palette.primary.contrastText,
+                '&:hover': {
+                  backgroundColor: theme.palette.primary.dark,
+                },
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px'
+              }}
               aria-label="send message"
               onClick={handleSendMessage}
               disabled={isLoading || (!input.trim() && !selectedFile)}
             >
-              {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
+              {isLoading ? <CircularProgress size={20} color="inherit" /> : <SendIcon fontSize="small" />}
             </IconButton>
-          </Paper>
-        </Box>
+          </Box>
+        </Paper>
       </Box>
     </Box>
   );
@@ -1211,14 +1359,47 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
     const firstMessage = session.messages[0];
     let preview = '';
     
-    if (Array.isArray(firstMessage.content)) {
-      const textContent = firstMessage.content.find(item => item.type === 'text');
-      preview = textContent ? textContent.text : 'No text content';
-    } else if (typeof firstMessage.content === 'string') {
-      preview = firstMessage.content;
+    if (firstMessage) {
+      if (typeof firstMessage.content === 'string') {
+        preview = firstMessage.content;
+      } else if (Array.isArray(firstMessage.content)) {
+        const textContent = firstMessage.content.find(item => item.type === 'text');
+        preview = textContent ? textContent.text : 'No text content';
+      } else if (firstMessage.content?.type === 'image') {
+        preview = '[Image]';
+      }
     }
     
     return preview.length > 80 ? preview.slice(0, 77) + '...' : preview;
+  };
+
+  const updateModelSetting = (provider, modelId, setting, value) => {
+    console.log('Updating model setting:', provider, modelId, setting, value);
+    
+    // Get the latest settings from localStorage
+    const settings = getAISettings();
+    
+    // Initialize objects if they don't exist
+    if (!settings[provider]) {
+      settings[provider] = { modelSettings: {} };
+    }
+    if (!settings[provider].modelSettings) {
+      settings[provider].modelSettings = {};
+    }
+    if (!settings[provider].modelSettings[modelId]) {
+      settings[provider].modelSettings[modelId] = {};
+    }
+    
+    // Update the setting
+    settings[provider].modelSettings[modelId][setting] = value;
+    
+    // Save back to localStorage
+    localStorage.setItem('ai_settings', JSON.stringify(settings));
+    
+    // Update the state with a completely new object to ensure React detects the change
+    setModelSettings({...settings});
+    
+    console.log('Updated settings:', settings[provider].modelSettings[modelId]);
   };
 
   return (
@@ -1295,7 +1476,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
             {/* Sidebar */}
             <Box
               sx={{
-                width: isSidebarOpen ? '250px' : '0px',  
+                width: isSidebarOpen ? '300px' : '0px',  
                 height: '100%',
                 bgcolor: 'background.paper',
                 transition: 'width 0.2s',
@@ -1306,50 +1487,103 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                 flexDirection: 'column',
               }}
             >
-              <Box sx={{ 
-                p: 2, 
-                borderBottom: `1px solid ${theme.palette.divider}`,
+              <Box sx={{
+                p: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 1
+                gap: 1,
+                borderBottom: `1px solid ${theme.palette.divider}`,
               }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  
-                  <IconButton
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1,
+                  position: 'relative',
+                }}>
+                  <TextField
                     size="small"
-                  >
-                    <ChevronLeftIcon />
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    fullWidth
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                      ...(searchQuery && {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              size="small"
+                              onClick={() => setSearchQuery('')}
+                              edge="end"
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      })
+                    }}
+                  />
+                </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 1, 
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                }}>
+                  <IconButton size="small" onClick={() => setHistoryAnchorEl(inputRef.current)}>
+                    <HistoryIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton size="small" onClick={() => setIsFullscreen(true)}>
+                    <FullscreenIcon fontSize="small" />
+                  </IconButton>
+                  <VoiceRecorder onTranscriptionComplete={async (transcript) => {
+                    try {
+                      const response = await processTranscription(transcript);
+                      const newMessage = {
+                        role: 'assistant',
+                        content: response,
+                        timestamp: new Date().toISOString(),
+                      };
+                      setMessages(prev => [...prev, 
+                        { role: 'user', content: transcript, timestamp: new Date().toISOString() },
+                        newMessage
+                      ]);
+                    } catch (error) {
+                      console.error('Error processing voice input:', error);
+                      setError('Failed to process voice input');
+                    }
+                  }} />
+                  <IconButton size="small" onClick={() => setApiKeyDialogOpen(true)}>
+                    <KeyIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton size="small" onClick={createNewSession}>
+                    <AddIcon fontSize="small" />
                   </IconButton>
                 </Box>
-                <TextField
-                  size="small"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                    ...(searchQuery && {
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            size="small"
-                            onClick={() => setSearchQuery('')}
-                            edge="end"
-                          >
-                            <ClearIcon fontSize="small" />
-                          </IconButton>
-                        </InputAdornment>
-                      )
-                    })
-                  }}
-                />
               </Box>
-
+              <IconButton
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                size="small"
+                sx={{
+                  position: 'absolute',
+                  right: -20,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: '50%',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                  zIndex: 1,
+                }}
+              >
+                <ChevronLeftIcon />
+              </IconButton>
               <List sx={{ flex: 1, overflowY: 'auto' }}>
                 {filteredSessions.map((session) => (
                   <ListItem
@@ -1384,7 +1618,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                     <ListItemText 
                       primary={renderSessionPreview(session)}
                       primaryTypographyProps={{
-                        sx: {
+                        sx: { 
                           fontFamily: 'Geist, sans-serif',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -1401,7 +1635,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                       secondaryTypographyProps={{
                         sx: {
                           fontSize: '0.7rem',
-                          opacity: 0.7
+                          color: 'text.secondary'
                         }
                       }}
                     />
@@ -1431,6 +1665,27 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                   </Box>
                 )}
               </List>
+              <Box sx={{ 
+                p: 1, 
+                borderTop: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                justifyContent: 'center'
+              }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={createNewSession}
+                  fullWidth
+                  sx={{ 
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    justifyContent: 'flex-start',
+                    px: 2
+                  }}
+                >
+                  New Chat
+                </Button>
+              </Box>
             </Box>
 
             {/* Main chat area */}
@@ -1463,14 +1718,23 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                   >
                     <Box
                       sx={{
-                        width: '100%',
+                        width: 'fit-content',
                         position: 'relative',
-                        backgroundColor: message.role === 'user' ? theme.palette.primary.dark : theme.palette.background.paper,
-                        color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
+                        backgroundColor: message.role === 'user' 
+                          ? theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.1)' 
+                            : 'rgba(0, 0, 0, 0.1)'
+                          : theme.palette.background.paper,
+                        color: theme.palette.text.primary,
                         borderRadius: 2,
                         p: 2,
-                        '&:hover .copy-button': {
-                          opacity: 1,
+                        mb: 2,
+                        '&:hover': {
+                          backgroundColor: message.role === 'user'
+                            ? theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.15)'
+                              : 'rgba(0, 0, 0, 0.15)'
+                            : theme.palette.action.hover,
                         },
                       }}
                     >
@@ -1580,12 +1844,21 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                     sx={{
                       maxWidth: '80%',
                       position: 'relative',
-                      backgroundColor: message.role === 'user' ? theme.palette.primary.dark : theme.palette.background.paper,
-                      color: message.role === 'user' ? theme.palette.primary.contrastText : theme.palette.text.primary,
+                      backgroundColor: message.role === 'user'
+                        ? theme.palette.mode === 'dark'
+                          ? 'rgba(255, 255, 255, 0.1)'
+                          : 'rgba(0, 0, 0, 0.1)'
+                        : theme.palette.background.paper,
+                      color: theme.palette.text.primary,
                       borderRadius: 2,
                       p: 2,
-                      '&:hover .copy-button': {
-                        opacity: 1,
+                      mb: 2,
+                      '&:hover': {
+                        backgroundColor: message.role === 'user'
+                          ? theme.palette.mode === 'dark'
+                            ? 'rgba(255, 255, 255, 0.15)'
+                            : 'rgba(0, 0, 0, 0.15)'
+                          : theme.palette.action.hover,
                       },
                     }}
                   >
@@ -1680,7 +1953,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
               value={`${provider.name}|${model.id}`}
               selected={selectedProvider === `${provider.name}|${model.id}`}
               onClick={() => {
-                handleProviderChange(`${provider.name}|${model.id}`);
+                setSelectedProvider(`${provider.name}|${model.id}`);
+                localStorage.setItem('last_selected_provider', `${provider.name}|${model.id}`);
                 setSettingsAnchorEl(null);
               }}
             >
@@ -1739,7 +2013,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden'
+                    lineHeight: '1.2em',
+                    maxHeight: '2.4em'  
                   }
                 }}
                 secondaryTypographyProps={{

@@ -1,5 +1,12 @@
 const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
+
+    if (!proxyUrl || !proxyKey) {
+      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
+    }
+
     const messagePayload = [...messages];
     if (customInstruction) {
       messagePayload.unshift({ role: 'system', content: customInstruction.content });
@@ -10,59 +17,81 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
       messagePayload.unshift({ role: 'system', content: 'Formatting re-enabled' });
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const requestBody = {
+      provider: 'openai',
+      model,
+      messages: messagePayload.map(({ role, content }) => ({ role, content })),
+      stream: Boolean(onStream),
+    };
+
+    // Add temperature if configured
+    const temperature = getAISettings().openai.modelSettings[model]?.temperature;
+    if (typeof temperature === 'number') {
+      requestBody.temperature = temperature;
+    }
+
+    // Add reasoning_effort if configured
+    const reasoningEffort = getAISettings().openai.modelSettings[model]?.reasoningEffort;
+    if (reasoningEffort && reasoningEffort !== 'none') {
+      requestBody.reasoning_effort = reasoningEffort;
+    }
+
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'x-api-key': proxyKey,
       },
-      body: JSON.stringify({
-        model,
-        messages: messagePayload.map(({ role, content }) => ({ role, content })),
-        stream: Boolean(onStream),
-        temperature: getAISettings().openai.modelSettings[model]?.temperature,
-        ...(getAISettings().openai.modelSettings[model]?.reasoningEffort !== 'none' && {
-          reasoning_effort: getAISettings().openai.modelSettings[model].reasoningEffort
-        }),
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     if (onStream) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value);
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const json = JSON.parse(line.slice(5));
-              const content = json.choices[0]?.delta?.content;
-              if (content) onStream(content);
-            } catch (e) {
-              console.error('Error parsing stream:', e);
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                break;
+              }
+              try {
+                const { content } = JSON.parse(data);
+                if (content) {
+                  onStream(content);
+                }
+              } catch (e) {
+                console.error('Error parsing stream data:', e);
+              }
             }
           }
         }
+      } catch (error) {
+        console.error('Stream reading error:', error);
+        throw error;
+      } finally {
+        reader.releaseLock();
       }
+
       return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
-    return data.choices[0].message;
+    return { role: 'assistant', content: data.content };
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('API error:', error);
     throw error;
   }
 };
@@ -149,7 +178,7 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
       method: 'POST',
       headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(bodyConfig),
     });
@@ -207,15 +236,20 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
 
 const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
+
+    if (!proxyUrl || !proxyKey) {
+      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
+    }
+
     const formattedMessages = messages.map(({ role, content }) => {
       const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
 
       if (Array.isArray(content)) {
         return {
           role: role === 'assistant' ? 'assistant' : 'user',
-          content: content.map(item => {
-            return item;
-          })
+          content: content.map(item => item)
         };
       }
 
@@ -225,33 +259,34 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
       };
     });
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const requestBody = {
+      provider: 'anthropic',
+      model,
+      messages: formattedMessages,
+      system: customInstruction ? customInstruction.content : undefined,
+      max_tokens: 8001,
+      temperature: getAISettings().anthropic.modelSettings[model]?.temperature,
+      stream: Boolean(onStream),
+      ...(getAISettings().anthropic.modelSettings[model]?.thinking && {
+        thinking: {
+          type: 'enabled',
+          budget_tokens: getAISettings().anthropic.modelSettings[model]?.budget_tokens || 16000
+        }
+      })
+    };
+
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'x-api-key': proxyKey
       },
-      body: JSON.stringify({
-        model,
-        messages: formattedMessages,
-        system: customInstruction ? customInstruction.content : undefined,
-        max_tokens: 8001,
-        temperature: getAISettings().anthropic.modelSettings[model]?.temperature,
-        stream: Boolean(onStream),
-        ...(getAISettings().anthropic.modelSettings[model]?.thinking && {
-          thinking: {
-            type: 'enabled',
-            budget_tokens: getAISettings().anthropic.modelSettings[model]?.budget_tokens || 16000
-          }
-        })
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error?.message || `Anthropic API error: ${response.statusText}`);
+      throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
     }
 
     if (onStream) {
@@ -259,53 +294,48 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value);
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          buffer += decoder.decode(value);
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const json = JSON.parse(line.slice(5));
-              if (json.type === 'content_block_delta') {
-                if (json.delta?.thinking) {
-                  onStream(json.delta.thinking, 'thinking');
-                }
-                if (json.delta?.text) {
-                  onStream(json.delta.text, 'text');
-                }
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                break;
               }
-            } catch (e) {
-              console.error('Error parsing stream:', e);
+              try {
+                const { content, type } = JSON.parse(data);
+                if (content) {
+                  if (type === 'thinking') {
+                    onStream(content, 'thinking');
+                  } else {
+                    onStream(content, 'text');
+                  }
+                }
+              } catch (e) {
+                console.error('Error parsing stream data:', e);
+              }
             }
           }
         }
+      } catch (error) {
+        console.error('Stream reading error:', error);
+        throw error;
+      } finally {
+        reader.releaseLock();
       }
+
       return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
-    const content = [];
-    
-    // Process each content block
-    for (const block of data.content) {
-      if (block.type === 'thinking') {
-        content.push({
-          type: 'thinking',
-          content: block.thinking,
-          signature: block.signature
-        });
-      } else if (block.type === 'text') {
-        content.push({
-          type: 'text',
-          content: block.text
-        });
-      }
-    }
+    const content = Array.isArray(data.content) ? data.content : [{ type: 'text', content: data.content }];
 
     return {
       role: 'assistant',
@@ -313,87 +343,94 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
       timestamp: new Date().toISOString()
     };
   } catch (error) {
-    console.error('Anthropic API error:', error);
+    console.error('API error:', error);
     throw error;
   }
 };
 
-const sendGeminiMessage = async (messages, model, apiKey, customInstruction) => {
+const sendGeminiMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
-    const messagePayload = messages.map(({ role, content }) => {
-      const parts = [];
-      const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
 
-      formattedContent.forEach(item => {
-        if (item.type === 'image') {
-          parts.push({
-            inlineData: {
-              mimeType: item.source.media_type,
-              data: item.source.data,
-            }
-          });
-        } else if (item.type === 'text') {
-          parts.push({ text: item.text });
-        }
-      });
-
-      return {
-        role: role === 'assistant' ? 'model' : 'user',
-        parts
-      };
-    });
-
-    if (customInstruction) {
-      messagePayload.unshift({ role: 'user', parts: [{ text: customInstruction.content }] });
+    if (!proxyUrl || !proxyKey) {
+      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
     }
 
-    const generateRequestBody = (model, messagePayload) => {
-      const baseConfig = {
-        contents: messagePayload,
-        generationConfig: {
-          temperature: getAISettings().gemini.modelSettings[model]?.temperature,
-          maxOutputTokens: 8000,
-        }
-      };
+    const messagePayload = [...messages];
+    if (customInstruction) {
+      messagePayload.unshift({ role: 'system', content: customInstruction.content });
+    }
 
-      // Only add tools for the specific model
-      if (model.includes('flash')) {
-        baseConfig.tools = {
-          "google_search": {}
-        };
-        baseConfig.generationConfig.response_modalities = ["TEXT"];
-      }
-
-      return baseConfig;
+    const requestBody = {
+      provider: 'gemini',
+      model,
+      messages: messagePayload.map(({ role, content }) => ({ role, content })),
+      stream: Boolean(onStream),
     };
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
+    // Add temperature if configured
+    const temperature = getAISettings().gemini.modelSettings[model]?.temperature;
+    if (typeof temperature === 'number') {
+      requestBody.temperature = temperature;
+    }
+
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
+        'x-api-key': proxyKey,
       },
-      body: JSON.stringify(generateRequestBody(model, messagePayload)),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `Gemini API error: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    if (onStream) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                break;
+              }
+              try {
+                const { content } = JSON.parse(data);
+                if (content) {
+                  onStream(content);
+                }
+              } catch (e) {
+                console.error('Error parsing stream data:', e);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Stream reading error:', error);
+        throw error;
+      } finally {
+        reader.releaseLock();
+      }
+
+      return { role: 'assistant', content: '' };
     }
 
     const data = await response.json();
-
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No response from Gemini API');
-    }
-
-    return {
-      role: 'assistant',
-      content: data.candidates[0].content.parts.map(part => part.text).join(''),
-      timestamp: new Date().toISOString()
-    };
+    return { role: 'assistant', content: data.content };
   } catch (error) {
-    console.error('Gemini API error:', error);
+    console.error('API error:', error);
     throw error;
   }
 };
@@ -409,7 +446,22 @@ const getAISettings = () => {
       groq: { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} },
     };
   }
-  return JSON.parse(settings);
+  
+  // Parse the settings
+  const parsedSettings = JSON.parse(settings);
+  
+  // Ensure all providers have modelSettings initialized
+  const providers = ['openai', 'anthropic', 'gemini', 'deepseek', 'groq'];
+  providers.forEach(provider => {
+    if (!parsedSettings[provider]) {
+      parsedSettings[provider] = { key: '', models: [], selectedModel: '', temperature: 0, modelSettings: {} };
+    }
+    if (!parsedSettings[provider].modelSettings) {
+      parsedSettings[provider].modelSettings = {};
+    }
+  });
+  
+  return parsedSettings;
 };
 
 const getAvailableProviders = () => {

@@ -55,6 +55,10 @@ const ApiKeyInput = ({ open, onClose }) => {
   const [showKey, setShowKey] = useState(false);
   const [editModelDialog, setEditModelDialog] = useState(false);
   const [editingModel, setEditingModel] = useState(null);
+  const [proxyConfig, setProxyConfig] = useState({
+    url: localStorage.getItem('proxy_url') || '',
+    key: localStorage.getItem('proxy_key') || ''
+  });
   
   // Provider states
   const [providers, setProviders] = useState({
@@ -165,6 +169,10 @@ const ApiKeyInput = ({ open, onClose }) => {
       localStorage.setItem('gemini_model', providers.gemini.selectedModel);
       localStorage.setItem('gemini_temperature', providers.gemini.temperature);
     }
+
+    // Save proxy settings
+    localStorage.setItem('proxy_url', proxyConfig.url);
+    localStorage.setItem('proxy_key', proxyConfig.key);
     
     onClose();
   };
@@ -450,6 +458,7 @@ const ApiKeyInput = ({ open, onClose }) => {
           <Tab label="DeepSeek" />
           <Tab label="Anthropic" />
           <Tab label="Gemini" />
+          <Tab label="Proxy" />
         </Tabs>
 
         <DialogContent>
@@ -458,6 +467,32 @@ const ApiKeyInput = ({ open, onClose }) => {
           {activeTab === 2 && <ProviderContent provider="deepseek" />}
           {activeTab === 3 && <ProviderContent provider="anthropic" />}
           {activeTab === 4 && <ProviderContent provider="gemini" />}
+          {activeTab === 5 && (
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                fullWidth
+                label="Proxy URL"
+                type="text"
+                value={proxyConfig.url}
+                onChange={(e) => setProxyConfig(prev => ({ ...prev, url: e.target.value }))}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="Proxy API Key"
+                type={showKey ? 'text' : 'password'}
+                value={proxyConfig.key}
+                onChange={(e) => setProxyConfig(prev => ({ ...prev, key: e.target.value }))}
+                InputProps={{
+                  endAdornment: (
+                    <IconButton onClick={() => setShowKey(!showKey)}>
+                      {showKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  ),
+                }}
+              />
+            </Box>
+          )}
 
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
