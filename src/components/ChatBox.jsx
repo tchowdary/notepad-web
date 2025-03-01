@@ -703,7 +703,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           setSelectedFile({
             type: 'pdf',
             name: file.name,
-            data: base64Data,
+            //data: base64Data,
             mediaType: 'application/pdf',
             url: uploadResult.url
           });
@@ -740,7 +740,6 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           setSelectedFile({
             type: 'image',
             name: file.name,
-            data: base64Data,
             mediaType: file.type,
             url: uploadResult.url
           });
@@ -763,18 +762,16 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         if (!file) continue;
 
         try {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const base64Data = event.target.result.split(',')[1];
-            setSelectedFile({
-              type: 'image',
-              mediaType: file.type,
-              data: base64Data
-            });
-          };
-          reader.readAsDataURL(file);
+          const uploadResult = await fileService.uploadFile(file);
+          setSelectedFile({
+            type: 'image',
+            name: file.name || `pasted-image-${Date.now()}.${file.type.split('/')[1]}`,
+            mediaType: file.type,
+            url: uploadResult.url
+          });
         } catch (error) {
-          console.error('Error processing pasted image:', error);
+          console.error('Error uploading pasted image to Dropbox:', error);
+          setError('Failed to upload pasted image to Dropbox');
         }
         break;
       }
