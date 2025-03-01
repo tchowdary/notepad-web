@@ -75,6 +75,7 @@ import VoiceRecorder from './VoiceRecorder';
 import { processTranscription } from '../services/llmService';
 import { generateText } from '../services/llmService';
 import { setJarvisFavicon, restoreOriginalFavicon } from '../utils/faviconUtils';
+import fileService from '../services/fileService'; // Import fileService
 
 const generateTitleFromUserMessage = async ({ message }) => {
   try {
@@ -169,28 +170,36 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         if (selectedFile.type === 'markdown' || selectedFile.type === 'csv') {
           messageContent.push({
             type: 'text',
-            text: selectedFile.data
+            text: selectedFile.data,
+            url: selectedFile.url
           });
         } else if (selectedFile.type === 'pdf') {
           messageContent.push({
             type: 'pdf',
             media_type: selectedFile.mediaType,
-            data: selectedFile.data
+            data: selectedFile.data,
+            url: selectedFile.url
           });
         } else if (selectedFile.type.startsWith('image')) {
           messageContent.push({
             type: 'image',
             media_type: selectedFile.mediaType,
-            data: selectedFile.data
+            data: selectedFile.data,
+            url: selectedFile.url
           });
         }
       }
 
-      // Include text input if available
-      if (input.trim()) {
+      // Include text input and file URL if available
+      if (input.trim() || (selectedFile && selectedFile.url)) {
+        const textContent = [
+          input.trim(),
+          selectedFile?.url ? `\nFile URL: ${selectedFile.url}` : ''
+        ].filter(Boolean).join('');
+
         messageContent.push({
           type: 'text',
-          text: input.trim()
+          text: textContent
         });
       }
 
@@ -687,37 +696,58 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
     
     if (file.type === 'application/pdf') {
       reader.readAsDataURL(file);
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const base64Data = e.target.result.split(',')[1];
-        setSelectedFile({
-          type: 'pdf',
-          name: file.name,
-          data: base64Data,
-          mediaType: 'application/pdf'
-        });
+        try {
+          const uploadResult = await fileService.uploadFile(file);
+          setSelectedFile({
+            type: 'pdf',
+            name: file.name,
+            data: base64Data,
+            mediaType: 'application/pdf',
+            url: uploadResult.url
+          });
+        } catch (error) {
+          console.error('Error uploading to Dropbox:', error);
+          setError('Failed to upload file to Dropbox');
+        }
       };
     } else if (file.type === 'text/markdown' || file.name.endsWith('.md') || 
                file.type === 'text/csv' || file.name.endsWith('.csv')) {
       reader.readAsText(file);
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const content = e.target.result;
-        setSelectedFile({
-          type: file.type === 'text/csv' || file.name.endsWith('.csv') ? 'csv' : 'markdown',
-          name: file.name,
-          data: content,
-          content: content
-        });
+        try {
+          const uploadResult = await fileService.uploadFile(file);
+          setSelectedFile({
+            type: file.type === 'text/csv' || file.name.endsWith('.csv') ? 'csv' : 'markdown',
+            name: file.name,
+            data: content,
+            content: content,
+            url: uploadResult.url
+          });
+        } catch (error) {
+          console.error('Error uploading to Dropbox:', error);
+          setError('Failed to upload file to Dropbox');
+        }
       };
     } else if (file.type.startsWith('image/')) {
       reader.readAsDataURL(file);
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const base64Data = e.target.result.split(',')[1];
-        setSelectedFile({
-          type: 'image',
-          name: file.name,
-          data: base64Data,
-          mediaType: file.type
-        });
+        try {
+          const uploadResult = await fileService.uploadFile(file);
+          setSelectedFile({
+            type: 'image',
+            name: file.name,
+            data: base64Data,
+            mediaType: file.type,
+            url: uploadResult.url
+          });
+        } catch (error) {
+          console.error('Error uploading to Dropbox:', error);
+          setError('Failed to upload file to Dropbox');
+        }
       };
     }
   };
