@@ -578,17 +578,23 @@ const getAvailableProviders = async () => {
       console.log('Falling back to original implementation - proxy config missing');
       // Fall back to the original implementation if proxy URL is not configured
       const settings = getAISettings();
-      return Object.entries(settings)
-        .filter(([_, config]) => config.key && config.models.length > 0)
+      return Object.entries(settings || {})
+        .filter(([_, config]) => config && config.key && Array.isArray(config.models) && config.models.length > 0)
         .map(([name, config]) => ({
           name,
-          models: config.models,
-          selectedModel: config.selectedModel,
+          models: config.models || [],
+          selectedModel: config.selectedModel || '',
         }));
     }
     
     // Construct the models endpoint URL
-    const modelsEndpoint = `${proxyUrl.replace(/\/api\/request\/?$/, '')}/api/models`;
+    let modelsEndpoint;
+    try {
+      modelsEndpoint = `${proxyUrl.replace(/\/api\/request\/?$/, '')}/api/models`;
+    } catch (error) {
+      console.error('Error constructing models endpoint URL:', error);
+      modelsEndpoint = `${proxyUrl}/api/models`;
+    }
     console.log('Models endpoint:', modelsEndpoint);
     
     // Fetch available models from the API with the API key in headers
@@ -609,14 +615,17 @@ const getAvailableProviders = async () => {
     const models = await response.json();
     console.log('Models received:', models);
     
+    // Ensure models is an array
+    const modelsArray = Array.isArray(models) ? models : [];
+    
     // Create a provider with the fetched models
     const provider = [{
       name: 'proxy',
-      models: models.map(model => ({
-        id: model.nickname,
-        name: model.nickname
+      models: modelsArray.map(model => ({
+        id: model && model.nickname ? model.nickname : 'unknown',
+        name: model && model.nickname ? model.nickname : 'Unknown Model'
       })),
-      selectedModel: models.length > 0 ? models[0].nickname : '',
+      selectedModel: modelsArray.length > 0 && modelsArray[0] && modelsArray[0].nickname ? modelsArray[0].nickname : '',
     }];
     
     console.log('Returning provider:', provider);
@@ -625,12 +634,12 @@ const getAvailableProviders = async () => {
     console.error('Error fetching models:', error);
     // Fall back to the original implementation in case of error
     const settings = getAISettings();
-    return Object.entries(settings)
-      .filter(([_, config]) => config.key && config.models.length > 0)
+    return Object.entries(settings || {})
+      .filter(([_, config]) => config && config.key && Array.isArray(config.models) && config.models.length > 0)
       .map(([name, config]) => ({
         name,
-        models: config.models,
-        selectedModel: config.selectedModel,
+        models: config.models || [],
+        selectedModel: config.selectedModel || '',
       }));
   }
 };

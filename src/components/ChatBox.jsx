@@ -163,7 +163,17 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
     setIsNewMessage(true);
 
     try {
+      // Validate provider format
+      if (!selectedProvider.includes('|')) {
+        throw new Error('Invalid provider format. Expected "provider|model"');
+      }
+      
       const [providerName, modelId] = selectedProvider.split('|');
+      
+      if (!providerName || !modelId) {
+        throw new Error('Invalid provider or model selection');
+      }
+      
       const messageContent = [];
 
       // Check if an image or file is selected
@@ -216,20 +226,25 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       
       // Generate title if this is the first message in the session
       if (messages.length === 0) {
-        const title = await generateTitleFromUserMessage({ message: newMessage });
-        const session = await chatStorage.getSession(activeSessionId);
-        if (session) {
-          const updatedSession = {
-            ...session,
-            title,
-            messages: updatedMessages,
-            lastUpdated: new Date().toISOString()
-          };
-          await chatStorage.saveSession(updatedSession);
-          
-          // Update sessions state to reflect the new title
-          const updatedSessions = await chatStorage.getAllSessions();
-          setSessions(updatedSessions);
+        try {
+          const title = await generateTitleFromUserMessage({ message: newMessage });
+          const session = await chatStorage.getSession(activeSessionId);
+          if (session) {
+            const updatedSession = {
+              ...session,
+              title,
+              messages: updatedMessages,
+              lastUpdated: new Date().toISOString()
+            };
+            await chatStorage.saveSession(updatedSession);
+            
+            // Update sessions state to reflect the new title
+            const updatedSessions = await chatStorage.getAllSessions();
+            setSessions(updatedSessions);
+          }
+        } catch (titleError) {
+          console.error('Error generating title:', titleError);
+          // Continue with the chat even if title generation fails
         }
       }
       
@@ -276,6 +291,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           thinkingContentRef.current = '';
           
           const handleStream = (content, type) => {
+            if (!content) return; // Skip empty content
+            
             if (type === 'thinking') {
               thinkingContentRef.current += content;
               setStreamingContent(thinkingContentRef.current);
@@ -303,15 +320,26 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
             }
           };
 
-          await (providerName === 'proxy'
-            ? sendProxyMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
-            : providerName === 'openai' 
-            ? sendOpenAIMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
-            : providerName === 'groq'
-            ? sendGroqMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
-            : providerName === 'deepseek'
-            ? sendDeepSeekMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
-            : sendAnthropicMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream));
+          let sendMessagePromise;
+          
+          try {
+            if (providerName === 'proxy') {
+              sendMessagePromise = sendProxyMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream);
+            } else if (providerName === 'openai') {
+              sendMessagePromise = sendOpenAIMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream);
+            } else if (providerName === 'groq') {
+              sendMessagePromise = sendGroqMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream);
+            } else if (providerName === 'deepseek') {
+              sendMessagePromise = sendDeepSeekMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream);
+            } else {
+              sendMessagePromise = sendAnthropicMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream);
+            }
+            
+            await sendMessagePromise;
+          } catch (streamError) {
+            console.error('Error during streaming:', streamError);
+            throw streamError;
+          }
 
           finalResponse = {
             role: 'assistant',
@@ -322,7 +350,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
               }] : []),
               {
                 type: 'text',
-                text: streamingContentRef.current
+                text: streamingContentRef.current || 'Sorry, there was an issue with the response.'
               }
             ],
             timestamp: new Date().toISOString()
@@ -335,30 +363,42 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
           setMessages(finalUpdatedMessages);
           
           if (activeSessionId) {
-            const existingSession = await chatStorage.getSession(activeSessionId);
-            await chatStorage.saveSession({
-              ...existingSession,
-              messages: finalUpdatedMessages,
-              lastUpdated: new Date().toISOString()
-            });
+            try {
+              const existingSession = await chatStorage.getSession(activeSessionId);
+              if (existingSession) {
+                await chatStorage.saveSession({
+                  ...existingSession,
+                  messages: finalUpdatedMessages,
+                  lastUpdated: new Date().toISOString()
+                });
+              }
+            } catch (saveError) {
+              console.error('Error saving session:', saveError);
+            }
           }
         }
       } catch (err) {
-        setError(err.message);
+        console.error('Error sending message:', err);
+        setError(err.message || 'An error occurred while sending the message');
         // Save the user message even if the AI response fails
         if (activeSessionId) {
-          await chatStorage.saveSession({
-            id: activeSessionId,
-            messages: updatedMessages,
-            lastUpdated: new Date().toISOString()
-          });
+          try {
+            await chatStorage.saveSession({
+              id: activeSessionId,
+              messages: updatedMessages,
+              lastUpdated: new Date().toISOString()
+            });
+          } catch (saveError) {
+            console.error('Error saving session after error:', saveError);
+          }
         }
       } finally {
         setIsLoading(false);
         setIsStreaming(false);
       }
     } catch (error) {
-      setError(error.message);
+      console.error('Error in handleSendMessage:', error);
+      setError(error.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
@@ -389,17 +429,51 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         console.log('Fetching providers...');
         const availableProviders = await getAvailableProviders();
         console.log('Providers fetched:', availableProviders);
-        setProviders(availableProviders);
         
-        const lastProvider = localStorage.getItem('last_selected_provider');
-        if (lastProvider && availableProviders.some(p => 
-          p.models.some(m => `${p.name}|${m.id}` === lastProvider)
-        )) {
-          setSelectedProvider(lastProvider);
-        } else if (availableProviders.length > 0) {
-          const defaultProvider = `${availableProviders[0].name}|${availableProviders[0].models[0].id}`;
-          setSelectedProvider(defaultProvider);
-          localStorage.setItem('last_selected_provider', defaultProvider);
+        // Ensure providers is an array and has valid structure
+        if (!Array.isArray(availableProviders) || availableProviders.length === 0) {
+          console.warn('No providers available or invalid providers format');
+          setProviders([]);
+          setError('No AI providers available. Please check your configuration.');
+          return;
+        }
+        
+        // Filter out any providers with invalid structure
+        const validProviders = availableProviders.filter(p => 
+          p && typeof p === 'object' && p.name && Array.isArray(p.models) && p.models.length > 0
+        );
+        
+        setProviders(validProviders);
+        
+        // Only set a provider if we have valid ones
+        if (validProviders.length > 0) {
+          const lastProvider = localStorage.getItem('last_selected_provider');
+          let providerFound = false;
+          
+          if (lastProvider) {
+            // Check if the last provider exists in the available providers
+            for (const p of validProviders) {
+              if (!p.models) continue;
+              for (const m of p.models) {
+                if (m && `${p.name}|${m.id}` === lastProvider) {
+                  setSelectedProvider(lastProvider);
+                  providerFound = true;
+                  break;
+                }
+              }
+              if (providerFound) break;
+            }
+          }
+          
+          // If no valid last provider, set the first available one
+          if (!providerFound && validProviders[0] && validProviders[0].models && validProviders[0].models[0]) {
+            const defaultProvider = `${validProviders[0].name}|${validProviders[0].models[0].id}`;
+            setSelectedProvider(defaultProvider);
+            localStorage.setItem('last_selected_provider', defaultProvider);
+          }
+        } else {
+          console.warn('No valid providers found');
+          setError('No valid AI providers available. Please check your configuration.');
         }
       } catch (error) {
         console.error('Error fetching providers:', error);
@@ -849,6 +923,11 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
   };
 
   const renderMessageContent = (content) => {
+    // Handle null or undefined content
+    if (content === null || content === undefined) {
+      return null;
+    }
+    
     // If content is a string, render it with markdown
     if (typeof content === 'string') {
       return (
@@ -959,11 +1038,28 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
 
     // If content is an array, handle each item
     if (Array.isArray(content)) {
+      // Return null for empty arrays
+      if (content.length === 0) {
+        return null;
+      }
+      
       return content.map((item, index) => {
+        // Skip null or undefined items
+        if (item === null || item === undefined) {
+          return null;
+        }
+        
         if (item.type === 'text' || item.type === 'markdown') {
-          return renderMessageContent(item.text || item.content);
+          const textContent = item.text || item.content;
+          if (textContent === undefined || textContent === null) {
+            return null;
+          }
+          return renderMessageContent(textContent);
         }
         if (item.type === 'thinking') {
+          if (item.content === undefined || item.content === null) {
+            return null;
+          }
           return (
             <Box key={`thinking-${index}`} sx={{ mb: 2 }}>
               <Typography 
@@ -988,70 +1084,71 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         }
         // Handle other content types (image, pdf, etc.)
         if (item.type === 'image') {
+          if (!item.data && !item.url) {
+            return null;
+          }
           return (
             <Box key={index} sx={{ my: 2 }}>
               <img 
-                src={`data:${item.media_type};base64,${item.data}`}
+                src={item.url || (item.data ? `data:${item.media_type || 'image/png'};base64,${item.data}` : '')}
                 alt="User uploaded image"
                 style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
               />
             </Box>
           );
-        } else if (item.type === 'file') {
-          if (item.media_type === 'application/pdf') {
-            return (
-              <Box key={index} sx={{ my: 2 }}>
-                <embed 
-                  src={`data:application/pdf;base64,${item.data}`}
-                  type="application/pdf"
-                  width="100%"
-                  height="500"
-                />
-              </Box>
-            );
-          } else {
-            return (
-              <Box key={index} sx={{ my: 2 }}>
-                <embed 
-                  src={`data:${item.media_type};base64,${item.data}`}
-                  type={item.media_type}
-                  width="100%"
-                  height="500"
-                />
-              </Box>
-            );
+        } else if (item.type === 'file' || item.type === 'pdf') {
+          if (!item.data && !item.url) {
+            return null;
           }
+          const mediaType = item.media_type || (item.type === 'pdf' ? 'application/pdf' : 'application/octet-stream');
+          return (
+            <Box key={index} sx={{ my: 2 }}>
+              <embed 
+                src={item.url || `data:${mediaType};base64,${item.data}`}
+                type={mediaType}
+                width="100%"
+                height="500"
+              />
+            </Box>
+          );
         }
         return null;
       });
     }
 
     // If content is an object with type and content fields
-    if (content && typeof content === 'object' && 'type' in content) {
-      if (content.type === 'thinking') {
-        return (
-          <Typography 
-            variant="body2" 
-            component="div"
-            sx={{ 
-              fontFamily: 'Geist, sans-serif',
-              fontSize: '14px',
-              color: theme.palette.text.secondary,
-              fontStyle: 'italic',
-              backgroundColor: theme.palette.action.hover,
-              padding: '8px 12px',
-              borderRadius: '4px',
-              marginBottom: '8px',
-              whiteSpace: 'pre-wrap'
-            }}
-          >
-            🤔 {content.content}
-          </Typography>
-        );
-      } else if (content.type === 'text') {
-        return renderMessageContent(content.text);
+    if (content && typeof content === 'object') {
+      if ('type' in content) {
+        if (content.type === 'thinking') {
+          if (content.content === undefined || content.content === null) {
+            return null;
+          }
+          return (
+            <Typography 
+              variant="body2" 
+              component="div"
+              sx={{ 
+                fontFamily: 'Geist, sans-serif',
+                fontSize: '14px',
+                color: theme.palette.text.secondary,
+                fontStyle: 'italic',
+                backgroundColor: theme.palette.action.hover,
+                padding: '8px 12px',
+                borderRadius: '4px',
+                marginBottom: '8px',
+                whiteSpace: 'pre-wrap'
+              }}
+            >
+              🤔 {content.content}
+            </Typography>
+          );
+        } else if (content.type === 'text') {
+          if (content.text === undefined || content.text === null) {
+            return null;
+          }
+          return renderMessageContent(content.text);
+        }
       }
-      return null;
     }
 
     // If content is undefined or null, return null
