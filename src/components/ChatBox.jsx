@@ -171,6 +171,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       borderTop: `1px solid ${getThemeColor('palette.divider', darkModeState ? '#333333' : '#e0e0e0')}`,
       zIndex: 1,
       width: fullScreen ? 'calc(100% - 300px)' : '100%',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: '10px 0',
     },
     // Common theme values
     text: {
@@ -1258,13 +1262,13 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
   };
 
   const renderMessageInput = () => (
-    <Box
-      sx={themeStyles.input}
-    >
+    <Box sx={themeStyles.input}>
       <Box sx={{ 
-        p: 2,
-        width: '100%',
-        maxWidth: isFullscreen ? '900px' : '100%', // Match message width
+        width: '95%',
+        maxWidth: '800px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1
       }}>
         <Paper
           component="form"
