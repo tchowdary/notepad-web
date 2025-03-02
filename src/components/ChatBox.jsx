@@ -65,6 +65,7 @@ import {
   sendGeminiMessage,
   sendDeepSeekMessage,
   sendGroqMessage,
+  sendProxyMessage,
   getAvailableProviders,
   getAISettings,
 } from '../services/aiService';
@@ -239,9 +240,17 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       }
 
       try {
-        const apiKey = localStorage.getItem(`${providerName}_api_key`);
-        if (!apiKey) {
-          throw new Error(`No API key found for ${providerName}`);
+        let apiKey;
+        if (providerName === 'proxy') {
+          apiKey = localStorage.getItem('proxy_key');
+          if (!apiKey) {
+            throw new Error('No proxy API key found. Please configure the proxy API key.');
+          }
+        } else {
+          apiKey = localStorage.getItem(`${providerName}_api_key`);
+          if (!apiKey) {
+            throw new Error(`No API key found for ${providerName}`);
+          }
         }
 
         let finalResponse;
@@ -294,7 +303,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
             }
           };
 
-          await (providerName === 'openai' 
+          await (providerName === 'proxy'
+            ? sendProxyMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
+            : providerName === 'openai' 
             ? sendOpenAIMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
             : providerName === 'groq'
             ? sendGroqMessage(updatedMessages, modelId, apiKey, selectedInstruction, handleStream)
@@ -373,19 +384,44 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
   }, [sessions, searchQuery]);
 
   useEffect(() => {
-    const availableProviders = getAvailableProviders();
-    setProviders(availableProviders);
+    const fetchProviders = async () => {
+      try {
+        console.log('Fetching providers...');
+        const availableProviders = await getAvailableProviders();
+        console.log('Providers fetched:', availableProviders);
+        setProviders(availableProviders);
+        
+        const lastProvider = localStorage.getItem('last_selected_provider');
+        if (lastProvider && availableProviders.some(p => 
+          p.models.some(m => `${p.name}|${m.id}` === lastProvider)
+        )) {
+          setSelectedProvider(lastProvider);
+        } else if (availableProviders.length > 0) {
+          const defaultProvider = `${availableProviders[0].name}|${availableProviders[0].models[0].id}`;
+          setSelectedProvider(defaultProvider);
+          localStorage.setItem('last_selected_provider', defaultProvider);
+        }
+      } catch (error) {
+        console.error('Error fetching providers:', error);
+        setError('Failed to load AI providers. Please check your configuration.');
+      }
+    };
     
-    const lastProvider = localStorage.getItem('last_selected_provider');
-    if (lastProvider && availableProviders.some(p => 
-      p.models.some(m => `${p.name}|${m.id}` === lastProvider)
-    )) {
-      setSelectedProvider(lastProvider);
-    } else if (availableProviders.length > 0) {
-      const defaultProvider = `${availableProviders[0].name}|${availableProviders[0].models[0].id}`;
-      setSelectedProvider(defaultProvider);
-      localStorage.setItem('last_selected_provider', defaultProvider);
-    }
+    fetchProviders();
+    
+    // Listen for changes to localStorage that might affect providers
+    const handleStorageChange = (e) => {
+      if (e.key === 'proxy_url' || e.key === 'proxy_key' || e.key === 'ai_settings') {
+        console.log('Storage changed, refreshing providers...');
+        fetchProviders();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -577,16 +613,15 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
   useEffect(() => {
     if (selectedProvider) {
       const [providerName, modelId] = selectedProvider.split('|');
-      const settings = getAISettings();
-      console.log('Loading settings for', providerName, modelId, settings);
       
-      // Ensure we have the provider and model settings initialized
-      if (!settings[providerName]) {
-        settings[providerName] = { modelSettings: {} };
-      }
+      // Get current settings
+      const settings = getAISettings();
+      
+      // Initialize model settings if they don't exist
       if (!settings[providerName].modelSettings) {
         settings[providerName].modelSettings = {};
       }
+      
       if (!settings[providerName].modelSettings[modelId]) {
         settings[providerName].modelSettings[modelId] = {};
       }
@@ -1391,9 +1426,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         preview = firstMessage.content;
       } else if (Array.isArray(firstMessage.content)) {
         const textContent = firstMessage.content.find(item => item.type === 'text');
-        preview = textContent ? textContent.text : 'No text content';
-      } else if (firstMessage.content?.type === 'image') {
-        preview = '[Image]';
+        preview = textContent ? textContent.text : '';
       }
     }
     

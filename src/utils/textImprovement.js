@@ -20,7 +20,7 @@ Return only the edited text. Do not wrap your response in quotes. Do not offer a
   try {
     const response = await sendAnthropicMessage(
       messages,
-      'claude-3-5-haiku-latest',
+      'Haiku',
       null,
       null,
       null

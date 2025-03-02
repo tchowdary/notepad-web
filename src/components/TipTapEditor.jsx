@@ -830,7 +830,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
       const aiResponse = await sendAnthropicMessage(
         messages,
-        'claude-3-5-sonnet-20241022',
+        'Sonnet-3.7',
         anthropicKey
       );
 

@@ -29,8 +29,7 @@ export const generateText = async ({ model, system, prompt }) => {
         'x-api-key': proxyKey,
       },
       body: JSON.stringify({
-        provider: 'openai',
-        model: selectedModel,
+        model: '4o-mini',
         messages: [
           {
             role: "system",
@@ -72,7 +71,7 @@ export const processTranscription = async (transcription) => {
           content: transcription
         }
       ],
-      model: selectedModel,
+      model: '4o-mini',
     });
 
     return completion.choices[0].message.content;
