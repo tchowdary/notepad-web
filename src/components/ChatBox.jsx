@@ -118,30 +118,18 @@ const generateTitleFromUserMessage = async ({ message }) => {
 };
 
 const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', createNewSessionOnMount = false, onMessageSent, fullScreen = false, darkMode, setDarkMode }) => {
-  const defaultTheme = useTheme();
+  const theme = useTheme();
+  const [darkModeState, setDarkModeState] = useState(theme?.palette?.mode === 'dark');
   
-  // Create a fallback theme that doesn't depend on the parent theme
-  const fallbackTheme = useMemo(() => createTheme({
-    palette: {
-      mode: darkMode ? 'dark' : 'light',
-      background: {
-        default: darkMode ? '#1e1e1e' : '#FFFCF0',
-        paper: darkMode ? '#1e1e1e' : '#FFFCF0',
-      },
-      text: {
-        primary: darkMode ? '#ffffff' : '#000000',
-        secondary: darkMode ? '#cccccc' : '#666666',
-      },
-      action: {
-        hover: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-      },
-      divider: darkMode ? '#333333' : '#e0e0e0',
-    },
-  }), [darkMode]);
+  // Create a safe theme accessor
+  const getThemeColor = (path, fallback) => {
+    try {
+      return path.split('.').reduce((obj, key) => obj[key], theme) || fallback;
+    } catch (e) {
+      return fallback;
+    }
+  };
 
-  // Use the parent theme if available, otherwise use our fallback theme
-  const theme = defaultTheme?.palette?.mode ? defaultTheme : fallbackTheme;
-  
   // Replace the direct theme usage with a memoized theme object
   const themeStyles = useMemo(() => ({
     root: {
@@ -150,8 +138,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       right: 0,
       bottom: 0,
       width: fullScreen ? '100%' : '400px',
-      backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
-      borderLeft: `1px solid ${darkMode ? '#333333' : '#e0e0e0'}`,
+      backgroundColor: getThemeColor('palette.background.default', darkModeState ? '#1e1e1e' : '#FFFCF0'),
+      borderLeft: `1px solid ${getThemeColor('palette.divider', darkModeState ? '#333333' : '#e0e0e0')}`,
       display: 'flex',
       flexDirection: 'column',
       zIndex: 1000,
@@ -161,14 +149,14 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       flex: 1,
       overflowY: 'auto',
       padding: '20px',
-      backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
+      backgroundColor: getThemeColor('palette.background.default', darkModeState ? '#1e1e1e' : '#FFFCF0'),
     },
     messageContent: {
       fontFamily: 'Geist, sans-serif',
       fontSize: '14px',
-      color: darkMode ? '#cccccc' : '#666666',
+      color: getThemeColor('palette.text.primary', darkModeState ? '#cccccc' : '#666666'),
       fontStyle: 'italic',
-      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+      backgroundColor: getThemeColor('palette.action.hover', darkModeState ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'),
       padding: '8px 12px',
       borderRadius: '4px',
       marginBottom: '8px',
@@ -179,22 +167,31 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       bottom: 0,
       left: fullScreen ? '300px' : 0,
       right: 0,
-      backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
-      borderTop: `1px solid ${darkMode ? '#333333' : '#e0e0e0'}`,
+      backgroundColor: getThemeColor('palette.background.default', darkModeState ? '#1e1e1e' : '#FFFCF0'),
+      borderTop: `1px solid ${getThemeColor('palette.divider', darkModeState ? '#333333' : '#e0e0e0')}`,
       zIndex: 1,
       width: fullScreen ? 'calc(100% - 300px)' : '100%',
     },
-    // Add flattened theme properties
-    backgroundColor: darkMode ? '#1e1e1e' : '#FFFCF0',
-    textColor: darkMode ? '#cccccc' : '#666666',
-    borderColor: darkMode ? '#333333' : '#e0e0e0',
-    hoverBackground: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-    primaryColor: '#1976d2',
-    primaryColorDark: '#1565c0',
-    primaryColorLight: '#42a5f5',
-    contrastText: darkMode ? '#ffffff' : '#000000',
-    dividerColor: darkMode ? '#333333' : '#e0e0e0'
-  }), [darkMode, fullScreen]);
+    // Common theme values
+    text: {
+      primary: getThemeColor('palette.text.primary', darkModeState ? '#ffffff' : '#000000'),
+      secondary: getThemeColor('palette.text.secondary', darkModeState ? '#cccccc' : '#666666'),
+    },
+    background: {
+      default: getThemeColor('palette.background.default', darkModeState ? '#1e1e1e' : '#FFFCF0'),
+      paper: getThemeColor('palette.background.paper', darkModeState ? '#2d2d2d' : '#ffffff'),
+    },
+    action: {
+      hover: getThemeColor('palette.action.hover', darkModeState ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'),
+    },
+    primary: {
+      main: getThemeColor('palette.primary.main', '#1976d2'),
+      dark: getThemeColor('palette.primary.dark', '#1565c0'),
+      light: getThemeColor('palette.primary.light', '#42a5f5'),
+      contrastText: getThemeColor('palette.primary.contrastText', '#ffffff'),
+    },
+    divider: getThemeColor('palette.divider', darkModeState ? '#333333' : '#e0e0e0'),
+  }), [theme, darkModeState, fullScreen]);
 
   // Update all theme references to use flattened structure
   const [sessions, setSessions] = useState([]);
@@ -1148,9 +1145,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                 sx={{ 
                   fontFamily: 'Geist, sans-serif',
                   fontSize: '14px',
-                  color: themeStyles.textColor,
+                  color: themeStyles.text.primary,
                   fontStyle: 'italic',
-                  backgroundColor: themeStyles.hoverBackground,
+                  backgroundColor: themeStyles.action.hover,
                   padding: '8px 12px',
                   borderRadius: '4px',
                   marginBottom: '8px',
@@ -1210,9 +1207,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
               sx={{ 
                 fontFamily: 'Geist, sans-serif',
                 fontSize: '14px',
-                color: themeStyles.textColor,
+                color: themeStyles.text.primary,
                 fontStyle: 'italic',
-                backgroundColor: themeStyles.hoverBackground,
+                backgroundColor: themeStyles.action.hover,
                 padding: '8px 12px',
                 borderRadius: '4px',
                 marginBottom: '8px',
@@ -1451,7 +1448,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                                 height: '28px',
                                 fontSize: '0.85rem',
                                 padding: '2px 4px',
-                                border: `1px solid ${themeStyles.borderColor}`,
+                                border: `1px solid ${themeStyles.divider}`,
                                 borderRadius: '4px',
                                 backgroundColor: 'background.paper',
                                 color: 'text.primary'
@@ -1535,7 +1532,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                 <MenuItem value="">
                   <em>No prompt</em>
                 </MenuItem>
-                <MenuItem value="create_new" sx={{ color: themeStyles.primaryColor }}>
+                <MenuItem value="create_new" sx={{ color: themeStyles.primary.main }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <AddIcon fontSize="small" />
                     <Typography variant="body2">Create New</Typography>
@@ -1553,10 +1550,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
               color="primary"
               sx={{ 
                 p: '8px',
-                backgroundColor: themeStyles.primaryColor,
-                color: themeStyles.contrastText,
+                backgroundColor: themeStyles.primary.main,
+                color: themeStyles.primary.contrastText,
                 '&:hover': {
-                  backgroundColor: themeStyles.primaryColorDark,
+                  backgroundColor: themeStyles.primary.dark,
                 },
                 borderRadius: '50%',
                 width: '36px',
@@ -1634,7 +1631,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
         display: 'flex', 
         alignItems: 'center', 
         p: 1, 
-        borderBottom: `1px solid ${themeStyles.borderColor}`,
+        borderBottom: `1px solid ${themeStyles.divider}`,
         justifyContent: 'space-between'
       }}>
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
@@ -1667,7 +1664,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
             sx={{
               width: '100%',
               height: '100%',
-              bgcolor: themeStyles.backgroundColor,
+              bgcolor: themeStyles.background.default,
               outline: 'none',
               display: 'flex',
               position: 'relative',
@@ -1701,7 +1698,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                 transition: 'width 0.2s',
                 overflow: 'hidden',
                 borderRight: 1,
-                borderColor: themeStyles.borderColor,
+                borderColor: themeStyles.divider,
                 display: 'flex',
                 flexDirection: 'column',
               }}
@@ -1711,7 +1708,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 1,
-                borderBottom: `1px solid ${themeStyles.borderColor}`,
+                borderBottom: `1px solid ${themeStyles.divider}`,
               }}>
                 <Box sx={{ 
                   display: 'flex', 
@@ -1793,10 +1790,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                   top: '50%',
                   transform: 'translateY(-50%)',
                   backgroundColor: 'background.paper',
-                  border: `1px solid ${themeStyles.borderColor}`,
+                  border: `1px solid ${themeStyles.divider}`,
                   borderRadius: '50%',
                   '&:hover': {
-                    backgroundColor: themeStyles.hoverBackground,
+                    backgroundColor: themeStyles.action.hover,
                   },
                   zIndex: 1,
                 }}
@@ -1824,9 +1821,9 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                         opacity: 1,
                       },
                       ...(session.id === activeSessionId && {
-                        backgroundColor: themeStyles.primaryColor + '1A', // 10% opacity
+                        backgroundColor: themeStyles.primary.main + '1A', // 10% opacity
                         '&:hover': {
-                          backgroundColor: themeStyles.primaryColor + '26', // 15% opacity
+                          backgroundColor: themeStyles.primary.main + '26', // 15% opacity
                         },
                       }),
                     }}
@@ -1888,7 +1885,7 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
               </List>
               <Box sx={{ 
                 p: 1, 
-                borderTop: `1px solid ${themeStyles.borderColor}`,
+                borderTop: `1px solid ${themeStyles.divider}`,
                 display: 'flex',
                 justifyContent: 'center'
               }}>
@@ -1942,16 +1939,16 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                         width: 'fit-content',
                         position: 'relative',
                         backgroundColor: message.role === 'user' 
-                          ? themeStyles.hoverBackground
-                          : themeStyles.backgroundColor,
-                        color: themeStyles.textColor,
+                          ? themeStyles.action.hover
+                          : themeStyles.background.default,
+                        color: themeStyles.text.primary,
                         borderRadius: 2,
                         p: 2,
                         mb: 2,
                         '&:hover': {
                           backgroundColor: message.role === 'user'
-                            ? darkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
-                            : themeStyles.hoverBackground,
+                            ? darkModeState ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
+                            : themeStyles.action.hover,
                         },
                       }}
                     >
@@ -1966,10 +1963,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                           right: 8,
                           opacity: 0,
                           transition: 'opacity 0.2s',
-                          backgroundColor: message.role === 'user' ? themeStyles.hoverBackground : themeStyles.backgroundColor,
-                          color: message.role === 'user' ? themeStyles.textColor : themeStyles.textColor,
+                          backgroundColor: message.role === 'user' ? themeStyles.action.hover : themeStyles.background.default,
+                          color: message.role === 'user' ? themeStyles.text.primary : themeStyles.text.primary,
                           '&:hover': {
-                            backgroundColor: message.role === 'user' ? darkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)' : themeStyles.hoverBackground,
+                            backgroundColor: message.role === 'user' ? darkModeState ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)' : themeStyles.action.hover,
                           },
                         }}
                       >
@@ -1998,8 +1995,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                       sx={{
                         width: '100%',
                         position: 'relative',
-                        backgroundColor: themeStyles.backgroundColor,
-                        color: themeStyles.textColor,
+                        backgroundColor: themeStyles.background.default,
+                        color: themeStyles.text.primary,
                         borderRadius: 2,
                         p: 2,
                       }}
@@ -2062,16 +2059,16 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                       maxWidth: '80%',
                       position: 'relative',
                       backgroundColor: message.role === 'user' 
-                        ? themeStyles.hoverBackground
-                        : themeStyles.backgroundColor,
-                      color: themeStyles.textColor,
+                        ? themeStyles.action.hover
+                        : themeStyles.background.default,
+                      color: themeStyles.text.primary,
                       borderRadius: 2,
                       p: 2,
                       mb: 2,
                       '&:hover': {
                         backgroundColor: message.role === 'user'
-                          ? darkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
-                          : themeStyles.hoverBackground,
+                          ? darkModeState ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
+                          : themeStyles.action.hover,
                       },
                     }}
                   >
@@ -2086,10 +2083,10 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                         right: 8,
                         opacity: 0,
                         transition: 'opacity 0.2s',
-                        backgroundColor: message.role === 'user' ? themeStyles.hoverBackground : themeStyles.backgroundColor,
-                        color: message.role === 'user' ? themeStyles.textColor : themeStyles.textColor,
+                        backgroundColor: message.role === 'user' ? themeStyles.action.hover : themeStyles.background.default,
+                        color: message.role === 'user' ? themeStyles.text.primary : themeStyles.text.primary,
                         '&:hover': {
-                          backgroundColor: message.role === 'user' ? darkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)' : themeStyles.hoverBackground,
+                          backgroundColor: message.role === 'user' ? darkModeState ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)' : themeStyles.action.hover,
                         },
                       }}
                     >
@@ -2117,8 +2114,8 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
                     sx={{
                       maxWidth: '80%',
                       position: 'relative',
-                      backgroundColor: themeStyles.backgroundColor,
-                      color: themeStyles.textColor,
+                      backgroundColor: themeStyles.background.default,
+                      color: themeStyles.text.primary,
                       borderRadius: 2,
                       p: 2,
                     }}
