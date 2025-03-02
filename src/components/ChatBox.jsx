@@ -768,13 +768,38 @@ const ChatBox = ({ onFullscreenChange, initialFullscreen, initialInput = '', cre
       // Get current settings
       const settings = getAISettings();
       
-      // Initialize model settings if they don't exist
-      if (!settings[providerName].modelSettings) {
-        settings[providerName].modelSettings = {};
-      }
-      
-      if (!settings[providerName].modelSettings[modelId]) {
-        settings[providerName].modelSettings[modelId] = {};
+      // Handle proxy provider separately
+      if (providerName === 'proxy') {
+        if (!settings.proxy) {
+          settings.proxy = {
+            key: localStorage.getItem('proxy_key') || '',
+            models: [],
+            selectedModel: modelId || '',
+            modelSettings: {}
+          };
+        }
+        if (!settings.proxy.modelSettings) {
+          settings.proxy.modelSettings = {};
+        }
+        if (!settings.proxy.modelSettings[modelId]) {
+          settings.proxy.modelSettings[modelId] = {};
+        }
+      } else {
+        // Initialize model settings if they don't exist
+        if (!settings[providerName]) {
+          settings[providerName] = {
+            key: '',
+            models: [],
+            selectedModel: modelId || '',
+            modelSettings: {}
+          };
+        }
+        if (!settings[providerName].modelSettings) {
+          settings[providerName].modelSettings = {};
+        }
+        if (!settings[providerName].modelSettings[modelId]) {
+          settings[providerName].modelSettings[modelId] = {};
+        }
       }
       
       // Save the initialized settings
