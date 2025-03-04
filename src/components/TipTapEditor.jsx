@@ -1278,7 +1278,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           className="editor-content"
           sx={{
             flex: 1,
-            maxWidth: isFullWidth ? '80em' : '65em',
+            maxWidth: isFullWidth ? '75em' : '65em',
             width: isFullWidth ? '100%' : 'auto',
             margin: '0 auto',
             padding: '16px',
