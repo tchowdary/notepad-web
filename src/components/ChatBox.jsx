@@ -1231,6 +1231,21 @@ const ChatBox = ({
             "& ul > li > ul > li": { listStyle: "circle" },
             "& ul > li > ul > li > ul > li": { listStyle: "square" },
             "& ol > li": { listStyle: "decimal" },
+            "& table": {
+              borderCollapse: "collapse",
+              width: "100%",
+              marginBottom: "1em",
+              marginTop: "0.5em",
+            },
+            "& th, & td": {
+              border: "1px solid rgba(0, 0, 0, 0.2)",
+              padding: "8px 12px",
+              textAlign: "left",
+            },
+            "& th": {
+              backgroundColor: "rgba(0, 0, 0, 0.05)",
+              fontWeight: 600,
+            },
           }}
         >
           <ReactMarkdown
