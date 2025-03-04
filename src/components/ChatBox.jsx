@@ -1236,14 +1236,15 @@ const ChatBox = ({
               width: "100%",
               marginBottom: "1em",
               marginTop: "0.5em",
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'}`,
             },
             "& th, & td": {
-              border: "1px solid rgba(0, 0, 0, 0.2)",
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'}`,
               padding: "8px 12px",
               textAlign: "left",
             },
             "& th": {
-              backgroundColor: "rgba(0, 0, 0, 0.05)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
               fontWeight: 600,
             },
           }}
@@ -1999,7 +2000,8 @@ const ChatBox = ({
                         backgroundColor: "background.paper",
                         color: "text.primary",
                         "&:hover": {
-                          backgroundColor: "rgba(0, 0, 0, 0.04)",
+                          backgroundColor:
+                            themeStyles.action.hover,
                         },
                       }}
                     >
