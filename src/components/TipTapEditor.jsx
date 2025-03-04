@@ -43,8 +43,10 @@ import {
   DeleteForever,
   Expand,
   FormatPaint,
+  UnfoldMore,
+  UnfoldLess,
 } from '@mui/icons-material';
-import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText, ToggleButton } from '@mui/material';
+import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText, ToggleButton, Button } from '@mui/material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
 import { compressImage } from '../utils/imageUtils';
@@ -343,6 +345,7 @@ const CustomImage = TiptapImage.extend({
 const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange, onFocusModeChange }, ref) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
+  const [isFullWidth, setIsFullWidth] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [dropboxConfigOpen, setDropboxConfigOpen] = useState(false);
 
@@ -1167,7 +1170,6 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       display: 'flex', 
       flexDirection: 'row',
       height: '100vh',
-      bgcolor: darkMode ? '#1e1e1e' : '#fff',
       color: darkMode ? '#fff' : '#000',
     }}>
       {/* Table of Contents */}
@@ -1231,14 +1233,53 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           height: '100%',
           position: 'relative',
           bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
-          scrollBehavior: 'smooth'
+          scrollBehavior: 'smooth',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
         }}
       >
+        {/* Full-width toggle button */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 10,
+          }}
+        >
+          <Tooltip title={isFullWidth ? "Make fixed-width" : "Make full-width"}>
+            <IconButton
+              onClick={() => setIsFullWidth(!isFullWidth)}
+              size="small"
+              sx={{
+                backgroundColor: darkMode 
+                  ? 'rgba(30, 30, 30, 0.9)' 
+                  : 'rgba(255, 252, 240, 0.7)',
+                color: darkMode ? '#fff' : '#24292f',
+                '&:hover': {
+                  backgroundColor: darkMode 
+                    ? 'rgba(40, 40, 40, 1)' 
+                    : 'rgba(255, 252, 240, 0.9)',
+                },
+                padding: '4px',
+                borderRadius: '4px',
+                border: darkMode 
+                  ? 'none' 
+                  : '1px solid rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              {isFullWidth ? <UnfoldLess fontSize="small" /> : <UnfoldMore fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        </Box>
+        
         <Box
           className="editor-content"
           sx={{
             flex: 1,
-            maxWidth: '55em',
+            maxWidth: isFullWidth ? 'none' : '55em',
+            width: isFullWidth ? '100%' : 'auto',
             margin: '0 auto',
             padding: '16px',
             outline: 'none',
@@ -1250,6 +1291,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             position: 'relative',
             minHeight: '100%',
             overflow: 'auto',
+            transition: 'max-width 0.3s ease, width 0.3s ease',
             ...getEditorStyles(darkMode),
           }}
         >
