@@ -1487,9 +1487,7 @@ const ChatBox = ({
               <InputAdornment position="start">
                 <IconButton
                   onClick={() => {
-                    setMessages([]);
-                    setInput("");
-                    setSelectedFile(null);
+                    createNewSession();
                   }}
                   sx={{ p: "8px" }}
                   aria-label="new chat"
