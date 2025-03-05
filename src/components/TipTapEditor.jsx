@@ -786,28 +786,50 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const transcribeAudio = async (audioBlob) => {
     try {
       setIsProcessing(true);
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'recording.webm');
-      formData.append('model', 'whisper-1');
-
-      const apiKey = localStorage.getItem('openai_api_key');
-      if (!apiKey) {
-        throw new Error('OpenAI API key not found. Please set your API key in settings.');
+      
+      // Get proxy configuration
+      const proxyUrl = localStorage.getItem('proxy_url');
+      const apiKey = localStorage.getItem('proxy_key');
+      
+      if (!proxyUrl) {
+        throw new Error('Proxy URL not found. Please configure the proxy URL in settings.');
       }
-
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      
+      if (!apiKey) {
+        throw new Error('API key not found. Please set your API key in settings.');
+      }
+      
+      // Create a file object from the blob
+      const audioFile = new File([audioBlob], `recording-${Date.now()}.webm`, { type: audioBlob.type });
+      
+      // Upload the audio file to Dropbox
+      const fileService = await import('../services/fileService').then(module => module.default);
+      
+      if (!fileService.isConfigured()) {
+        throw new Error('Dropbox is not configured. Please set up Dropbox in settings.');
+      }
+      
+      const uploadResult = await fileService.uploadFile(audioFile);
+      
+      // Send the Dropbox URL to the proxy API for transcription
+      const transcribeEndpoint = `${proxyUrl}/api/transcribe`;
+      
+      const response = await fetch(transcribeEndpoint, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey
         },
-        body: formData,
+        body: JSON.stringify({
+          url: uploadResult.url
+        }),
       });
-
+      
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error?.message || 'Transcription failed');
       }
-
+      
       const data = await response.json();
       
       // Process the transcription with Claude
@@ -822,17 +844,44 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           content: [
             {
               type: 'text',
-              text: `You are an AI assistant specialized in processing and improving transcribed voice notes. Your task is to edit the provided text for clarity, readability, and correctness, and then extract any task items mentioned.\n\nHere is the transcribed text you need to work with:\n\n<transcribed_text>\n${data.text}\n</transcribed_text>\n\nPlease follow these steps:\n\n1. Edit and format the text:\n   - Correct any spelling mistakes.\n   - Fix grammar issues.\n   - Adjust punctuation for clarity.\n   - Improve overall readability and flow.\n   - Format the text into appropriately sized paragraphs.\n\n2. After editing, carefully review the text to identify and extract any task items mentioned. Task items are typically actions, assignments, or to-do list entries that the speaker intends to complete or delegate.\n\nYour final output should be formatted as follows:\n\n# Edited Text\n[Insert the edited and formatted version of the transcribed text here]\n\n# Task Items\n- [List each extracted task item on a new line, starting with a dash]\n\nImportant notes:\n- Make your best effort to improve the text while maintaining the original meaning and intent of the speaker.\n- If you're unsure about a particular edit or task item, err on the side of caution and preserve the original content.\n- Do not include any commentary or explanations in your final output.`
+              text: `You are an AI assistant specialized in processing and improving transcribed voice notes. Your task is to edit the provided text for clarity, readability, and correctness, and then extract any task items mentioned.\n\nHere is the transcribed text you need to work with:\n\n<transcribed_text>\n${data.transcript}\n</transcribed_text>\n\nPlease follow these steps:\n\n1. Edit and format the text:\n   - Correct any spelling mistakes.\n   - Fix grammar issues.\n   - Adjust punctuation for clarity.\n   - Improve overall readability and flow.\n   - Format the text into appropriately sized paragraphs.\n\n2. After editing, carefully review the text to identify and extract any task items mentioned. Task items are typically actions, assignments, or to-do list entries that the speaker intends to complete or delegate.\n\nYour final output should be formatted as follows:\n\n# Edited Text\n[Insert the edited and formatted version of the transcribed text here]\n\n# Task Items\n- [List each extracted task item on a new line, starting with a dash]\n\nImportant notes:\n- Make your best effort to improve the text while maintaining the original meaning and intent of the speaker.\n- If you're unsure about a particular edit or task item, err on the side of caution and preserve the original content.\n- Do not include any commentary or explanations in your final output.`
             }
           ]
         }
       ];
 
+      //console.log("Sending request to Claude for processing...");
       const aiResponse = await sendAnthropicMessage(
         messages,
         'Sonnet-3.7',
         anthropicKey
       );
+      //console.log("Received response from Claude:", aiResponse);
+
+      // Extract the text content from the Claude response
+      let aiContent = '';
+      if (aiResponse && aiResponse.content) {
+        console.log("AI response content type:", typeof aiResponse.content);
+        if (Array.isArray(aiResponse.content)) {
+          console.log("Content is array with length:", aiResponse.content.length);
+          // Handle array of content objects (Claude's format)
+          for (const item of aiResponse.content) {
+            console.log("Content item:", item);
+            // Check for both 'text' and 'content' properties as Claude's API might vary
+            if (item.type === 'text') {
+              if (item.text) {
+                aiContent += item.text;
+              } else if (item.content) {
+                aiContent += item.content;
+              }
+            }
+          }
+        } else {
+          // Handle string content
+          aiContent = aiResponse.content;
+        }
+      }
+      //console.log("Extracted AI content:", aiContent.substring(0, 100) + "...");
 
       if (editor) {
         // Get the current selection position
@@ -841,21 +890,50 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         // If we're at the start of a line, don't add an extra newline
         const needsNewline = from > 0 && editor.state.doc.textBetween(from - 1, from) !== '\n';
         
-        // Format the content with proper nodes
+        // Build the complete content to insert
+        let content = needsNewline ? '\n' : '';
+        
+        // Add original transcription with HTML formatting
+        content += '<h2>Original Transcription</h1>\n';
+        content += `<p>${data.transcript}</p>`;
+        content += '\n\n';
+        
+        // Add audio source with HTML link
+        content += '<h3>Audio Source</h3>\n';
+        content += `<a href="${uploadResult.url}" target="_blank">Listen to audio recording</a>`;
+        content += '\n\n';
+        
+        // Add the AI processed content with a clear header
+        //content += '<h1>AI Enhanced Content</h1>\n';
+        
+        // If we have AI content, add it, otherwise add a placeholder
+        if (aiContent && aiContent.trim().length > 0) {
+          // Convert markdown headers to HTML if they exist
+          let processedContent = aiContent
+            .replace(/^# (.*?)$/gm, '<h1>$1</h1>')
+            .replace(/^## (.*?)$/gm, '<h2>$1</h2>')
+            .replace(/^### (.*?)$/gm, '<h3>$1</h3>')
+            .replace(/^- (.*?)$/gm, '<li>$1</li>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+          
+          // Wrap in paragraph tags if not already wrapped
+          if (!processedContent.startsWith('<')) {
+            processedContent = `<p>${processedContent}</p>`;
+          }
+          
+          content += processedContent;
+        } else {
+          content += '<p>AI processing did not return any content. Please try again.</p>';
+        }
+        
+        //console.log("Final content to insert (first 200 chars):", content.substring(0, 200) + "...");
+        
+        // Insert all content at once
         editor
           .chain()
           .focus()
-          // Add initial newline if needed
-          .insertContent(needsNewline ? '\n' : '')
-          // Original Transcription section
-          .setNode('heading', { level: 1 })
-          .insertContent('Original Transcription')
-          .insertContent('\n')
-          .setParagraph()
-          .insertContent(data.text)
-          .insertContent('\n\n')
-          // Add the AI processed content with proper markdown parsing
-          .insertContent(aiResponse.content, {
+          .insertContent(content, {
             parseOptions: {
               preserveWhitespace: 'full'
             }

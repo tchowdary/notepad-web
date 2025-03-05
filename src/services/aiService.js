@@ -1,11 +1,24 @@
+const getProxyConfig = () => {
+  const proxyUrl = localStorage.getItem('proxy_url');
+  const proxyKey = localStorage.getItem('proxy_key');
+  
+  if (!proxyUrl || !proxyKey) {
+    throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
+  }
+  
+  return { proxyUrl, proxyKey };
+};
+
+// Helper function to get the endpoint URL
+const getProxyEndpoint = (endpoint) => {
+  const { proxyUrl } = getProxyConfig();
+  return `${proxyUrl}${endpoint}`;
+};
+
 const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
-    const proxyUrl = localStorage.getItem('proxy_url');
-    const proxyKey = localStorage.getItem('proxy_key');
-
-    if (!proxyUrl || !proxyKey) {
-      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
-    }
+    const { proxyKey } = getProxyConfig();
+    const requestEndpoint = getProxyEndpoint('/api/request');
 
     const messagePayload = [...messages];
     if (customInstruction) {
@@ -19,7 +32,7 @@ const sendOpenAIMessage = async (messages, model, apiKey, customInstruction, onS
       stream: Boolean(onStream),
     };
 
-    const response = await fetch(`${proxyUrl.replace(/\/api\/request\/?$/, '')}/api/request`, {
+    const response = await fetch(requestEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -145,12 +158,8 @@ const sendGroqMessage = async (messages, model, apiKey, customInstruction, onStr
 
 const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
-    const proxyUrl = localStorage.getItem('proxy_url');
-    const proxyKey = localStorage.getItem('proxy_key');
-
-    if (!proxyUrl || !proxyKey) {
-      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
-    }
+    const { proxyKey } = getProxyConfig();
+    const requestEndpoint = getProxyEndpoint('/api/request');
 
     const messagePayload = [...messages];
     if (customInstruction) {
@@ -165,7 +174,7 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
       temperature: getAISettings().deepseek.modelSettings[model]?.temperature,
     };
 
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(requestEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -246,12 +255,8 @@ const sendDeepSeekMessage = async (messages, model, apiKey, customInstruction, o
 
 const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
-    const proxyUrl = localStorage.getItem('proxy_url');
-    const proxyKey = localStorage.getItem('proxy_key');
-
-    if (!proxyUrl || !proxyKey) {
-      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
-    }
+    const { proxyKey } = getProxyConfig();
+    const requestEndpoint = getProxyEndpoint('/api/request');
 
     const formattedMessages = messages.map(({ role, content }) => {
       const formattedContent = Array.isArray(content) ? content : [{ type: 'text', text: content }];
@@ -285,7 +290,7 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
       })
     };
 
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(requestEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -360,12 +365,8 @@ const sendAnthropicMessage = async (messages, model, apiKey, customInstruction, 
 
 const sendGeminiMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
-    const proxyUrl = localStorage.getItem('proxy_url');
-    const proxyKey = localStorage.getItem('proxy_key');
-
-    if (!proxyUrl || !proxyKey) {
-      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
-    }
+    const { proxyKey } = getProxyConfig();
+    const requestEndpoint = getProxyEndpoint('/api/request');
 
     const messagePayload = [...messages];
     if (customInstruction) {
@@ -385,7 +386,7 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction, onS
       requestBody.temperature = temperature;
     }
 
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(requestEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -448,16 +449,13 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction, onS
 const sendProxyMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
     console.log('sendProxyMessage called with model:', model);
-    const proxyUrl = localStorage.getItem('proxy_url');
-    // Use the provided apiKey if available, otherwise get it from localStorage
-    const proxyKey = apiKey || localStorage.getItem('proxy_key');
-
-    console.log('Proxy URL:', proxyUrl);
+    
+    // Use the provided apiKey if available, otherwise get it from the proxy config
+    const proxyKey = apiKey || getProxyConfig().proxyKey;
+    const requestEndpoint = getProxyEndpoint('/api/request');
+    
+    console.log('Request endpoint:', requestEndpoint);
     console.log('Proxy Key exists:', !!proxyKey);
-
-    if (!proxyUrl || !proxyKey) {
-      throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
-    }
 
     const messagePayload = [...messages];
     if (customInstruction) {
@@ -471,10 +469,9 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
       stream: Boolean(onStream),
     };
 
-    console.log('Request URL:', `${proxyUrl.replace(/\/api\/request\/?$/, '')}/api/request`);
     console.log('Request body:', JSON.stringify(requestBody));
 
-    const response = await fetch(`${proxyUrl.replace(/\/api\/request\/?$/, '')}/api/request`, {
+    const response = await fetch(requestEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -568,71 +565,51 @@ const getAISettings = () => {
 const getAvailableProviders = async () => {
   try {
     console.log('getAvailableProviders called');
-    const proxyUrl = localStorage.getItem('proxy_url');
-    const proxyKey = localStorage.getItem('proxy_key');
     
-    console.log('Proxy URL:', proxyUrl);
-    console.log('Proxy Key exists:', !!proxyKey);
-    
-    if (!proxyUrl || !proxyKey) {
-      console.log('Falling back to original implementation - proxy config missing');
-      // Fall back to the original implementation if proxy URL is not configured
-      const settings = getAISettings();
-      return Object.entries(settings || {})
-        .filter(([_, config]) => config && config.key && Array.isArray(config.models) && config.models.length > 0)
-        .map(([name, config]) => ({
-          name,
-          models: config.models || [],
-          selectedModel: config.selectedModel || '',
-        }));
-    }
-    
-    // Construct the models endpoint URL
-    let modelsEndpoint;
     try {
-      modelsEndpoint = `${proxyUrl.replace(/\/api\/request\/?$/, '')}/api/models`;
+      const { proxyUrl, proxyKey } = getProxyConfig();
+      console.log('Proxy URL:', proxyUrl);
+      console.log('Proxy Key exists:', !!proxyKey);
+      
+      // Construct the models endpoint URL
+      const modelsEndpoint = getProxyEndpoint('/api/models');
+      console.log('Models endpoint:', modelsEndpoint);
+      
+      // Fetch available models from the API with the API key in headers
+      console.log('Fetching models...');
+      const response = await fetch(modelsEndpoint, {
+        headers: {
+          'x-api-key': proxyKey,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.status}`);
+      }
+      
+      const models = await response.json();
+      console.log('Models received:', models);
+      
+      if (!Array.isArray(models)) {
+        throw new Error('Invalid models response: expected an array');
+      }
+      
+      // Create a single provider with the proxy models
+      return [{
+        name: 'proxy',
+        models: models.map(model => ({
+          id: model.nickname,
+          name: model.nickname
+        })),
+        selectedModel: models[0]?.nickname || '',
+      }];
     } catch (error) {
-      console.error('Error constructing models endpoint URL:', error);
-      modelsEndpoint = `${proxyUrl}/api/models`;
+      console.error('Error fetching models from proxy:', error);
+      throw error;
     }
-    console.log('Models endpoint:', modelsEndpoint);
-    
-    // Fetch available models from the API with the API key in headers
-    console.log('Fetching models...');
-    const response = await fetch(modelsEndpoint, {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': proxyKey,
-      },
-    });
-    
-    console.log('Models response status:', response.status);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch models: ${response.statusText}`);
-    }
-    
-    const models = await response.json();
-    console.log('Models received:', models);
-    
-    // Ensure models is an array
-    const modelsArray = Array.isArray(models) ? models : [];
-    
-    // Create a provider with the fetched models
-    const provider = [{
-      name: 'proxy',
-      models: modelsArray.map(model => ({
-        id: model && model.nickname ? model.nickname : 'unknown',
-        name: model && model.nickname ? model.nickname : 'Unknown Model'
-      })),
-      selectedModel: modelsArray.length > 0 && modelsArray[0] && modelsArray[0].nickname ? modelsArray[0].nickname : '',
-    }];
-    
-    console.log('Returning provider:', provider);
-    return provider;
   } catch (error) {
-    console.error('Error fetching models:', error);
-    // Fall back to the original implementation in case of error
+    console.log('Falling back to original implementation due to error:', error);
+    // Fall back to the original implementation if there was an error
     const settings = getAISettings();
     return Object.entries(settings || {})
       .filter(([_, config]) => config && config.key && Array.isArray(config.models) && config.models.length > 0)
