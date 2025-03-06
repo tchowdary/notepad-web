@@ -830,14 +830,28 @@ const ChatBox = ({
   }, []);
 
   useEffect(() => {
-    const handleEscape = (e) => {
+    const handleKeyboard = (e) => {
+      // Escape key to exit fullscreen
       if (e.key === "Escape" && isFullscreen) {
         setIsSidebarOpen(false);
         setIsFullscreen(false);
       }
+      
+      // Control+[ to close sidebar
+      if (e.ctrlKey && e.key === "[") {
+        setIsSidebarOpen(false);
+        e.preventDefault();
+      }
+      
+      // Control+] to open sidebar
+      if (e.ctrlKey && e.key === "]") {
+        setIsSidebarOpen(true);
+        e.preventDefault();
+      }
     };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
+    
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
   }, [isFullscreen]);
 
   useEffect(() => {
