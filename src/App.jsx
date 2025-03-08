@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { 
+  useState, 
+  useEffect, 
+  useRef, 
+  useCallback,
+  useMemo 
+} from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
 import Editor from './components/Editor';
@@ -8,10 +14,12 @@ import CommandBar from './components/CommandBar';
 import ExcalidrawEditor from './components/ExcalidrawEditor';
 import TLDrawEditor from './components/TLDrawEditor';
 import GitHubSettingsModal from './components/GitHubSettingsModal';
+import ApiSettingsModal from './components/ApiSettingsModal';
 import TodoManager from './components/TodoManager';
 import QuickAddTask from './components/QuickAddTask';
 import CommandPalette from './components/CommandPalette';
-import GitHubService from './services/githubService';
+import ApiService from './services/apiService'; // Import ApiService properly
+import githubService from './services/githubService';
 import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
@@ -42,6 +50,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showCommandBar, setShowCommandBar] = useState(false);
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
+  const [showApiSettings, setShowApiSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [todoData, setTodoData] = useState({
     inbox: [],
@@ -51,7 +60,6 @@ function App() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [isChatFullscreen, setIsChatFullscreen] = useState(false);
-  const [showApiSettings, setShowApiSettings] = useState(false);
   const [showQuickChat, setShowQuickChat] = useState(false);
   const [quickChatInput, setQuickChatInput] = useState('');
   const editorRef = useRef(null);
@@ -134,6 +142,9 @@ function App() {
     if (isPWA()) {
       setShowSidebar(false);
     }
+    
+    // Don't automatically import notes from API when app starts
+    // We'll only do this when the user explicitly requests it
   }, []);
 
   useEffect(() => {
@@ -198,6 +209,25 @@ function App() {
     initializeApp();
   }, [location.search]);
 
+  const handleContentChange = (content) => {
+    if (activeTab) {
+      const now = new Date().toISOString();
+      const updatedTabs = tabs.map(tab => {
+        if (tab.id === activeTab) {
+          return {
+            ...tab,
+            content,
+            lastModified: now
+          };
+        }
+        return tab;
+      });
+      
+      setTabs(updatedTabs);
+      saveTabs(updatedTabs);
+    }
+  };
+
   useEffect(() => {
     if (!isLoading) {  // Don't save during initial load
       saveTabs(tabs).catch(error => {
@@ -206,17 +236,96 @@ function App() {
     }
   }, [tabs, isLoading]);
 
-  useEffect(() => {
-    localStorage.setItem('wordWrap', wordWrap);
-  }, [wordWrap]);
+  const syncNotes = useCallback(async () => {
+    if (!ApiService.isConfigured()) {
+      return;
+    }
+
+    try {
+      console.log('Running sync...');
+      const currentTabs = await loadTabs();
+      if (!currentTabs?.length) return;
+      
+      const syncableTabs = currentTabs.filter(tab => ApiService.shouldSyncNote(tab.name));
+      if (!syncableTabs.length) return;
+      
+      const syncPromises = syncableTabs.map(tab => ApiService.syncNote(tab));
+      await Promise.all(syncPromises);
+      
+      const updatedTabs = await loadTabs();
+      if (updatedTabs?.length) {
+        setTabs(updatedTabs);
+      }
+      console.log('Sync completed');
+    } catch (error) {
+      console.error('Error syncing notes with API:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('darkMode', darkMode);
-  }, [darkMode]);
+    let syncInterval = null;
+
+    // Check API configuration from localStorage directly
+    const proxyUrl = localStorage.getItem('proxy_url');
+    const proxyKey = localStorage.getItem('proxy_key');
+    const autoSync = localStorage.getItem('api_auto_sync');
+
+    // Only start sync if API is configured and enabled
+    if (proxyUrl && proxyKey && autoSync !== 'false') {
+      // Initial sync
+      syncNotes();
+      
+      // Set up 30-second interval
+      syncInterval = setInterval(() => {
+        if (localStorage.getItem('proxy_url') && localStorage.getItem('proxy_key') && localStorage.getItem('api_auto_sync') !== 'false') {
+          syncNotes();
+        }
+      }, 30000);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+      }
+    };
+  }, [syncNotes]);
 
   useEffect(() => {
-    localStorage.setItem('showPreview', showPreview);
-  }, [showPreview]);
+    if (ApiService.isConfigured() && ApiService.isAutoSyncEnabled()) {
+      syncNotes();
+    }
+  }, [localStorage.getItem('proxy_url'), localStorage.getItem('proxy_key'), localStorage.getItem('api_auto_sync')]);
+
+  useEffect(() => {
+    let syncInterval = null;
+
+    const startSync = () => {
+      // Clear any existing interval
+      if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
+      }
+
+      if (ApiService.isConfigured() && ApiService.isAutoSyncEnabled()) {
+        // Initial sync
+        syncNotes();
+        
+        // Set up 30-second interval
+        syncInterval = setInterval(syncNotes, 30000);
+      }
+    };
+
+    // Start sync on mount and when API settings change
+    startSync();
+
+    // Cleanup on unmount
+    return () => {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+      }
+    };
+  }, [syncNotes, localStorage.getItem('proxy_url'), localStorage.getItem('proxy_key'), localStorage.getItem('api_auto_sync')]);
 
   useEffect(() => {
     const handleEscKey = (event) => {
@@ -313,21 +422,6 @@ function App() {
     loadTodoState();
   }, []);
 
-  useEffect(() => {
-    const saveTodoState = async () => {
-      try {
-        if (Object.keys(todoData.inbox).length > 0 || 
-            Object.keys(todoData.archive).length > 0 || 
-            Object.keys(todoData.projects).length > 0) {
-          await saveTodoData(todoData);
-        }
-      } catch (error) {
-        console.error('Error saving todo data:', error);
-      }
-    };
-    saveTodoState();
-  }, [todoData]);
-
   const handleNewTab = ({ type = 'codemirror', name = '', content = '' } = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     const newTab = {
@@ -403,15 +497,6 @@ function App() {
     setTabs(prevTabs => prevTabs.map(tab =>
       tab.id === tabId ? { ...tab, cursorPosition: cursor } : tab
     ));
-  };
-
-  const handleContentChange = (id, newContent) => {
-    setTabs(prevTabs => {
-      const updatedTabs = prevTabs.map(tab =>
-        tab.id === id ? { ...tab, content: newContent } : tab
-      );
-      return updatedTabs;
-    });
   };
 
   const handleTabAreaDoubleClick = (options = {}) => {
@@ -594,7 +679,7 @@ function App() {
   };
 
   const handleFileSelectFromCommandPalette = async (file) => {
-    const content = await GitHubService.getFileContent(file.path);
+    const content = await ApiService.getFileContent(file.path);
     if (content !== null) {
       let parsedContent = content;
       if (file.name.endsWith('.tldraw')) {
@@ -758,7 +843,7 @@ function App() {
           ref={tipTapEditorRef}
           key={tab.id} // Add key to force remount
           content={tab.content}
-          onChange={(newContent) => handleContentChange(tab.id, newContent)}
+          onChange={(newContent) => handleContentChange(newContent)}
           darkMode={darkMode}
           cursorPosition={tab.cursorPosition}
           onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
@@ -775,7 +860,7 @@ function App() {
       <Editor
         ref={editorRef}
         content={tab.content}
-        onChange={(newContent) => handleContentChange(tab.id, newContent)}
+        onChange={(newContent) => handleContentChange(newContent)}
         wordWrap={wordWrap}
         darkMode={darkMode}
         showPreview={showPreview}
@@ -814,6 +899,14 @@ function App() {
     showChat,
     onChatToggle: handleChatToggle
   });
+
+  const handleGitHubSettingsClick = () => {
+    setShowGitHubSettings(true);
+  };
+
+  const handleApiSettingsClick = () => {
+    setShowApiSettings(true);
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -858,7 +951,8 @@ function App() {
                     onConvert={(converterId) => handleConvert(converterId)}
                     onFormatJson={() => editorRef.current?.formatJson()}
                     currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
-                    setShowGitHubSettings={setShowGitHubSettings}
+                    setShowGitHubSettings={handleGitHubSettingsClick}
+                    setShowApiSettings={handleApiSettingsClick}
                     onTodoClick={handleTodoClick}
                     onQuickAddClick={handleQuickAddClick}
                     showChat={showChat}
@@ -881,6 +975,10 @@ function App() {
                 <GitHubSettingsModal
                   open={showGitHubSettings}
                   onClose={() => setShowGitHubSettings(false)}
+                />
+                <ApiSettingsModal
+                  open={showApiSettings}
+                  onClose={() => setShowApiSettings(false)}
                 />
                 <ApiKeyInput
                   open={showApiSettings}

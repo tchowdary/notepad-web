@@ -31,10 +31,13 @@ import {
   Chat as ChatIcon,
   ViewColumn as SplitViewIcon,
   CalendarViewWeek as WeeklyNotesIcon,
+  Cloud as CloudIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import ApiKeyInput from './ApiKeyInput';
+import ApiSettingsModal from './ApiSettingsModal';
 import githubService from '../services/githubService';
+import ApiService from '../services/apiService';
 import { converters } from '../utils/converters';
 
 const Toolbar = ({
@@ -65,6 +68,7 @@ const Toolbar = ({
   tabs,
   activeTab,
   setActiveTab,
+  onApiSettingsClick,
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
@@ -341,9 +345,15 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
+        <Tooltip title="GitHub Settings">
           <IconButton onClick={handleGitHubSync} size="small">
             <GitHubIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="API Settings">
+          <IconButton onClick={onApiSettingsClick} size="small">
+            <CloudIcon />
           </IconButton>
         </Tooltip>
 
