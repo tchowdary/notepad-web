@@ -44,6 +44,7 @@ export const createCommandList = ({
   onChatToggle,
   showChat,
   setShowApiSettings,
+  onManualSync,
 }) => {
   const mainCommands = [
     {
@@ -168,6 +169,13 @@ export const createCommandList = ({
       icon: showChat ? ChatIcon : ChatBubbleOutlineIcon,
       action: () => onChatToggle(),
       shortcut: 'Ctrl+Shift+C',
+    },
+    {
+      id: 'manual-sync',
+      label: 'Manual Sync',
+      description: 'Sync with database manually',
+      icon: TransformIcon,
+      action: onManualSync,
     },
   ];
 

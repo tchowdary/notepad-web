@@ -12,6 +12,7 @@ import TodoManager from './components/TodoManager';
 import QuickAddTask from './components/QuickAddTask';
 import CommandPalette from './components/CommandPalette';
 import GitHubService from './services/githubService';
+import DbSyncService from './services/dbSyncService';
 import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
@@ -134,6 +135,22 @@ function App() {
     if (isPWA()) {
       setShowSidebar(false);
     }
+  }, []);
+
+  useEffect(() => {
+    // Reload settings for database sync service when they change
+    DbSyncService.loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'proxy_url' || e.key === 'proxy_key') {
+        DbSyncService.loadSettings();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   useEffect(() => {
@@ -381,7 +398,11 @@ function App() {
         if (tab.type === 'excalidraw' && !newName.endsWith('.excalidraw')) {
           newName = `${newName}.excalidraw`;
         }
-        return { ...tab, name: newName };
+        return { 
+          ...tab, 
+          name: newName,
+          lastModified: new Date().toISOString() // Add timestamp for sync tracking
+        };
       }
       return tab;
     }));
@@ -408,7 +429,11 @@ function App() {
   const handleContentChange = (id, newContent) => {
     setTabs(prevTabs => {
       const updatedTabs = prevTabs.map(tab =>
-        tab.id === id ? { ...tab, content: newContent } : tab
+        tab.id === id ? { 
+          ...tab, 
+          content: newContent,
+          lastModified: new Date().toISOString() // Add timestamp for sync tracking
+        } : tab
       );
       return updatedTabs;
     });
@@ -723,6 +748,10 @@ function App() {
     }
   };
 
+  const handleManualSync = async () => {
+    await DbSyncService.syncAllNotes();
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -812,7 +841,8 @@ function App() {
     onTodoClick: handleTodoClick,
     onQuickAddClick: handleQuickAddClick,
     showChat,
-    onChatToggle: handleChatToggle
+    onChatToggle: handleChatToggle,
+    onManualSync: handleManualSync
   });
 
   return (
