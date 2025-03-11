@@ -154,6 +154,42 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Set up automatic database sync every 5 minutes
+    if (isLoading) return;
+
+    const performSync = async () => {
+      try {
+        const syncResults = await DbSyncService.syncAllNotes();
+        
+        if (syncResults && syncResults.length > 0) {
+          setTabs(prevTabs => {
+            // Create a new array with updated tabs
+            return prevTabs.map(tab => {
+              const syncResult = syncResults.find(result => result.tabId === tab.id);
+              if (syncResult) {
+                return {
+                  ...tab,
+                  noteId: syncResult.noteId,
+                  lastSynced: new Date().toISOString()
+                };
+              }
+              return tab;
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error during automatic sync:', error);
+      }
+    };
+
+    performSync();
+
+    const syncInterval = setInterval(performSync, 300000);
+
+    return () => clearInterval(syncInterval);
+  }, [isLoading]);
+
+  useEffect(() => {
     const initializeApp = async () => {
       try {
         const savedTabs = await loadTabs();
@@ -749,7 +785,46 @@ function App() {
   };
 
   const handleManualSync = async () => {
-    await DbSyncService.syncAllNotes();
+    try {
+      // Get the current active tab
+      const currentTab = tabs.find(tab => tab.id === activeTab);
+      if (currentTab) {
+        // Sync the current tab first
+        const result = await DbSyncService.syncNote(currentTab);
+        
+        // Update the tabs state with the noteId
+        if (result && result.id) {
+          setTabs(prevTabs => prevTabs.map(tab => 
+            tab.id === currentTab.id 
+              ? { ...tab, noteId: result.id, lastSynced: new Date().toISOString() } 
+              : tab
+          ));
+        }
+      }
+      
+      // Then sync all other notes
+      const syncResults = await DbSyncService.syncAllNotes();
+      
+      // Update the tabs state with the noteIds from the sync results
+      if (syncResults && syncResults.length > 0) {
+        setTabs(prevTabs => {
+          // Create a new array with updated tabs
+          return prevTabs.map(tab => {
+            const syncResult = syncResults.find(result => result.tabId === tab.id);
+            if (syncResult) {
+              return {
+                ...tab,
+                noteId: syncResult.noteId,
+                lastSynced: new Date().toISOString()
+              };
+            }
+            return tab;
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error during manual sync:', error);
+    }
   };
 
   const renderTab = (tab) => {

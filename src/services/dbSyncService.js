@@ -144,13 +144,48 @@ class DbSyncService {
       // Update the tab with the noteId and lastSynced timestamp
       if (result && result.id) {
         const db = await openDB();
-        const tx = db.transaction(TABS_STORE, 'readwrite');
-        const store = tx.objectStore(TABS_STORE);
         
-        await store.put({
-          ...tab,
-          noteId: result.id,
-          lastSynced: new Date().toISOString()
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(TABS_STORE, 'readwrite');
+          const store = tx.objectStore(TABS_STORE);
+          
+          // Get the current tab
+          const getRequest = store.get(tab.id);
+          
+          getRequest.onsuccess = (event) => {
+            const currentTab = event.target.result;
+            if (currentTab) {
+              // Update the tab with the noteId from the API response
+              const updatedTab = {
+                ...currentTab,
+                noteId: result.id,
+                lastSynced: new Date().toISOString()
+              };
+              
+              const putRequest = store.put(updatedTab);
+              
+              putRequest.onsuccess = () => {
+                resolve(result);
+              };
+              
+              putRequest.onerror = (error) => {
+                console.error('Error updating tab in IndexedDB:', error);
+                reject(error);
+              };
+            } else {
+              resolve(result);
+            }
+          };
+          
+          getRequest.onerror = (error) => {
+            console.error('Error getting tab from IndexedDB:', error);
+            reject(error);
+          };
+          
+          tx.onerror = (error) => {
+            console.error('Transaction error:', error);
+            reject(error);
+          };
         });
       }
       
@@ -163,51 +198,62 @@ class DbSyncService {
 
   async syncAllNotes() {
     if (!this.isConfigured()) {
-      return;
+      return [];
     }
     
     try {
       // Open IndexedDB connection using our utility function
       const db = await openDB();
-
-      // Get all tabs from the store
-      const tx = db.transaction(TABS_STORE, 'readonly');
-      const store = tx.objectStore(TABS_STORE);
-      const tabs = await new Promise((resolve, reject) => {
-        const request = store.getAll();
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-      });
-
-      // Sync each note that meets our criteria
-      let syncCount = 0;
-      for (const tab of tabs) {
-        if (this.shouldSyncNote(tab.name)) {
-          const needsSync = !tab.lastSynced || (tab.lastModified && this.compareDates(tab.lastModified, tab.lastSynced));
-          
-          console.log(`Note ${tab.name} sync status:`, {
-            lastModified: tab.lastModified,
-            lastSynced: tab.lastSynced,
-            needsSync
-          });
-
-          if (needsSync) {
-            try {
-              await this.syncNote(tab);
-              syncCount++;
-              console.log(`Synced ${tab.name} to database`);
-            } catch (error) {
-              console.error(`Failed to sync note ${tab.name}:`, error);
-            }
-          } else {
-            console.log(`Skipping ${tab.name} - no changes since last sync`);
-          }
-        }
-      }
       
-      console.log(`Synced ${syncCount} notes to database`);
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(TABS_STORE, 'readonly');
+        const store = tx.objectStore(TABS_STORE);
+        
+        const request = store.getAll();
+        
+        request.onsuccess = async (event) => {
+          const tabs = event.target.result;
+          
+          // Filter tabs that need to be synced (have content and are not drawings)
+          const tabsToSync = tabs.filter(tab => 
+            tab.content && 
+            tab.type !== 'excalidraw' && 
+            tab.type !== 'tldraw'
+          );
+          
+          // Sync each tab and collect results
+          const syncResults = [];
+          for (const tab of tabsToSync) {
+            try {
+              const result = await this.syncNote(tab);
+              if (result && result.id) {
+                syncResults.push({
+                  tabId: tab.id,
+                  noteId: result.id
+                });
+              }
+            } catch (error) {
+              console.error(`Error syncing tab ${tab.name}:`, error);
+              // Continue with other tabs even if one fails
+            }
+          }
+          
+          resolve(syncResults);
+        };
+        
+        request.onerror = (error) => {
+          console.error('Error getting tabs from IndexedDB:', error);
+          reject(error);
+        };
+        
+        tx.onerror = (error) => {
+          console.error('Transaction error:', error);
+          reject(error);
+        };
+      });
     } catch (error) {
-      console.error('Error in syncAllNotes:', error);
+      console.error('Error syncing all notes:', error);
+      return [];
     }
   }
 
