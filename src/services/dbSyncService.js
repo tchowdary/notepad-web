@@ -281,8 +281,39 @@ class DbSyncService {
     }
   }
 
+  async getAllNotes(limit = null) {
+    if (!this.isConfigured()) return [];
+
+    try {
+      let url = `${this.settings.proxyUrl}/api/notes`;
+      if (limit) {
+        url += `?limit=${limit}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'x-api-key': this.settings.proxyKey
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Get all notes error:', errorData);
+        throw new Error(`Failed to get all notes: ${errorData.message || response.statusText}`);
+      }
+
+      const responseData = await response.json();
+      // Extract notes array from the response
+      const notes = responseData && responseData.notes ? responseData.notes : [];
+      return notes;
+    } catch (error) {
+      console.error('Error getting all notes:', error);
+      return [];
+    }
+  }
+
   async searchNotes(searchTerm) {
-    if (!this.isConfigured() || !searchTerm || searchTerm.length < 4) return [];
+    if (!this.isConfigured() || !searchTerm || searchTerm.length < 2) return [];
 
     try {
       const response = await fetch(`${this.settings.proxyUrl}/api/notes?search=${encodeURIComponent(searchTerm)}`, {
@@ -298,42 +329,20 @@ class DbSyncService {
       }
 
       const responseData = await response.json();
-      return responseData;
+      // Extract notes array from the response
+      const notes = responseData && responseData.notes ? responseData.notes : [];
+      return notes;
     } catch (error) {
       console.error('Error searching notes:', error);
-      throw error;
+      return [];
     }
   }
 
-  async getAllNotes() {
-    if (!this.isConfigured()) return [];
+  async getNoteById(noteId) {
+    if (!this.isConfigured() || !noteId) return null;
 
     try {
-      const response = await fetch(`${this.settings.proxyUrl}/api/notes`, {
-        headers: {
-          'x-api-key': this.settings.proxyKey
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Get all notes error:', errorData);
-        throw new Error(`Failed to get all notes: ${errorData.message || response.statusText}`);
-      }
-
-      const responseData = await response.json();
-      return responseData;
-    } catch (error) {
-      console.error('Error getting all notes:', error);
-      throw error;
-    }
-  }
-
-  async getNoteById(id) {
-    if (!this.isConfigured() || !id) return null;
-
-    try {
-      const response = await fetch(`${this.settings.proxyUrl}/api/notes?id=${encodeURIComponent(id)}`, {
+      const response = await fetch(`${this.settings.proxyUrl}/api/notes?id=${noteId}`, {
         headers: {
           'x-api-key': this.settings.proxyKey
         }
@@ -346,10 +355,11 @@ class DbSyncService {
       }
 
       const responseData = await response.json();
-      return responseData;
+      // Extract the note from the response
+      return responseData && responseData.note ? responseData.note : null;
     } catch (error) {
-      console.error('Error getting note by ID:', error);
-      throw error;
+      console.error(`Error getting note with ID ${noteId}:`, error);
+      return null;
     }
   }
 }

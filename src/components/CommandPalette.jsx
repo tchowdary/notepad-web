@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import GitHubService from '../services/githubService';
+import DbSyncService from '../services/dbSyncService';
 import { createPortal } from 'react-dom';
 
 const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
   const [files, setFiles] = useState([]);
+  const [notes, setNotes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState('github'); // 'github' or 'database'
+  const [isLoading, setIsLoading] = useState(false);
 
   // Theme colors
   const colors = {
@@ -17,7 +21,9 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
       selectedText: '#ffffff',
       hover: '#f0f0f0',
       border: '#e0e0e0',
-      input: '#ffffff'
+      input: '#ffffff',
+      tabActive: '#0078d4',
+      tabInactive: '#e0e0e0'
     },
     dark: {
       bg: '#1e1e1e',
@@ -27,7 +33,9 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
       selectedText: '#ffffff',
       hover: '#2a2d2e',
       border: '#333333',
-      input: '#1e1e1e'
+      input: '#1e1e1e',
+      tabActive: '#04395e',
+      tabInactive: '#333333'
     }
   };
 
@@ -35,20 +43,89 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
 
   useEffect(() => {
     if (isOpen) {
-      loadFiles();
+      if (activeTab === 'github') {
+        loadFiles();
+      } else {
+        loadNotes();
+      }
       setSearchTerm('');
       setSelectedIndex(0);
     }
-  }, [isOpen]);
+  }, [isOpen, activeTab]);
+
+  useEffect(() => {
+    if (searchTerm.length >= 2 && activeTab === 'database') {
+      searchDatabaseNotes();
+    }
+  }, [searchTerm, activeTab]);
 
   const loadFiles = async () => {
-    const monthFiles = await GitHubService.getCurrentMonthFiles();
-    setFiles(monthFiles);
+    setIsLoading(true);
+    try {
+      const monthFiles = await GitHubService.getCurrentMonthFiles();
+      setFiles(monthFiles);
+    } catch (error) {
+      console.error('Error loading files:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const filteredFiles = files.filter(file =>
-    file.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const loadNotes = async () => {
+    setIsLoading(true);
+    try {
+      const dbNotes = await DbSyncService.getAllNotes(15);
+      setNotes(Array.isArray(dbNotes) ? dbNotes : []);
+    } catch (error) {
+      console.error('Error loading notes from database:', error);
+      setNotes([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const searchDatabaseNotes = async () => {
+    setIsLoading(true);
+    try {
+      if (searchTerm.length >= 2) {
+        const searchResults = await DbSyncService.searchNotes(searchTerm);
+        setNotes(Array.isArray(searchResults) ? searchResults : []);
+      }
+    } catch (error) {
+      console.error('Error searching notes in database:', error);
+      setNotes([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleNoteSelect = async (note) => {
+    try {
+      // Fetch the complete note data by ID
+      const fullNote = await DbSyncService.getNoteById(note.id);
+      
+      if (fullNote) {
+        // Create a tab object compatible with the app's structure
+        const tabData = {
+          name: note.name,
+          content: fullNote.content || '',
+          noteId: note.id
+        };
+        
+        // Pass the tab data to the parent component
+        onFileSelect(tabData);
+        onClose();
+      } else {
+        console.error('Failed to fetch note details');
+      }
+    } catch (error) {
+      console.error('Error selecting note:', error);
+    }
+  };
+
+  const filteredFiles = activeTab === 'github' 
+    ? files.filter(file => file.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : (Array.isArray(notes) ? notes : []);
 
   const handleKeyDown = useCallback((e) => {
     if (!isOpen) return;
@@ -67,8 +144,13 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
       case 'Enter':
         e.preventDefault();
         if (filteredFiles[selectedIndex]) {
-          onFileSelect(filteredFiles[selectedIndex]);
-          onClose();
+          if (activeTab === 'github') {
+            onFileSelect(filteredFiles[selectedIndex]);
+            onClose();
+          } else {
+            // Handle database note selection
+            handleNoteSelect(filteredFiles[selectedIndex]);
+          }
         }
         break;
       case 'Escape':
@@ -78,7 +160,7 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
       default:
         break;
     }
-  }, [isOpen, filteredFiles, selectedIndex, onFileSelect, onClose]);
+  }, [isOpen, filteredFiles, selectedIndex, onFileSelect, onClose, activeTab]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -113,6 +195,49 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
           overflow: 'hidden',
         }}
       >
+        {/* Tabs */}
+        <div style={{ 
+          display: 'flex', 
+          borderBottom: `1px solid ${theme.border}` 
+        }}>
+          <div 
+            style={{
+              flex: 1,
+              padding: '8px 16px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              backgroundColor: activeTab === 'database' ? theme.tabActive : 'transparent',
+              color: activeTab === 'database' ? theme.selectedText : theme.text,
+              borderBottom: activeTab === 'database' ? `2px solid ${theme.tabActive}` : 'none'
+            }}
+            onClick={() => {
+              setActiveTab('database');
+              setSelectedIndex(0);
+              loadNotes();
+            }}
+          >
+            Database Notes
+          </div>
+          <div 
+            style={{
+              flex: 1,
+              padding: '8px 16px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              backgroundColor: activeTab === 'github' ? theme.tabActive : 'transparent',
+              color: activeTab === 'github' ? theme.selectedText : theme.text,
+              borderBottom: activeTab === 'github' ? `2px solid ${theme.tabActive}` : 'none'
+            }}
+            onClick={() => {
+              setActiveTab('github');
+              setSelectedIndex(0);
+            }}
+          >
+            GitHub Files
+          </div>
+          
+        </div>
+
         <div style={{ borderBottom: `1px solid ${theme.border}` }}>
           <input
             type="text"
@@ -125,7 +250,7 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
               fontSize: '14px',
               outline: 'none',
             }}
-            placeholder="Type to search files..."
+            placeholder={activeTab === 'github' ? "Type to search files..." : "Type to search notes..."}
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -136,20 +261,29 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
         </div>
         <div style={{ 
           overflowY: 'auto',
-          maxHeight: 'calc(60vh - 56px)'
+          maxHeight: 'calc(60vh - 100px)'
         }}>
-          {filteredFiles.length === 0 ? (
+          {isLoading ? (
+            <div style={{ 
+              padding: '12px 16px',
+              fontSize: '14px',
+              color: theme.secondaryText,
+              textAlign: 'center'
+            }}>
+              Loading...
+            </div>
+          ) : filteredFiles.length === 0 ? (
             <div style={{ 
               padding: '12px 16px',
               fontSize: '14px',
               color: theme.secondaryText
             }}>
-              No files found
+              No {activeTab === 'github' ? 'files' : 'notes'} found
             </div>
           ) : (
-            filteredFiles.map((file, index) => (
+            filteredFiles.map((item, index) => (
               <div
-                key={`${file.path}-${file.name}`}
+                key={activeTab === 'github' ? `${item.path}-${item.name}` : item.id}
                 style={{
                   padding: '8px 16px',
                   fontSize: '14px',
@@ -164,8 +298,13 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
                   }
                 }}
                 onClick={() => {
-                  onFileSelect(file);
-                  onClose();
+                  if (activeTab === 'github') {
+                    onFileSelect(item);
+                    onClose();
+                  } else {
+                    // Handle database note selection
+                    handleNoteSelect(item);
+                  }
                 }}
               >
                 <svg 
@@ -187,14 +326,16 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
                 }}>
-                  {file.name}
+                  {item.name}
                 </span>
-                <span style={{
-                  fontSize: '12px',
-                  color: theme.secondaryText
-                }}>
-                  {file.month}/{file.path.split('/')[0]}
-                </span>
+                {activeTab === 'github' && (
+                  <span style={{
+                    fontSize: '12px',
+                    color: theme.secondaryText
+                  }}>
+                    {item.month}/{item.path.split('/')[0]}
+                  </span>
+                )}
               </div>
             ))
           )}
