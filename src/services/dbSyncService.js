@@ -50,6 +50,22 @@ class DbSyncService {
     return true;
   }
 
+  // Check if a note needs to be synced based on lastModified and lastSynced timestamps
+  shouldSyncNote(tab) {
+    // Always sync if there's no lastSynced timestamp
+    if (!tab.lastSynced) {
+      return true;
+    }
+    
+    // Check if the note has been modified since the last sync
+    if (tab.lastModified && new Date(tab.lastModified) > new Date(tab.lastSynced)) {
+      return true;
+    }
+    
+    // Don't sync if the note hasn't been modified
+    return false;
+  }
+
   // Helper function to safely parse dates and compare them
   compareDates(date1, date2) {
     try {
@@ -133,6 +149,12 @@ class DbSyncService {
     if (!this.isConfigured()) return;
 
     try {
+      // Check if the note needs to be synced
+      if (!this.shouldSyncNote(tab)) {
+        console.log(`Skipping sync for ${tab.name} - no changes since last sync`);
+        return { id: tab.noteId, skipped: true };
+      }
+
       // If the note has a noteId, update it, otherwise create a new note
       let result;
       if (tab.noteId) {
@@ -231,6 +253,8 @@ class DbSyncService {
                   tabId: tab.id,
                   noteId: result.id
                 });
+              } else if (result && result.skipped) {
+                console.log(`Skipped syncing ${tab.name} - no changes since last sync`);
               }
             } catch (error) {
               console.error(`Error syncing tab ${tab.name}:`, error);

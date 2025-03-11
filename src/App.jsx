@@ -161,7 +161,9 @@ function App() {
       try {
         const syncResults = await DbSyncService.syncAllNotes();
         
-        if (syncResults && syncResults.length > 0) {
+        // Only update state if we have actual sync results (not skipped notes)
+        const actualSyncResults = syncResults && syncResults.length > 0;
+        if (actualSyncResults) {
           setTabs(prevTabs => {
             // Create a new array with updated tabs
             return prevTabs.map(tab => {
@@ -182,10 +184,13 @@ function App() {
       }
     };
 
+    // Initial sync when component mounts
     performSync();
 
+    // Set up interval for syncing every 5 minutes (300000 ms)
     const syncInterval = setInterval(performSync, 300000);
 
+    // Clean up interval on unmount
     return () => clearInterval(syncInterval);
   }, [isLoading]);
 
@@ -792,13 +797,16 @@ function App() {
         // Sync the current tab first
         const result = await DbSyncService.syncNote(currentTab);
         
-        // Update the tabs state with the noteId
-        if (result && result.id) {
-          setTabs(prevTabs => prevTabs.map(tab => 
-            tab.id === currentTab.id 
-              ? { ...tab, noteId: result.id, lastSynced: new Date().toISOString() } 
-              : tab
-          ));
+        // Update the tabs state with the noteId if the note was actually synced (not skipped)
+        if (result && result.id && !result.skipped) {
+          setTabs(prevTabs => {
+            // Create a new array with updated tabs
+            return prevTabs.map(tab => 
+              tab.id === currentTab.id 
+                ? { ...tab, noteId: result.id, lastSynced: new Date().toISOString() } 
+                : tab
+            );
+          });
         }
       }
       
