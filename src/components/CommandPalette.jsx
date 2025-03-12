@@ -10,6 +10,7 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('github'); // 'github' or 'database'
   const [isLoading, setIsLoading] = useState(false);
+  const [searchType, setSearchType] = useState('name'); // 'name', 'content', or 'both'
 
   // Theme colors
   const colors = {
@@ -54,10 +55,10 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
   }, [isOpen, activeTab]);
 
   useEffect(() => {
-    if (searchTerm.length >= 2 && activeTab === 'database') {
+    if (searchTerm.length >= 3 && activeTab === 'database') {
       searchDatabaseNotes();
     }
-  }, [searchTerm, activeTab]);
+  }, [searchTerm, activeTab, searchType]);
 
   const loadFiles = async () => {
     setIsLoading(true);
@@ -87,8 +88,8 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
   const searchDatabaseNotes = async () => {
     setIsLoading(true);
     try {
-      if (searchTerm.length >= 2) {
-        const searchResults = await DbSyncService.searchNotes(searchTerm);
+      if (searchTerm.length >= 3) {
+        const searchResults = await DbSyncService.searchNotes(searchTerm, searchType);
         setNotes(Array.isArray(searchResults) ? searchResults : []);
       }
     } catch (error) {
@@ -101,7 +102,20 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
 
   const handleNoteSelect = async (note) => {
     try {
-      // Fetch the complete note data by ID
+      // If we already have the full note with content from content search
+      if (note.content && (searchType === 'content' || searchType === 'both')) {
+        const tabData = {
+          name: note.name,
+          content: note.content,
+          noteId: note.id
+        };
+        
+        onFileSelect(tabData);
+        onClose();
+        return;
+      }
+      
+      // Otherwise fetch the complete note data by ID
       const fullNote = await DbSyncService.getNoteById(note.id);
       
       if (fullNote) {
@@ -259,6 +273,75 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
             autoFocus
           />
         </div>
+        
+        {/* Search Type Selector (only visible for database tab) */}
+        {activeTab === 'database' && (
+          <div style={{ 
+            display: 'flex', 
+            borderBottom: `1px solid ${theme.border}`,
+            padding: '4px 8px',
+            backgroundColor: theme.bg
+          }}>
+            <div style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: '12px',
+              color: theme.secondaryText
+            }}>
+              Search in:
+            </div>
+            <div style={{ 
+              display: 'flex',
+              marginLeft: '8px'
+            }}>
+              <button 
+                style={{
+                  padding: '2px 8px',
+                  marginRight: '4px',
+                  backgroundColor: searchType === 'name' ? theme.selected : 'transparent',
+                  color: searchType === 'name' ? theme.selectedText : theme.text,
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setSearchType('name')}
+              >
+                Name
+              </button>
+              <button 
+                style={{
+                  padding: '2px 8px',
+                  marginRight: '4px',
+                  backgroundColor: searchType === 'content' ? theme.selected : 'transparent',
+                  color: searchType === 'content' ? theme.selectedText : theme.text,
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setSearchType('content')}
+              >
+                Content
+              </button>
+              <button 
+                style={{
+                  padding: '2px 8px',
+                  backgroundColor: searchType === 'both' ? theme.selected : 'transparent',
+                  color: searchType === 'both' ? theme.selectedText : theme.text,
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setSearchType('both')}
+              >
+                Both
+              </button>
+            </div>
+          </div>
+        )}
+        
         <div style={{ 
           overflowY: 'auto',
           maxHeight: 'calc(60vh - 100px)'
@@ -335,6 +418,21 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
                   }}>
                     {item.month}/{item.path.split('/')[0]}
                   </span>
+                )}
+                {/* Show content preview for content search results */}
+                {activeTab === 'database' && (searchType === 'content' || searchType === 'both') && item.content && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: theme.secondaryText,
+                    marginTop: '4px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '100%',
+                    display: 'block'
+                  }}>
+                    {item.content.substring(0, 60)}...
+                  </div>
                 )}
               </div>
             ))

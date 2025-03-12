@@ -312,11 +312,24 @@ class DbSyncService {
     }
   }
 
-  async searchNotes(searchTerm) {
+  async searchNotes(searchTerm, searchType = 'name') {
     if (!this.isConfigured() || !searchTerm || searchTerm.length < 2) return [];
 
     try {
-      const response = await fetch(`${this.settings.proxyUrl}/api/notes?search=${encodeURIComponent(searchTerm)}`, {
+      const url = new URL(`${this.settings.proxyUrl}/api/notes`);
+      
+      // Use the correct parameter based on search type
+    if (searchType === 'name') {
+      url.searchParams.append('search', searchTerm);
+    } else if (searchType === 'content') {
+      url.searchParams.append('content', searchTerm);
+    } else if (searchType === 'both') {
+      url.searchParams.append('search', searchTerm);
+      url.searchParams.append('content', searchTerm);
+    }
+
+
+      const response = await fetch(url.toString(), {
         headers: {
           'x-api-key': this.settings.proxyKey
         }
@@ -331,6 +344,21 @@ class DbSyncService {
       const responseData = await response.json();
       // Extract notes array from the response
       const notes = responseData && responseData.notes ? responseData.notes : [];
+      
+      // If we're searching content, we need to decode the content
+      if (searchType === 'content' || searchType === 'both') {
+        return notes.map(note => {
+          if (note.content) {
+            try {
+              note.content = decodeURIComponent(escape(atob(note.content)));
+            } catch (e) {
+              console.error('Error decoding note content:', e);
+            }
+          }
+          return note;
+        });
+      }
+      
       return notes;
     } catch (error) {
       console.error('Error searching notes:', error);
