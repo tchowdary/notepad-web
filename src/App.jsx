@@ -12,6 +12,7 @@ import TodoManager from './components/TodoManager';
 import QuickAddTask from './components/QuickAddTask';
 import CommandPalette from './components/CommandPalette';
 import GitHubService from './services/githubService';
+import DbSyncService from './services/dbSyncService';
 import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
@@ -135,6 +136,63 @@ function App() {
       setShowSidebar(false);
     }
   }, []);
+
+  useEffect(() => {
+    // Reload settings for database sync service when they change
+    DbSyncService.loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'proxy_url' || e.key === 'proxy_key') {
+        DbSyncService.loadSettings();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  useEffect(() => {
+    // Set up automatic database sync every 5 minutes
+    if (isLoading) return;
+
+    const performSync = async () => {
+      try {
+        const syncResults = await DbSyncService.syncAllNotes();
+        
+        // Only update state if we have actual sync results (not skipped notes)
+        const actualSyncResults = syncResults && syncResults.length > 0;
+        if (actualSyncResults) {
+          setTabs(prevTabs => {
+            // Create a new array with updated tabs
+            return prevTabs.map(tab => {
+              const syncResult = syncResults.find(result => result.tabId === tab.id);
+              if (syncResult) {
+                return {
+                  ...tab,
+                  noteId: syncResult.noteId,
+                  lastSynced: new Date().toISOString()
+                };
+              }
+              return tab;
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error during automatic sync:', error);
+      }
+    };
+
+    // Initial sync when component mounts
+    performSync();
+
+    // Set up interval for syncing every 5 minutes (300000 ms)
+    const syncInterval = setInterval(performSync, 300000);
+
+    // Clean up interval on unmount
+    return () => clearInterval(syncInterval);
+  }, [isLoading]);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -381,7 +439,11 @@ function App() {
         if (tab.type === 'excalidraw' && !newName.endsWith('.excalidraw')) {
           newName = `${newName}.excalidraw`;
         }
-        return { ...tab, name: newName };
+        return { 
+          ...tab, 
+          name: newName,
+          lastModified: new Date().toISOString() // Add timestamp for sync tracking
+        };
       }
       return tab;
     }));
@@ -408,7 +470,11 @@ function App() {
   const handleContentChange = (id, newContent) => {
     setTabs(prevTabs => {
       const updatedTabs = prevTabs.map(tab =>
-        tab.id === id ? { ...tab, content: newContent } : tab
+        tab.id === id ? { 
+          ...tab, 
+          content: newContent,
+          lastModified: new Date().toISOString() // Add timestamp for sync tracking
+        } : tab
       );
       return updatedTabs;
     });
@@ -594,30 +660,61 @@ function App() {
   };
 
   const handleFileSelectFromCommandPalette = async (file) => {
-    const content = await GitHubService.getFileContent(file.path);
-    if (content !== null) {
-      let parsedContent = content;
-      if (file.name.endsWith('.tldraw')) {
-        try {
-          // Parse but keep the entire state structure
-          parsedContent = JSON.parse(content);
-        } catch (error) {
-          console.error('Error parsing TLDraw file:', error);
-          return;
-        }
+    // Check if it's a database note with base64 encoded content
+    if (file.noteId && file.content) {
+      try {
+        // Try to decode base64 content if it appears to be encoded
+        const isBase64 = /^[A-Za-z0-9+/=]+$/.test(file.content.replace(/\s/g, ''));
+        const decodedContent = isBase64 ? atob(file.content) : file.content;
+        
+        // Create a new tab with the decoded content
+        const newTab = {
+          id: Date.now(),
+          name: file.name,
+          content: decodedContent,
+          noteId: file.noteId,
+          lastSynced: new Date().toISOString(),
+          type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
+          editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
+                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror'
+        };
+        
+        // Add the new tab and set it as active
+        setTabs(prevTabs => [...prevTabs, newTab]);
+        setActiveTab(newTab.id);
+        return;
+      } catch (error) {
+        console.error('Error decoding note content:', error);
       }
-      
-      const newTab = {
-        id: Date.now(),
-        name: file.name,
-        content: parsedContent,
-        type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
-        editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
-                   (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror',
-        path: file.path
-      };
-      setTabs(prev => [...prev, newTab]);
-      setActiveTab(newTab.id);
+    }
+    
+    // Handle GitHub files as before
+    if (file.path && file.name) {
+      const content = await GitHubService.getFileContent(file.path);
+      if (content !== null) {
+        let parsedContent = content;
+        if (file.name.endsWith('.tldraw')) {
+          try {
+            // Parse but keep the entire state structure
+            parsedContent = JSON.parse(content);
+          } catch (error) {
+            console.error('Error parsing TLDraw file:', error);
+            return;
+          }
+        }
+        
+        const newTab = {
+          id: Date.now(),
+          name: file.name,
+          content: parsedContent,
+          type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
+          editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
+                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror',
+          path: file.path
+        };
+        setTabs(prev => [...prev, newTab]);
+        setActiveTab(newTab.id);
+      }
     }
   };
 
@@ -723,6 +820,52 @@ function App() {
     }
   };
 
+  const handleManualSync = async () => {
+    try {
+      // Get the current active tab
+      const currentTab = tabs.find(tab => tab.id === activeTab);
+      if (currentTab) {
+        // Sync the current tab first
+        const result = await DbSyncService.syncNote(currentTab);
+        
+        // Update the tabs state with the noteId if the note was actually synced (not skipped)
+        if (result && result.id && !result.skipped) {
+          setTabs(prevTabs => {
+            // Create a new array with updated tabs
+            return prevTabs.map(tab => 
+              tab.id === currentTab.id 
+                ? { ...tab, noteId: result.id, lastSynced: new Date().toISOString() } 
+                : tab
+            );
+          });
+        }
+      }
+      
+      // Then sync all other notes
+      const syncResults = await DbSyncService.syncAllNotes();
+      
+      // Update the tabs state with the noteIds from the sync results
+      if (syncResults && syncResults.length > 0) {
+        setTabs(prevTabs => {
+          // Create a new array with updated tabs
+          return prevTabs.map(tab => {
+            const syncResult = syncResults.find(result => result.tabId === tab.id);
+            if (syncResult) {
+              return {
+                ...tab,
+                noteId: syncResult.noteId,
+                lastSynced: new Date().toISOString()
+              };
+            }
+            return tab;
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error during manual sync:', error);
+    }
+  };
+
   const renderTab = (tab) => {
     if (tab.type === 'excalidraw') {
       return (
@@ -812,7 +955,8 @@ function App() {
     onTodoClick: handleTodoClick,
     onQuickAddClick: handleQuickAddClick,
     showChat,
-    onChatToggle: handleChatToggle
+    onChatToggle: handleChatToggle,
+    onManualSync: handleManualSync
   });
 
   return (

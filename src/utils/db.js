@@ -66,6 +66,8 @@ export const saveTabs = async (tabs) => {
           
         return store.add({
           ...tab,
+          // Preserve noteId from existing tab if not present in current tab
+          noteId: tab.noteId || (existingTab ? existingTab.noteId : undefined),
           lastModified
         });
       });
