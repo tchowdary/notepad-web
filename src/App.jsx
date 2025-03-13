@@ -19,11 +19,12 @@ import ResponsiveToolbar from './components/ResponsiveToolbar';
 import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
 import QuickChat from './components/QuickChat';
 import TabSwitcher from './components/TabSwitcher';
-import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData } from './utils/db';
+import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData, updateTabNoteIds } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
 import { converters } from './utils/converters';
 import { chatStorage } from './services/chatStorageService';
+import { openDB, TABS_STORE } from './utils/db';
 import './App.css';
 
 function App() {
@@ -164,6 +165,7 @@ function App() {
         // Only update state if we have actual sync results (not skipped notes)
         const actualSyncResults = syncResults && syncResults.length > 0;
         if (actualSyncResults) {
+          // Update the tabs state with the noteIds from the sync results
           setTabs(prevTabs => {
             // Create a new array with updated tabs
             return prevTabs.map(tab => {
@@ -178,6 +180,13 @@ function App() {
               return tab;
             });
           });
+          
+          // Update IndexedDB with the new noteIds using the utility function
+          try {
+            await updateTabNoteIds(syncResults);
+          } catch (dbError) {
+            console.error('Error updating IndexedDB during auto-sync:', dbError);
+          }
         }
       } catch (error) {
         console.error('Error during automatic sync:', error);
