@@ -199,19 +199,93 @@ export const loadTodoData = async () => {
       };
       
       request.onerror = (error) => {
-        console.error('Error in IndexedDB load:', error);
-        reject(error);
-      };
-
-      tx.onerror = (error) => {
-        console.error('Load transaction error:', error);
+        console.error('Error loading todo data:', error);
         reject(error);
       };
     });
-
+    
     return data;
   } catch (error) {
     console.error('Error in loadTodoData:', error);
+    return {
+      inbox: [],
+      archive: [],
+      projects: {}
+    };
+  } finally {
+    if (db) {
+      db.close();
+    }
+  }
+};
+
+/**
+ * Updates tab noteIds in IndexedDB based on sync results
+ * @param {Array} syncResults - Array of objects with tabId and noteId properties
+ * @returns {Promise<void>}
+ */
+export const updateTabNoteIds = async (syncResults) => {
+  if (!syncResults || syncResults.length === 0) {
+    return;
+  }
+  
+  let db;
+  try {
+    db = await openDB();
+    
+    // Process each sync result sequentially
+    for (const syncResult of syncResults) {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(TABS_STORE, 'readwrite');
+        const store = tx.objectStore(TABS_STORE);
+        
+        const getRequest = store.get(syncResult.tabId);
+        
+        getRequest.onsuccess = (event) => {
+          const tab = event.target.result;
+          if (tab) {
+            const updatedTab = {
+              ...tab,
+              noteId: syncResult.noteId,
+              lastSynced: new Date().toISOString()
+            };
+            
+            const putRequest = store.put(updatedTab);
+            
+            putRequest.onsuccess = () => {
+              console.log(`Updated tab ${syncResult.tabId} with noteId ${syncResult.noteId} in IndexedDB`);
+              resolve();
+            };
+            
+            putRequest.onerror = (error) => {
+              console.error('Error updating tab in IndexedDB:', error);
+              reject(error);
+            };
+          } else {
+            console.log(`Tab ${syncResult.tabId} not found in IndexedDB`);
+            resolve(); // Resolve anyway to continue with other tabs
+          }
+        };
+        
+        getRequest.onerror = (error) => {
+          console.error('Error getting tab from IndexedDB:', error);
+          reject(error);
+        };
+        
+        tx.oncomplete = () => {
+          resolve();
+        };
+        
+        tx.onerror = (error) => {
+          console.error('Transaction error:', error);
+          reject(error);
+        };
+      });
+    }
+    
+    console.log('All tabs updated in IndexedDB');
+  } catch (error) {
+    console.error('Error updating tab noteIds in IndexedDB:', error);
     throw error;
   } finally {
     if (db) {
