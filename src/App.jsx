@@ -24,6 +24,7 @@ import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
 import { converters } from './utils/converters';
 import { chatStorage } from './services/chatStorageService';
+import { openDB, TABS_STORE } from './utils/db';
 import './App.css';
 
 function App() {
@@ -164,6 +165,7 @@ function App() {
         // Only update state if we have actual sync results (not skipped notes)
         const actualSyncResults = syncResults && syncResults.length > 0;
         if (actualSyncResults) {
+          // Update the tabs state with the noteIds from the sync results
           setTabs(prevTabs => {
             // Create a new array with updated tabs
             return prevTabs.map(tab => {
@@ -178,6 +180,65 @@ function App() {
               return tab;
             });
           });
+          
+          // Update IndexedDB with the new noteIds - using promises to ensure completion
+          try {
+            const db = await openDB();
+            
+            // Process each sync result sequentially with proper promise handling
+            for (const syncResult of syncResults) {
+              await new Promise((resolve, reject) => {
+                const tx = db.transaction(TABS_STORE, 'readwrite');
+                const store = tx.objectStore(TABS_STORE);
+                
+                const getRequest = store.get(syncResult.tabId);
+                
+                getRequest.onsuccess = (event) => {
+                  const tab = event.target.result;
+                  if (tab) {
+                    const updatedTab = {
+                      ...tab,
+                      noteId: syncResult.noteId,
+                      lastSynced: new Date().toISOString()
+                    };
+                    
+                    const putRequest = store.put(updatedTab);
+                    
+                    putRequest.onsuccess = () => {
+                      console.log(`Auto-sync: Updated tab ${syncResult.tabId} with noteId ${syncResult.noteId} in IndexedDB`);
+                      resolve();
+                    };
+                    
+                    putRequest.onerror = (error) => {
+                      console.error('Error updating tab in IndexedDB during auto-sync:', error);
+                      reject(error);
+                    };
+                  } else {
+                    console.log(`Tab ${syncResult.tabId} not found in IndexedDB`);
+                    resolve(); // Resolve anyway to continue with other tabs
+                  }
+                };
+                
+                getRequest.onerror = (error) => {
+                  console.error('Error getting tab from IndexedDB during auto-sync:', error);
+                  reject(error);
+                };
+                
+                tx.oncomplete = () => {
+                  resolve();
+                };
+                
+                tx.onerror = (error) => {
+                  console.error('Transaction error during auto-sync:', error);
+                  reject(error);
+                };
+              });
+            }
+            
+            console.log('Auto-sync: All tabs updated in IndexedDB');
+          } catch (dbError) {
+            console.error('Error updating IndexedDB during auto-sync:', dbError);
+          }
         }
       } catch (error) {
         console.error('Error during automatic sync:', error);
