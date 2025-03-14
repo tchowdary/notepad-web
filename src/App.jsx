@@ -191,28 +191,12 @@ function App() {
         if (syncResults && syncResults.length > 0) {
           console.log(`Auto-sync completed with ${syncResults.length} notes synced`);
           
-          // Update tab noteIds in state
-          const updatedTabs = [...tabs];
-          
-          syncResults.forEach(result => {
-            const tabIndex = updatedTabs.findIndex(tab => 
-              tab.name === result.tabName || tab.id === result.tabId
-            );
-            
-            if (tabIndex !== -1) {
-              updatedTabs[tabIndex] = {
-                ...updatedTabs[tabIndex],
-                noteId: result.noteId,
-                lastSynced: new Date().toISOString()
-              };
-            }
-          });
-          
-          // Update state with new noteIds
-          setTabs(updatedTabs);
-          
-          // Also update the noteIds in IndexedDB
+          // First update IndexedDB
           await updateTabNoteIds(syncResults);
+          
+          // Then reload tabs from IndexedDB to ensure state is in sync
+          const freshTabs = await loadTabs();
+          setTabs(freshTabs);
         } else {
           console.log('No notes needed syncing');
         }
@@ -893,14 +877,14 @@ function App() {
       if (todoTab) {
         console.log('Syncing Todo file...');
         const todoResult = await syncService.syncNote(todoTab);
-        if (todoResult && todoResult.id) {
+        if (todoResult && todoResult.noteId) {
           // Update the Todo tab with the noteId
           const updatedTabs = [...tabs];
           const todoIndex = updatedTabs.findIndex(tab => tab.id === todoTab.id);
           if (todoIndex !== -1) {
             updatedTabs[todoIndex] = {
               ...updatedTabs[todoIndex],
-              noteId: todoResult.id,
+              noteId: todoResult.noteId,
               lastSynced: new Date().toISOString()
             };
             setTabs(updatedTabs);
@@ -913,26 +897,12 @@ function App() {
       
       // Update the tabs state with the noteIds from the sync results
       if (syncResults && syncResults.length > 0) {
-        const updatedTabs = [...tabs];
-        
-        syncResults.forEach(result => {
-          const tabIndex = updatedTabs.findIndex(tab => 
-            tab.name === result.tabName || tab.id === result.tabId
-          );
-          
-          if (tabIndex !== -1) {
-            updatedTabs[tabIndex] = {
-              ...updatedTabs[tabIndex],
-              noteId: result.noteId,
-              lastSynced: new Date().toISOString()
-            };
-          }
-        });
-        
-        setTabs(updatedTabs);
-        
-        // Also update the noteIds in IndexedDB
+        // First update IndexedDB
         await updateTabNoteIds(syncResults);
+        
+        // Then reload tabs from IndexedDB to ensure state is in sync
+        const freshTabs = await loadTabs();
+        setTabs(freshTabs);
         
         // Update sync status
         setSyncStatus(`Synced ${syncResults.length} notes successfully.`);
@@ -948,6 +918,12 @@ function App() {
   };
 
   const renderTab = (tab) => {
+    // Check if tab is undefined or null
+    if (!tab) {
+      console.warn('Attempted to render undefined tab');
+      return null;
+    }
+    
     if (tab.type === 'excalidraw') {
       return (
         <ExcalidrawEditor
