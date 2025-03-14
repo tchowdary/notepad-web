@@ -127,7 +127,7 @@ class DbSyncService {
         content: contentBase64
       };
       
-      console.log(`Request body for update: ${JSON.stringify({ id, name })}`);
+      //console.log(`Request body for update: ${JSON.stringify({ id, name })}`);
       
       const response = await fetch(`${this.settings.proxyUrl}/api/notes`, {
         method: 'POST',
@@ -165,7 +165,7 @@ class DbSyncService {
     try {
       // Check if the note needs to be synced
       if (!this.shouldSyncNote(tab)) {
-        console.log(`Skipping sync for ${tab.name} - no changes since last sync`);
+        //console.log(`Skipping sync for ${tab.name} - no changes since last sync`);
         return { id: tab.noteId, skipped: true };
       }
 
@@ -242,12 +242,12 @@ class DbSyncService {
 
   async syncAllNotes() {
     if (!this.isConfigured()) {
-      console.log('DbSyncService not configured, skipping syncAllNotes');
+      //console.log('DbSyncService not configured, skipping syncAllNotes');
       return [];
     }
     
     try {
-      console.log('Starting syncAllNotes...');
+      //console.log('Starting syncAllNotes...');
       // Open IndexedDB connection using our utility function
       const db = await openDB();
       
@@ -259,7 +259,7 @@ class DbSyncService {
         
         request.onsuccess = async (event) => {
           const tabs = event.target.result;
-          console.log(`Found ${tabs.length} tabs in IndexedDB`);
+          //console.log(`Found ${tabs.length} tabs in IndexedDB`);
           
           // Filter tabs that need to be synced (have content and are not drawings)
           const tabsToSync = tabs.filter(tab => 
@@ -268,20 +268,20 @@ class DbSyncService {
             tab.type !== 'tldraw'
           );
           
-          console.log(`Filtered to ${tabsToSync.length} tabs to sync`);
+          //console.log(`Filtered to ${tabsToSync.length} tabs to sync`);
           
           // Log tabs with noteIds for debugging
           const tabsWithNoteIds = tabsToSync.filter(tab => tab.noteId);
-          console.log(`${tabsWithNoteIds.length} tabs already have noteIds`);
+          //console.log(`${tabsWithNoteIds.length} tabs already have noteIds`);
           tabsWithNoteIds.forEach(tab => {
-            console.log(`Tab ${tab.id} (${tab.name}) has noteId: ${tab.noteId}`);
+            //console.log(`Tab ${tab.id} (${tab.name}) has noteId: ${tab.noteId}`);
           });
           
           // Sync each tab and collect results
           const syncResults = [];
           for (const tab of tabsToSync) {
             try {
-              console.log(`Processing tab ${tab.id} (${tab.name}) for sync`);
+              //console.log(`Processing tab ${tab.id} (${tab.name}) for sync`);
               const result = await this.syncNote(tab);
               if (result && result.id) {
                 console.log(`Sync successful for tab ${tab.id}, received noteId: ${result.id}`);
@@ -290,7 +290,7 @@ class DbSyncService {
                   noteId: result.id
                 });
               } else if (result && result.skipped) {
-                console.log(`Skipped syncing ${tab.name} - no changes since last sync`);
+                //console.log(`Skipped syncing ${tab.name} - no changes since last sync`);
               }
             } catch (error) {
               console.error(`Error syncing tab ${tab.name}:`, error);
@@ -298,7 +298,7 @@ class DbSyncService {
             }
           }
           
-          console.log(`syncAllNotes completed with ${syncResults.length} results`);
+          //console.log(`syncAllNotes completed with ${syncResults.length} results`);
           resolve(syncResults);
         };
         
