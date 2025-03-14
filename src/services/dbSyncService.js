@@ -82,6 +82,7 @@ class DbSyncService {
     if (!this.isConfigured()) return null;
 
     try {
+      console.log(`Creating new note: ${name}`);
       // Encode content to base64
       const contentBase64 = btoa(unescape(encodeURIComponent(content)));
       
@@ -104,6 +105,7 @@ class DbSyncService {
       }
 
       const responseData = await response.json();
+      console.log(`Note created successfully with ID: ${responseData.id}`);
       return responseData;
     } catch (error) {
       console.error('Error creating note:', error);
@@ -115,8 +117,17 @@ class DbSyncService {
     if (!this.isConfigured()) return null;
 
     try {
+      console.log(`Updating note with ID: ${id}, name: ${name}`);
       // Encode content to base64
       const contentBase64 = btoa(unescape(encodeURIComponent(content)));
+      
+      const requestBody = {
+        id: id,
+        name: name,
+        content: contentBase64
+      };
+      
+      console.log(`Request body for update: ${JSON.stringify({ id, name })}`);
       
       const response = await fetch(`${this.settings.proxyUrl}/api/notes`, {
         method: 'POST',
@@ -124,11 +135,7 @@ class DbSyncService {
           'Content-Type': 'application/json',
           'x-api-key': this.settings.proxyKey
         },
-        body: JSON.stringify({
-          id: id,
-          name: name,
-          content: contentBase64
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -138,9 +145,16 @@ class DbSyncService {
       }
 
       const responseData = await response.json();
+      console.log(`Note updated successfully, response: ${JSON.stringify(responseData)}`);
+      
+      // Verify the returned ID matches the one we sent
+      if (responseData.id !== id) {
+        console.warn(`Warning: Server returned different ID (${responseData.id}) than sent (${id})`);
+      }
+      
       return responseData;
     } catch (error) {
-      console.error('Error updating note:', error);
+      console.error(`Error updating note with ID ${id}:`, error);
       throw error;
     }
   }
@@ -155,16 +169,22 @@ class DbSyncService {
         return { id: tab.noteId, skipped: true };
       }
 
+      // Log the tab being synced for debugging
+      console.log(`Syncing note: ${tab.name}, noteId: ${tab.noteId || 'none'}`);
+
       // If the note has a noteId, update it, otherwise create a new note
       let result;
       if (tab.noteId) {
+        console.log(`Updating existing note with ID: ${tab.noteId}`);
         result = await this.updateNote(tab.noteId, tab.name, tab.content);
       } else {
+        console.log(`Creating new note for: ${tab.name}`);
         result = await this.createNote(tab.name, tab.content);
       }
 
       // Update the tab with the noteId and lastSynced timestamp
       if (result && result.id) {
+        console.log(`Sync successful, received noteId: ${result.id}`);
         const db = await openDB();
         
         return new Promise((resolve, reject) => {
@@ -184,6 +204,7 @@ class DbSyncService {
                 lastSynced: new Date().toISOString()
               };
               
+              console.log(`Updating tab ${tab.id} in IndexedDB with noteId: ${result.id}`);
               const putRequest = store.put(updatedTab);
               
               putRequest.onsuccess = () => {
@@ -195,6 +216,7 @@ class DbSyncService {
                 reject(error);
               };
             } else {
+              console.log(`Tab ${tab.id} not found in IndexedDB, skipping update`);
               resolve(result);
             }
           };
@@ -220,10 +242,12 @@ class DbSyncService {
 
   async syncAllNotes() {
     if (!this.isConfigured()) {
+      console.log('DbSyncService not configured, skipping syncAllNotes');
       return [];
     }
     
     try {
+      console.log('Starting syncAllNotes...');
       // Open IndexedDB connection using our utility function
       const db = await openDB();
       
@@ -235,6 +259,7 @@ class DbSyncService {
         
         request.onsuccess = async (event) => {
           const tabs = event.target.result;
+          console.log(`Found ${tabs.length} tabs in IndexedDB`);
           
           // Filter tabs that need to be synced (have content and are not drawings)
           const tabsToSync = tabs.filter(tab => 
@@ -243,12 +268,23 @@ class DbSyncService {
             tab.type !== 'tldraw'
           );
           
+          console.log(`Filtered to ${tabsToSync.length} tabs to sync`);
+          
+          // Log tabs with noteIds for debugging
+          const tabsWithNoteIds = tabsToSync.filter(tab => tab.noteId);
+          console.log(`${tabsWithNoteIds.length} tabs already have noteIds`);
+          tabsWithNoteIds.forEach(tab => {
+            console.log(`Tab ${tab.id} (${tab.name}) has noteId: ${tab.noteId}`);
+          });
+          
           // Sync each tab and collect results
           const syncResults = [];
           for (const tab of tabsToSync) {
             try {
+              console.log(`Processing tab ${tab.id} (${tab.name}) for sync`);
               const result = await this.syncNote(tab);
               if (result && result.id) {
+                console.log(`Sync successful for tab ${tab.id}, received noteId: ${result.id}`);
                 syncResults.push({
                   tabId: tab.id,
                   noteId: result.id
@@ -262,6 +298,7 @@ class DbSyncService {
             }
           }
           
+          console.log(`syncAllNotes completed with ${syncResults.length} results`);
           resolve(syncResults);
         };
         
