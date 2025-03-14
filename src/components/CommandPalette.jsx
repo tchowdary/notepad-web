@@ -8,7 +8,7 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
   const [notes, setNotes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState('github'); // 'github' or 'database'
+  const [activeTab, setActiveTab] = useState('database'); // 'github' or 'database'
   const [isLoading, setIsLoading] = useState(false);
   const [searchType, setSearchType] = useState('name'); // 'name', 'content', or 'both'
 
