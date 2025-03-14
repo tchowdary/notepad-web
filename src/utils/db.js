@@ -64,10 +64,19 @@ export const saveTabs = async (tabs) => {
           ? existingTab.lastModified
           : now;
           
+        // Always preserve noteId and lastSynced from existing tab if they exist
+        const noteId = tab.noteId || (existingTab ? existingTab.noteId : undefined);
+        const lastSynced = tab.lastSynced || (existingTab ? existingTab.lastSynced : undefined);
+        
+        // Log for debugging
+        if (noteId) {
+          console.log(`Preserving noteId ${noteId} for tab ${tab.id} (${tab.name})`);
+        }
+        
         return store.add({
           ...tab,
-          // Preserve noteId from existing tab if not present in current tab
-          noteId: tab.noteId || (existingTab ? existingTab.noteId : undefined),
+          noteId,
+          lastSynced,
           lastModified
         });
       });
