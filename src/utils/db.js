@@ -68,10 +68,10 @@ export const saveTabs = async (tabs) => {
         const noteId = tab.noteId || (existingTab ? existingTab.noteId : undefined);
         const lastSynced = tab.lastSynced || (existingTab ? existingTab.lastSynced : undefined);
         
-        // Log for debugging
-        if (noteId) {
-          console.log(`Preserving noteId ${noteId} for tab ${tab.id} (${tab.name})`);
-        }
+        // // Log for debugging
+        // if (noteId) {
+        //   console.log(`Preserving noteId ${noteId} for tab ${tab.id} (${tab.name})`);
+        // }
         
         return store.add({
           ...tab,
@@ -262,7 +262,7 @@ export const updateTabNoteIds = async (syncResults) => {
             const putRequest = store.put(updatedTab);
             
             putRequest.onsuccess = () => {
-              console.log(`Updated tab ${syncResult.tabId} with noteId ${syncResult.noteId} in IndexedDB`);
+              //console.log(`Updated tab ${syncResult.tabId} with noteId ${syncResult.noteId} in IndexedDB`);
               resolve();
             };
             
@@ -271,7 +271,7 @@ export const updateTabNoteIds = async (syncResults) => {
               reject(error);
             };
           } else {
-            console.log(`Tab ${syncResult.tabId} not found in IndexedDB`);
+            //console.log(`Tab ${syncResult.tabId} not found in IndexedDB`);
             resolve(); // Resolve anyway to continue with other tabs
           }
         };
@@ -292,7 +292,7 @@ export const updateTabNoteIds = async (syncResults) => {
       });
     }
     
-    console.log('All tabs updated in IndexedDB');
+    //console.log('All tabs updated in IndexedDB');
   } catch (error) {
     console.error('Error updating tab noteIds in IndexedDB:', error);
     throw error;

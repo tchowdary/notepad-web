@@ -197,7 +197,7 @@ function App() {
     performSync();
 
     // Set up interval for syncing every 5 minutes (300000 ms)
-    const syncInterval = setInterval(performSync, 60000);
+    const syncInterval = setInterval(performSync, 300000);
 
     // Clean up interval on unmount
     return () => clearInterval(syncInterval);
