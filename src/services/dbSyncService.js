@@ -4,7 +4,8 @@ class DbSyncService {
   constructor() {
     this.syncInterval = 5 * 60 * 1000; // 5 minutes
     this.loadSettings();
-    this.startAutoSync();
+    // Don't start auto-sync automatically, let App.jsx handle it
+    // this.startAutoSync();
   }
 
   loadSettings() {
@@ -52,13 +53,13 @@ class DbSyncService {
 
   // Check if a note needs to be synced based on lastModified and lastSynced timestamps
   shouldSyncNote(tab) {
-    // Skip notes with names starting with "Note" or "Code"
-    if (tab.name && (tab.name.startsWith('Note') || tab.name.startsWith('Code'))) {
+    // Skip notes that don't need syncing
+    if (!tab || !tab.name) {
       return false;
     }
     
     // Skip untitled.md files and temporary notes
-    if (tab.name && (tab.name.startsWith('untitled') || tab.name.endsWith('.tldraw'))) {
+    if (tab.name.startsWith('Note') || tab.name.startsWith('Code') || tab.name.endsWith('.tldraw')) {
       return false;
     }
     
@@ -95,33 +96,44 @@ class DbSyncService {
 
   async createNote(name, content) {
     if (!this.isConfigured()) return null;
-
+    
     try {
-      console.log(`Creating new note: ${name}`);
+      console.log(`Creating new note with name: ${name}`);
+      const url = `${this.settings.proxyUrl}/api/notes`;
+      console.log(`POST request to: ${url}`);
+      
       // Encode content to base64
       const contentBase64 = btoa(unescape(encodeURIComponent(content)));
       
-      const response = await fetch(`${this.settings.proxyUrl}/api/notes`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.settings.proxyKey
         },
         body: JSON.stringify({
-          name: name,
+          name,
           content: contentBase64
         })
       });
-
+      
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Create note error:', errorData);
         throw new Error(`Failed to create note: ${errorData.message || response.statusText}`);
       }
-
+      
       const responseData = await response.json();
-      console.log(`Note created successfully with ID: ${responseData.id}`);
-      return responseData;
+      console.log('Create note response:', responseData);
+      
+      // The API returns { note: { id, name, content, ... } }
+      if (responseData && responseData.note) {
+        console.log(`Note created successfully with ID: ${responseData.note.id}`);
+        return responseData; // Return the full response with the note property
+      } else {
+        console.log(`Note created successfully with ID: ${responseData.id}`);
+        return responseData; // Return the direct response if it doesn't have a note property
+      }
     } catch (error) {
       console.error('Error creating note:', error);
       throw error;
@@ -130,47 +142,107 @@ class DbSyncService {
 
   async updateNote(id, name, content) {
     if (!this.isConfigured()) return null;
-
+    
     try {
       console.log(`Updating note with ID: ${id}, name: ${name}`);
+      
+      // Use POST to /api/notes with the id in the body
+      const url = `${this.settings.proxyUrl}/api/notes`;
+      console.log(`POST request to: ${url} with ID: ${id}`);
+      
       // Encode content to base64
       const contentBase64 = btoa(unescape(encodeURIComponent(content)));
       
-      const requestBody = {
-        id: id,
-        name: name,
-        content: contentBase64
-      };
-      
-      //console.log(`Request body for update: ${JSON.stringify({ id, name })}`);
-      
-      const response = await fetch(`${this.settings.proxyUrl}/api/notes`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.settings.proxyKey
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          id,
+          name,
+          content: contentBase64
+        })
       });
-
+      
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Update note error:', errorData);
         throw new Error(`Failed to update note: ${errorData.message || response.statusText}`);
       }
+      
+      const responseData = await response.json();
+      console.log('Update note response:', responseData);
+      
+      // The API returns { note: { id, name, content, ... } }
+      if (responseData && responseData.note) {
+        console.log(`Note updated successfully: ${responseData.note.id}`);
+        
+        // Verify the returned ID matches the one we sent
+        if (responseData.note.id !== id) {
+          console.warn(`Warning: Server returned different ID (${responseData.note.id}) than sent (${id})`);
+        }
+        
+        return responseData; // Return the full response with the note property
+      } else {
+        console.log(`Note updated successfully: ${responseData.id}`);
+        
+        // Verify the returned ID matches the one we sent
+        if (responseData.id !== id) {
+          console.warn(`Warning: Server returned different ID (${responseData.id}) than sent (${id})`);
+        }
+        
+        return responseData; // Return the direct response if it doesn't have a note property
+      }
+    } catch (error) {
+      console.error('Error updating note:', error);
+      throw error;
+    }
+  }
+
+  async findNoteByName(name) {
+    if (!this.isConfigured()) return null;
+
+    try {
+      const url = `${this.settings.proxyUrl}/api/notes?name=${encodeURIComponent(name)}`;
+      console.log(`Fetching note by name: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.settings.proxyKey
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Find note by name error:', errorData);
+        return null;
+      }
 
       const responseData = await response.json();
-      console.log(`Note updated successfully, response: ${JSON.stringify(responseData)}`);
+      console.log('Find note response:', responseData);
       
-      // Verify the returned ID matches the one we sent
-      if (responseData.id !== id) {
-        console.warn(`Warning: Server returned different ID (${responseData.id}) than sent (${id})`);
+      // Handle the response format where note is nested in a "note" property
+      if (responseData && responseData.note) {
+        console.log(`Found note with name: ${name}, ID: ${responseData.note.id}`);
+        return responseData.note;
+      } else if (responseData && Array.isArray(responseData) && responseData.length > 0) {
+        // Handle array response format (if API returns array)
+        const exactMatch = responseData.find(note => note.name === name);
+        if (exactMatch) {
+          console.log(`Found note with name: ${name}, ID: ${exactMatch.id}`);
+          return exactMatch;
+        }
       }
       
-      return responseData;
+      console.log(`No note found with name: ${name}`);
+      return null;
     } catch (error) {
-      console.error(`Error updating note with ID ${id}:`, error);
-      throw error;
+      console.error('Error finding note by name:', error);
+      return null;
     }
   }
 
@@ -180,26 +252,31 @@ class DbSyncService {
     try {
       // Check if the note needs to be synced
       if (!this.shouldSyncNote(tab)) {
-        //console.log(`Skipping sync for ${tab.name} - no changes since last sync`);
-        return { id: tab.noteId, skipped: true };
+        return { id: tab.noteId, tabId: tab.id, tabName: tab.name, skipped: true };
       }
 
       // Log the tab being synced for debugging
-      console.log(`Syncing note: ${tab.name}, noteId: ${tab.noteId || 'none'}`);
+      console.log(`Syncing note: ${tab.name}`);
 
-      // If the note has a noteId, update it, otherwise create a new note
+      // First try to find if a note with this name already exists
+      const existingNote = await this.findNoteByName(tab.name);
+      
+      // If the note exists, update it, otherwise create a new note
       let result;
-      if (tab.noteId) {
-        console.log(`Updating existing note with ID: ${tab.noteId}`);
-        result = await this.updateNote(tab.noteId, tab.name, tab.content);
+      if (existingNote) {
+        console.log(`Found existing note with name: ${tab.name}, ID: ${existingNote.id}`);
+        result = await this.updateNote(existingNote.id, tab.name, tab.content);
       } else {
-        console.log(`Creating new note for: ${tab.name}`);
+        console.log(`No existing note found with name: ${tab.name}, creating new note`);
         result = await this.createNote(tab.name, tab.content);
       }
 
+      // Handle the response format where note is nested in a "note" property
+      const noteData = result && result.note ? result.note : result;
+
       // Update the tab with the noteId and lastSynced timestamp
-      if (result && result.id) {
-        console.log(`Sync successful, received noteId: ${result.id}`);
+      if (noteData && noteData.id) {
+        console.log(`Sync successful, received noteId: ${noteData.id}`);
         const db = await openDB();
         
         return new Promise((resolve, reject) => {
@@ -212,46 +289,45 @@ class DbSyncService {
           getRequest.onsuccess = (event) => {
             const currentTab = event.target.result;
             if (currentTab) {
-              // Update the tab with the noteId from the API response
-              const updatedTab = {
-                ...currentTab,
-                noteId: result.id,
-                lastSynced: new Date().toISOString()
-              };
+              // Update the tab with the noteId and lastSynced timestamp
+              currentTab.noteId = noteData.id;
+              currentTab.lastSynced = new Date().toISOString();
               
-              console.log(`Updating tab ${tab.id} in IndexedDB with noteId: ${result.id}`);
-              const putRequest = store.put(updatedTab);
+              // Put the updated tab back in the store
+              const putRequest = store.put(currentTab);
               
               putRequest.onsuccess = () => {
-                resolve(result);
+                console.log(`Tab ${tab.id} updated with noteId ${noteData.id}`);
+                resolve({
+                  noteId: noteData.id,
+                  tabId: tab.id,
+                  tabName: tab.name,
+                  synced: true
+                });
               };
               
               putRequest.onerror = (error) => {
-                console.error('Error updating tab in IndexedDB:', error);
+                console.error(`Error updating tab ${tab.id}:`, error);
                 reject(error);
               };
             } else {
-              console.log(`Tab ${tab.id} not found in IndexedDB, skipping update`);
-              resolve(result);
+              console.error(`Tab ${tab.id} not found in IndexedDB`);
+              reject(new Error(`Tab ${tab.id} not found in IndexedDB`));
             }
           };
           
           getRequest.onerror = (error) => {
-            console.error('Error getting tab from IndexedDB:', error);
-            reject(error);
-          };
-          
-          tx.onerror = (error) => {
-            console.error('Transaction error:', error);
+            console.error(`Error getting tab ${tab.id}:`, error);
             reject(error);
           };
         });
+      } else {
+        console.error('Sync failed, no noteId received');
+        return { tabId: tab.id, tabName: tab.name, error: 'No noteId received' };
       }
-      
-      return result;
     } catch (error) {
       console.error(`Error syncing note ${tab.name}:`, error);
-      throw error;
+      return { tabId: tab.id, tabName: tab.name, error: error.message };
     }
   }
 
@@ -302,6 +378,7 @@ class DbSyncService {
                 console.log(`Sync successful for tab ${tab.id}, received noteId: ${result.id}`);
                 syncResults.push({
                   tabId: tab.id,
+                  tabName: tab.name,
                   noteId: result.id
                 });
               } else if (result && result.skipped) {

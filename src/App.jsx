@@ -60,6 +60,9 @@ function App() {
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
   const [showTabSwitcher, setShowTabSwitcher] = useState(false);
+  const [settings, setSettings] = useState({ autoSync: true });
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
 
   const location = useLocation();
 
@@ -155,52 +158,84 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Set up automatic database sync every 5 minutes
     if (isLoading) return;
 
     const performSync = async () => {
+      // Don't sync if the user has disabled auto-sync
+      const autoSyncEnabled = localStorage.getItem('autoSync') !== 'false';
+      if (!autoSyncEnabled) {
+        return;
+      }
+
       try {
-        const syncResults = await DbSyncService.syncAllNotes();
+        // Use the DbSyncService instance directly
+        const syncService = DbSyncService;
         
-        // Only update state if we have actual sync results (not skipped notes)
-        const actualSyncResults = syncResults && syncResults.length > 0;
-        if (actualSyncResults) {
-          // Update the tabs state with the noteIds from the sync results
-          setTabs(prevTabs => {
-            // Create a new array with updated tabs
-            return prevTabs.map(tab => {
-              const syncResult = syncResults.find(result => result.tabId === tab.id);
-              if (syncResult) {
-                return {
-                  ...tab,
-                  noteId: syncResult.noteId,
-                  lastSynced: new Date().toISOString()
-                };
-              }
-              return tab;
-            });
+        // Update the sync service with current settings from localStorage
+        syncService.settings = {
+          proxyUrl: localStorage.getItem('proxy_url'),
+          proxyKey: localStorage.getItem('proxy_key')
+        };
+        
+        // Check if sync service is properly configured
+        if (!syncService.isConfigured()) {
+          console.log('Sync service not configured, skipping auto-sync');
+          return;
+        }
+        
+        console.log('Starting auto-sync...');
+        
+        // Perform the sync operation
+        const syncResults = await syncService.syncAllNotes();
+        
+        if (syncResults && syncResults.length > 0) {
+          console.log(`Auto-sync completed with ${syncResults.length} notes synced`);
+          
+          // Update tab noteIds in state
+          const updatedTabs = [...tabs];
+          
+          syncResults.forEach(result => {
+            const tabIndex = updatedTabs.findIndex(tab => 
+              tab.name === result.tabName || tab.id === result.tabId
+            );
+            
+            if (tabIndex !== -1) {
+              updatedTabs[tabIndex] = {
+                ...updatedTabs[tabIndex],
+                noteId: result.noteId,
+                lastSynced: new Date().toISOString()
+              };
+            }
           });
           
-          // Update IndexedDB with the new noteIds using the utility function
-          try {
-            await updateTabNoteIds(syncResults);
-          } catch (dbError) {
-            console.error('Error updating IndexedDB during auto-sync:', dbError);
-          }
+          // Update state with new noteIds
+          setTabs(updatedTabs);
+          
+          // Also update the noteIds in IndexedDB
+          await updateTabNoteIds(syncResults);
+        } else {
+          console.log('No notes needed syncing');
         }
       } catch (error) {
-        console.error('Error during automatic sync:', error);
+        console.error('Error during auto-sync:', error);
       }
     };
 
-    // Initial sync when component mounts
-    performSync();
+    // Make sure DbSyncService's auto-sync is stopped
+    DbSyncService.stopAutoSync();
 
-    // Set up interval for syncing every 5 minutes (300000 ms)
-    const syncInterval = setInterval(performSync, 300000);
+    // Run sync immediately when component mounts
+    performSync();
+    
+    // Set up interval for periodic sync
+    const syncInterval = setInterval(performSync, 60000); // Every 1 minute
 
     // Clean up interval on unmount
-    return () => clearInterval(syncInterval);
+    return () => {
+      clearInterval(syncInterval);
+      // Make sure to stop any running auto-sync when unmounting
+      DbSyncService.stopAutoSync();
+    };
   }, [isLoading]);
 
   useEffect(() => {
@@ -831,47 +866,84 @@ function App() {
 
   const handleManualSync = async () => {
     try {
-      // Get the current active tab
-      const currentTab = tabs.find(tab => tab.id === activeTab);
-      if (currentTab) {
-        // Sync the current tab first
-        const result = await DbSyncService.syncNote(currentTab);
-        
-        // Update the tabs state with the noteId if the note was actually synced (not skipped)
-        if (result && result.id && !result.skipped) {
-          setTabs(prevTabs => {
-            // Create a new array with updated tabs
-            return prevTabs.map(tab => 
-              tab.id === currentTab.id 
-                ? { ...tab, noteId: result.id, lastSynced: new Date().toISOString() } 
-                : tab
-            );
-          });
+      // Show syncing status to the user
+      setSyncStatus('Syncing notes...');
+      setIsSyncing(true);
+      
+      // Use the DbSyncService instance directly
+      const syncService = DbSyncService;
+      
+      // Update the sync service with current settings
+      syncService.settings = {
+        proxyUrl: localStorage.getItem('proxy_url'),
+        proxyKey: localStorage.getItem('proxy_key')
+      };
+      
+      // Check if sync service is properly configured
+      if (!syncService.isConfigured()) {
+        setSyncStatus('Sync service not configured. Please check your settings.');
+        setIsSyncing(false);
+        return;
+      }
+      
+      console.log('Starting manual sync...');
+      
+      // Sync the Todo file first if it exists
+      const todoTab = tabs.find(tab => tab.name === 'Todo');
+      if (todoTab) {
+        console.log('Syncing Todo file...');
+        const todoResult = await syncService.syncNote(todoTab);
+        if (todoResult && todoResult.id) {
+          // Update the Todo tab with the noteId
+          const updatedTabs = [...tabs];
+          const todoIndex = updatedTabs.findIndex(tab => tab.id === todoTab.id);
+          if (todoIndex !== -1) {
+            updatedTabs[todoIndex] = {
+              ...updatedTabs[todoIndex],
+              noteId: todoResult.id,
+              lastSynced: new Date().toISOString()
+            };
+            setTabs(updatedTabs);
+          }
         }
       }
       
       // Then sync all other notes
-      const syncResults = await DbSyncService.syncAllNotes();
+      const syncResults = await syncService.syncAllNotes();
       
       // Update the tabs state with the noteIds from the sync results
       if (syncResults && syncResults.length > 0) {
-        setTabs(prevTabs => {
-          // Create a new array with updated tabs
-          return prevTabs.map(tab => {
-            const syncResult = syncResults.find(result => result.tabId === tab.id);
-            if (syncResult) {
-              return {
-                ...tab,
-                noteId: syncResult.noteId,
-                lastSynced: new Date().toISOString()
-              };
-            }
-            return tab;
-          });
+        const updatedTabs = [...tabs];
+        
+        syncResults.forEach(result => {
+          const tabIndex = updatedTabs.findIndex(tab => 
+            tab.name === result.tabName || tab.id === result.tabId
+          );
+          
+          if (tabIndex !== -1) {
+            updatedTabs[tabIndex] = {
+              ...updatedTabs[tabIndex],
+              noteId: result.noteId,
+              lastSynced: new Date().toISOString()
+            };
+          }
         });
+        
+        setTabs(updatedTabs);
+        
+        // Also update the noteIds in IndexedDB
+        await updateTabNoteIds(syncResults);
+        
+        // Update sync status
+        setSyncStatus(`Synced ${syncResults.length} notes successfully.`);
+      } else {
+        setSyncStatus('No notes needed syncing.');
       }
     } catch (error) {
       console.error('Error during manual sync:', error);
+      setSyncStatus(`Error during sync: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -1023,6 +1095,8 @@ function App() {
                     tabs={tabs}
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
+                    isSyncing={isSyncing}
+                    syncStatus={syncStatus}
                   />
                 </Box>
 
