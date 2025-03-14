@@ -52,6 +52,21 @@ class DbSyncService {
 
   // Check if a note needs to be synced based on lastModified and lastSynced timestamps
   shouldSyncNote(tab) {
+    // Skip notes with names starting with "Note" or "Code"
+    if (tab.name && (tab.name.startsWith('Note') || tab.name.startsWith('Code'))) {
+      return false;
+    }
+    
+    // Skip untitled.md files and temporary notes
+    if (tab.name && (tab.name.startsWith('untitled') || tab.name.endsWith('.tldraw'))) {
+      return false;
+    }
+    
+    // Skip Todo file (handled separately)
+    if (tab.name === 'Todo') {
+      return false;
+    }
+    
     // Always sync if there's no lastSynced timestamp
     if (!tab.lastSynced) {
       return true;
