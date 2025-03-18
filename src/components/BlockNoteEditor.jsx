@@ -1,14 +1,29 @@
 import React, { useEffect, forwardRef, useImperativeHandle, useState } from 'react';
-import "@blocknote/core/fonts/inter.css";
+// Remove the import for Rubik font as we'll use the one from the project
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { Box } from '@mui/material';
+import './BlockNoteEditor.css';
 
 const BlockNoteEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange, onFocusModeChange }, ref) => {
   // Creates a new editor instance with initial content if provided
   const editor = useCreateBlockNote({
     initialContent: content ? JSON.parse(content) : undefined,
+    theme: {
+      colors: {
+        editor: {
+          background: darkMode ? '#1e1e1e' : '#FFFCF0',
+          text: darkMode ? '#e6edf3' : '#24292f',
+        },
+        menu: {
+          background: darkMode ? '#2d2d2d' : '#f5f5f5',
+          text: darkMode ? '#e6edf3' : '#24292f',
+        }
+      },
+      borderRadius: 4,
+      fontFamily: "Rubik, sans-serif"
+    }
   });
 
   // Handle content changes
@@ -61,10 +76,22 @@ const BlockNoteEditor = forwardRef(({ content, onChange, darkMode, cursorPositio
       overflow: 'auto',
       bgcolor: darkMode ? '#1e1e1e' : '#FFFCF0',
     }}>
-      <BlockNoteView 
-        editor={editor} 
-        theme={darkMode ? 'dark' : 'light'}
-      />
+      <Box 
+        sx={{ 
+          maxWidth: '1000px', 
+          margin: '0 auto', 
+          width: '100%',
+          height: '100%',
+          padding: '0 20px',
+        }}
+        className={darkMode ? 'dark-mode' : ''}
+      >
+        <BlockNoteView 
+          editor={editor} 
+          theme={darkMode ? "dark" : "light"}
+          className={`blocknote-editor ${darkMode ? 'dark-mode' : ''}`}
+        />
+      </Box>
     </Box>
   );
 });
