@@ -17,6 +17,7 @@ import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
 import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
+import BlockNoteEditor from './components/BlockNoteEditor'; // Import BlockNoteEditor
 import QuickChat from './components/QuickChat';
 import TabSwitcher from './components/TabSwitcher';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData, updateTabNoteIds } from './utils/db';
@@ -414,11 +415,23 @@ function App() {
     saveTodoState();
   }, [todoData]);
 
-  const handleNewTab = ({ type = 'codemirror', name = '', content = '' } = {}) => {
+  const handleNewTab = ({ type = 'codemirror', name = '', content = '', extension = '' } = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    let fileName = name;
+    
+    if (!fileName) {
+      if (type === 'tiptap') {
+        fileName = `Note-${newId}.md`;
+      } else if (type === 'blocknote') {
+        fileName = `Note-${newId}${extension || '.doc'}`;
+      } else {
+        fileName = `Code-${newId}.txt`;
+      }
+    }
+    
     const newTab = {
       id: newId,
-      name: name || (type === 'tiptap' ? `Note-${newId}.md` : `Code-${newId}.txt`),
+      name: fileName,
       content: content,
       type: 'markdown',
       editorType: type
@@ -431,7 +444,10 @@ function App() {
   };
 
   const handleDoubleClickSidebar = (options = {}) => {
-    handleNewTab({ type: options.type || 'tiptap' });
+    handleNewTab({ 
+      type: options.type || 'tiptap',
+      extension: options.extension || ''
+    });
   };
 
   const handleTabClose = async (id) => {
@@ -511,7 +527,10 @@ function App() {
   const handleTabAreaDoubleClick = (options = {}) => {
     // If event is provided, only create new tab if clicking on the tab area, not on existing tabs
     if (!options.event || options.event.target.closest('.MuiTab-root') === null) {
-      handleNewTab({ type: options.type || 'tiptap' });
+      handleNewTab({ 
+        type: options.type || 'tiptap',
+        extension: options.extension || ''
+      });
     }
   };
 
@@ -548,6 +567,7 @@ function App() {
       const isExcalidraw = file.name.endsWith('.excalidraw');
       const isTLDraw = file.name.endsWith('.tldraw');
       const isMarkdown = file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown');
+      const isDoc = file.name.toLowerCase().endsWith('.doc');
       const newTab = {
         id: newId,
         name: file.name,
@@ -555,7 +575,8 @@ function App() {
         type: isExcalidraw ? 'excalidraw' : isTLDraw ? 'tldraw' : 'markdown',
         editorType: isExcalidraw ? 'excalidraw' : 
                    isTLDraw ? 'tldraw' : 
-                   isMarkdown ? 'tiptap' : 'codemirror'
+                   isMarkdown ? 'tiptap' :
+                   isDoc ? 'blocknote' : 'codemirror'
       };
 
       if (isExcalidraw) {
@@ -704,7 +725,8 @@ function App() {
           lastSynced: new Date().toISOString(),
           type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
           editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
-                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror'
+                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' :
+                     file.name.toLowerCase().endsWith('.doc') ? 'blocknote' : 'codemirror'
         };
         
         // Add the new tab and set it as active
@@ -737,7 +759,8 @@ function App() {
           content: parsedContent,
           type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
           editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
-                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror',
+                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' :
+                     file.name.toLowerCase().endsWith('.doc') ? 'blocknote' : 'codemirror',
           path: file.path
         };
         setTabs(prev => [...prev, newTab]);
@@ -947,6 +970,24 @@ function App() {
         <TodoManager 
           tasks={todoData}
           onTasksChange={setTodoData}
+        />
+      );
+    }
+
+    // Use BlockNote editor for .doc files
+    if (tab.editorType === 'blocknote') {
+      return (
+        <BlockNoteEditor
+          key={tab.id} // Add key to force remount
+          content={tab.content}
+          onChange={(newContent) => handleContentChange(tab.id, newContent)}
+          darkMode={darkMode}
+          cursorPosition={tab.cursorPosition}
+          onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
+          onFocusModeChange={() => {
+            setFocusMode(!focusMode);
+            setShowSidebar(focusMode);
+          }}
         />
       );
     }
@@ -1239,7 +1280,7 @@ function App() {
         ref={fileInputRef}
         style={{ display: 'none' }}
         onChange={handleFileSelect}
-        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
+        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw,.doc"
       />
       <QuickChat
         open={showQuickChat}

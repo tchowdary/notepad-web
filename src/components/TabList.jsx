@@ -37,8 +37,8 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
     setContextMenu(null);
   };
 
-  const handleNewTab = (type = 'tiptap') => {
-    onTabAreaDoubleClick({ type });  // Pass the editor type
+  const handleNewTab = (type = 'tiptap', extension = '') => {
+    onTabAreaDoubleClick({ type, extension });  // Pass the editor type and extension
     handleContextMenuClose();
   };
 
@@ -101,6 +101,7 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
         }
       >
         <MenuItem onClick={() => handleNewTab('tiptap')}>New Doc</MenuItem>
+        <MenuItem onClick={() => handleNewTab('blocknote', '.doc')}>New BlockNote Doc</MenuItem>
         <MenuItem onClick={() => handleNewTab('codemirror')}>New Code</MenuItem>
       </Menu>
     </Box>
