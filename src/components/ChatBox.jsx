@@ -34,6 +34,7 @@ import {
   InputBase,
   InputAdornment,
   Fab,
+  ListSubheader,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -1741,6 +1742,72 @@ const ChatBox = ({
     return preview.length > 80 ? preview.slice(0, 77) + "..." : preview;
   };
 
+  const renderSessionGroup = (sessions) => {
+    return sessions.map((session) => (
+      <ListItem
+        key={session.id}
+        button
+        selected={session.id === activeSessionId}
+        onClick={() => {
+          setActiveSessionId(session.id);
+          setMessages(session.messages);
+        }}
+        sx={{
+          borderRadius: 1,
+          mx: 1,
+          mb: 0.5,
+          position: "relative",
+          minHeight: "40px", 
+          py: 0.5, 
+          "&:hover .delete-button": {
+            opacity: 1,
+          },
+          ...(session.id === activeSessionId && {
+            backgroundColor: themeStyles.primary.main + "1A", 
+            "&:hover": {
+              backgroundColor: themeStyles.primary.main + "26", 
+            },
+          }),
+        }}
+      >
+        
+        <ListItemText
+          primary={renderSessionPreview(session)}
+          primaryTypographyProps={{
+            sx: {
+              fontFamily: "Geist, sans-serif",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap", 
+              fontSize: "0.9rem",
+              fontWeight: session.title ? 500 : 400,
+              lineHeight: "1.2em",
+            },
+          }}
+        />
+        <IconButton
+          size="small"
+          onClick={(e) => handleDeleteSession(session.id, e)}
+          className="delete-button"
+          sx={{
+            position: "absolute",
+            right: 8,
+            opacity: 0,
+            transition: "opacity 0.2s",
+            backgroundColor: "background.paper",
+            color: "text.primary",
+            "&:hover": {
+              backgroundColor:
+                themeStyles.action.hover,
+            },
+          }}
+        >
+          <ClearIcon fontSize="small" />
+        </IconButton>
+      </ListItem>
+    ));
+  };
+
   return (
     <Box sx={themeStyles.root}>
       <Box
@@ -1943,12 +2010,13 @@ const ChatBox = ({
                   >
                     <KeyIcon fontSize="small" />
                   </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={createNewSession}
-                  >
-                    <AddIcon fontSize="small" />
-                  </IconButton>
+                  <Box>
+                    {setDarkMode && (
+                      <IconButton onClick={() => setDarkMode(!darkMode)} size="small">
+                        {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                      </IconButton>
+                    )}
+                  </Box>
                   <IconButton
                     size="small"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1967,91 +2035,123 @@ const ChatBox = ({
               >
                 {/* Empty box for spacing */}
               </Box>
-              <List sx={{ flex: 1, overflowY: "auto" }}>
-                {filteredSessions.map((session) => (
-                  <ListItem
-                    key={session.id}
-                    button
-                    selected={session.id === activeSessionId}
-                    onClick={() => {
-                      setActiveSessionId(session.id);
-                      setMessages(session.messages);
-                    }}
-                    sx={{
-                      borderRadius: 1,
-                      mx: 1,
-                      mb: 0.5,
-                      position: "relative",
-                      minHeight: "64px", // Increased height for two lines
-                      py: 1, // Added vertical padding
-                      "&:hover .delete-button": {
-                        opacity: 1,
-                      },
-                      ...(session.id === activeSessionId && {
-                        backgroundColor: themeStyles.primary.main + "1A", // 10% opacity
-                        "&:hover": {
-                          backgroundColor: themeStyles.primary.main + "26", // 15% opacity
-                        },
-                      }),
-                    }}
-                  >
-                    <ListItemIcon
-                      sx={{ minWidth: 36, alignSelf: "flex-start", mt: 0.5 }}
-                    >
-                      <ChatBubbleOutlineIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={renderSessionPreview(session)}
-                      primaryTypographyProps={{
-                        sx: {
-                          fontFamily: "Geist, sans-serif",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "normal",
-                          fontSize: "0.9rem",
-                          fontWeight: session.title ? 500 : 400,
-                          WebkitLineClamp: 2,
-                          display: "-webkit-box",
-                          WebkitBoxOrient: "vertical",
-                          lineHeight: "1.2em",
-                          maxHeight: "2.4em",
-                        },
-                      }}
-                      secondaryTypographyProps={{
-                        sx: {
-                          fontSize: "0.7rem",
-                          color: "text.secondary",
-                        },
-                      }}
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleDeleteSession(session.id, e)}
-                      className="delete-button"
-                      sx={{
-                        position: "absolute",
-                        right: 8,
-                        opacity: 0,
-                        transition: "opacity 0.2s",
-                        backgroundColor: "background.paper",
-                        color: "text.primary",
-                        "&:hover": {
-                          backgroundColor:
-                            themeStyles.action.hover,
-                        },
-                      }}
-                    >
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </ListItem>
-                ))}
-                {filteredSessions.length === 0 && (
-                  <Box sx={{ p: 2, textAlign: "center" }}>
-                    <Typography variant="body2" color="text.secondary">
-                      No chats found
-                    </Typography>
-                  </Box>
-                )}
+              <List sx={{ flex: 1, overflowY: "auto", px: 0 }}>
+                {/* Group sessions by date */}
+                {(() => {
+                  // Group sessions by date
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  
+                  const yesterday = new Date(today);
+                  yesterday.setDate(yesterday.getDate() - 1);
+                  
+                  const thirtyDaysAgo = new Date(today);
+                  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                  
+                  const todaySessions = filteredSessions.filter(session => {
+                    const sessionDate = new Date(session.lastUpdated);
+                    return sessionDate >= today;
+                  });
+                  
+                  const yesterdaySessions = filteredSessions.filter(session => {
+                    const sessionDate = new Date(session.lastUpdated);
+                    return sessionDate >= yesterday && sessionDate < today;
+                  });
+                  
+                  const last30DaysSessions = filteredSessions.filter(session => {
+                    const sessionDate = new Date(session.lastUpdated);
+                    return sessionDate >= thirtyDaysAgo && sessionDate < yesterday;
+                  });
+                  
+                  const olderSessions = filteredSessions.filter(session => {
+                    const sessionDate = new Date(session.lastUpdated);
+                    return sessionDate < thirtyDaysAgo;
+                  });
+                  
+                  return (
+                    <>
+                      {todaySessions.length > 0 && (
+                        <>
+                          <ListSubheader 
+                            sx={{ 
+                              bgcolor: 'transparent', 
+                              color: themeStyles.primary.main,
+                              fontSize: '0.8rem',
+                              fontWeight: 500,
+                              lineHeight: '30px',
+                              pl: 2
+                            }}
+                          >
+                            Today
+                          </ListSubheader>
+                          {renderSessionGroup(todaySessions)}
+                        </>
+                      )}
+                      
+                      {yesterdaySessions.length > 0 && (
+                        <>
+                          <ListSubheader 
+                            sx={{ 
+                              bgcolor: 'transparent', 
+                              color: themeStyles.primary.main,
+                              fontSize: '0.8rem',
+                              fontWeight: 500,
+                              lineHeight: '30px',
+                              pl: 2
+                            }}
+                          >
+                            Yesterday
+                          </ListSubheader>
+                          {renderSessionGroup(yesterdaySessions)}
+                        </>
+                      )}
+                      
+                      {last30DaysSessions.length > 0 && (
+                        <>
+                          <ListSubheader 
+                            sx={{ 
+                              bgcolor: 'transparent', 
+                              color: themeStyles.primary.main,
+                              fontSize: '0.8rem',
+                              fontWeight: 500,
+                              lineHeight: '30px',
+                              pl: 2
+                            }}
+                          >
+                            Last 30 Days
+                          </ListSubheader>
+                          {renderSessionGroup(last30DaysSessions)}
+                        </>
+                      )}
+                      
+                      {olderSessions.length > 0 && (
+                        <>
+                          <ListSubheader 
+                            sx={{ 
+                              bgcolor: 'transparent', 
+                              color: themeStyles.primary.main,
+                              fontSize: '0.8rem',
+                              fontWeight: 500,
+                              lineHeight: '30px',
+                              pl: 2
+                            }}
+                          >
+                            Older
+                          </ListSubheader>
+                          {renderSessionGroup(olderSessions)}
+                        </>
+                      )}
+                      
+                      {filteredSessions.length === 0 && (
+                        <Box sx={{ p: 2, textAlign: "center" }}>
+                          <Typography variant="body2" color="text.secondary">
+                            No chats found
+                          </Typography>
+                        </Box>
+                      )}
+                    </>
+                  );
+                })()}
               </List>
             </Box>
 
