@@ -1886,7 +1886,7 @@ const ChatBox = ({
             {/* Sidebar */}
             <Box
               sx={{
-                width: isSidebarOpen ? "300px" : "0px",
+                width: isSidebarOpen ? "270px" : "0px",
                 height: "100%",
                 bgcolor: themeStyles.background.paper,
                 transition: "width 0.2s",
