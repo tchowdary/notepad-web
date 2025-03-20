@@ -1821,7 +1821,7 @@ const ChatBox = ({
               sx={{
                 width: isSidebarOpen ? "300px" : "0px",
                 height: "100%",
-                bgcolor: "background.paper",
+                bgcolor: themeStyles.background.paper,
                 transition: "width 0.2s",
                 overflow: "hidden",
                 borderRight: 1,
@@ -1830,51 +1830,69 @@ const ChatBox = ({
                 flexDirection: "column",
               }}
             >
-              <Box
-                sx={{
-                  p: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                  borderBottom: `1px solid ${themeStyles.divider}`,
-                }}
-              >
-                <Box
+              {/* New Chat button at the top */}
+              <Box sx={{ p: 1 }}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={createNewSession}
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    position: "relative",
+                    backgroundColor: themeStyles.primary.main,
+                    color: themeStyles.primary.contrastText,
+                    textTransform: "none",
+                    fontWeight: 500,
+                    "&:hover": {
+                      backgroundColor: themeStyles.primary.dark,
+                    },
+                    borderRadius: "28px",
+                    py: 0.75,
+                    mb: 1,
                   }}
                 >
-                  <TextField
-                    size="small"
-                    placeholder="Search..."
+                  New Chat
+                </Button>
+                
+                {/* Search input without red outline */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: themeStyles.background.paper,
+                    borderRadius: '4px',
+                    px: 1,
+                    py: 0.5,
+                    mb: 1,
+                  }}
+                >
+                  <SearchIcon sx={{ color: themeStyles.text.secondary, mr: 1 }} />
+                  <InputBase
+                    placeholder="Search your threads..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     fullWidth
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon fontSize="small" />
-                        </InputAdornment>
-                      ),
-                      ...(searchQuery && {
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton
-                              size="small"
-                              onClick={() => setSearchQuery("")}
-                              edge="end"
-                            >
-                              <ClearIcon fontSize="small" />
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }),
+                    sx={{
+                      color: themeStyles.text.primary,
+                      '& .MuiInputBase-input': {
+                        padding: '4px 0',
+                      },
+                      '&::placeholder': {
+                        color: themeStyles.text.secondary,
+                        opacity: 1,
+                      },
                     }}
                   />
+                  {searchQuery && (
+                    <IconButton
+                      size="small"
+                      onClick={() => setSearchQuery("")}
+                      sx={{ color: themeStyles.text.secondary, p: 0.5 }}
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </Box>
+
+                {/* Toolbar with buttons */}
                 <Box
                   sx={{
                     display: "flex",
@@ -1925,30 +1943,30 @@ const ChatBox = ({
                   >
                     <KeyIcon fontSize="small" />
                   </IconButton>
-                  <IconButton size="small" onClick={createNewSession}>
+                  <IconButton
+                    size="small"
+                    onClick={createNewSession}
+                  >
                     <AddIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  >
+                    <ChevronLeftIcon fontSize="small" />
                   </IconButton>
                 </Box>
               </Box>
-              <IconButton
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                size="small"
+              <Box
                 sx={{
-                  position: "absolute",
-                  right: -20,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  backgroundColor: "background.paper",
-                  border: `1px solid ${themeStyles.divider}`,
-                  borderRadius: "50%",
-                  "&:hover": {
-                    backgroundColor: themeStyles.action.hover,
-                  },
-                  zIndex: 1,
+                  p: 1,
+                  borderTop: `1px solid ${themeStyles.divider}`,
+                  display: "flex",
+                  justifyContent: "center",
                 }}
               >
-                <ChevronLeftIcon />
-              </IconButton>
+                {/* Empty box for spacing */}
+              </Box>
               <List sx={{ flex: 1, overflowY: "auto" }}>
                 {filteredSessions.map((session) => (
                   <ListItem
@@ -2035,29 +2053,6 @@ const ChatBox = ({
                   </Box>
                 )}
               </List>
-              <Box
-                sx={{
-                  p: 1,
-                  borderTop: `1px solid ${themeStyles.divider}`,
-                  display: "flex",
-                  justifyContent: "center",
-                }}
-              >
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={createNewSession}
-                  fullWidth
-                  sx={{
-                    borderRadius: 1,
-                    textTransform: "none",
-                    justifyContent: "flex-start",
-                    px: 2,
-                  }}
-                >
-                  New Chat
-                </Button>
-              </Box>
             </Box>
 
             {/* Main chat area */}
