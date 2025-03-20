@@ -2169,6 +2169,16 @@ const ChatBox = ({
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
+                  "&::-webkit-scrollbar": {
+                    width: "8px",
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: themeStyles.divider,
+                    borderRadius: "4px",
+                  },
                 }}
               >
                 {messages.map((message, index) => (
@@ -2179,14 +2189,14 @@ const ChatBox = ({
                       flexDirection: "column",
                       alignItems: "center",
                       width: "100%",
-                      maxWidth: isFullscreen ? "1100px" : "100%",
+                      maxWidth: isFullscreen ? "800px" : "90%",
                       px: 2,
                       py: 1,
                     }}
                   >
                     <Box
                       sx={{
-                        width: "fit-content",
+                        width: "100%",
                         position: "relative",
                         backgroundColor:
                           message.role === "user"
@@ -2202,8 +2212,9 @@ const ChatBox = ({
                               ? darkModeState
                                 ? "rgba(255, 255, 255, 0.12)"
                                 : "rgba(0, 0, 0, 0.08)"
-                              : themeStyles.action.hover,
+                              : themeStyles.background.default,
                         },
+                        textAlign: "left",
                       }}
                     >
                       {renderMessageContent(message.content)}
@@ -2253,7 +2264,7 @@ const ChatBox = ({
                       flexDirection: "column",
                       alignItems: "center",
                       width: "100%",
-                      maxWidth: isFullscreen ? "1100px" : "100%",
+                      maxWidth: isFullscreen ? "800px" : "90%",
                       px: 2,
                       py: 1,
                     }}
@@ -2266,6 +2277,7 @@ const ChatBox = ({
                         color: themeStyles.text.primary,
                         borderRadius: 2,
                         p: 2,
+                        textAlign: "left",
                       }}
                     >
                       {parsedStreamingContent}
@@ -2307,6 +2319,19 @@ const ChatBox = ({
                 overflowY: "auto",
                 paddingBottom: "160px",
                 width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                "&::-webkit-scrollbar": {
+                  width: "8px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: themeStyles.divider,
+                  borderRadius: "4px",
+                },
               }}
             >
               {messages.map((message, index) => (
@@ -2315,20 +2340,20 @@ const ChatBox = ({
                   sx={{
                     display: "flex",
                     flexDirection: "column",
-                    alignItems:
-                      message.role === "user" ? "flex-end" : "flex-start",
-                    maxWidth: "100%",
+                    alignItems: "center",
+                    width: "100%",
+                    maxWidth: isFullscreen ? "800px" : "90%",
                     px: 2,
                     py: 1,
                   }}
                 >
                   <Box
                     sx={{
-                      maxWidth: "80%",
+                      width: "100%",
                       position: "relative",
                       backgroundColor:
                         message.role === "user"
-                          ? themeStyles.action.hover
+                          ? themeStyles.background.default
                           : themeStyles.background.default,
                       color: themeStyles.text.primary,
                       borderRadius: 2,
@@ -2340,14 +2365,17 @@ const ChatBox = ({
                             ? darkModeState
                               ? "rgba(255, 255, 255, 0.12)"
                               : "rgba(0, 0, 0, 0.08)"
-                            : themeStyles.action.hover,
+                            : themeStyles.background.default,
                       },
+                      textAlign: "left",
                     }}
                   >
                     {renderMessageContent(message.content)}
                     <IconButton
                       size="small"
-                      onClick={() => handleCopyMessage(message.content, index)}
+                      onClick={() =>
+                        handleCopyMessage(message.content, index)
+                      }
                       className="copy-button"
                       sx={{
                         position: "absolute",
@@ -2387,20 +2415,22 @@ const ChatBox = ({
                   sx={{
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "flex-start",
-                    maxWidth: "100%",
+                    alignItems: "center",
+                    width: "100%",
+                    maxWidth: isFullscreen ? "800px" : "90%",
                     px: 2,
                     py: 1,
                   }}
                 >
                   <Box
                     sx={{
-                      maxWidth: "80%",
+                      width: "100%",
                       position: "relative",
                       backgroundColor: themeStyles.background.default,
                       color: themeStyles.text.primary,
                       borderRadius: 2,
                       p: 2,
+                      textAlign: "left",
                     }}
                   >
                     {parsedStreamingContent}
