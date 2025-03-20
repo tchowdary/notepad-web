@@ -1746,10 +1746,16 @@ const ChatBox = ({
       <Box
         sx={{
           display: "flex",
-          alignItems: "center",
-          p: 1,
-          borderBottom: `1px solid ${themeStyles.divider}`,
           justifyContent: "space-between",
+          alignItems: "center",
+          width: "100%",
+          backgroundColor: themeStyles.background.paper,
+          borderTop: `1px solid ${themeStyles.divider}`,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 10,
+          p: 1,
         }}
       >
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
@@ -2063,6 +2069,7 @@ const ChatBox = ({
                   flex: 1,
                   overflowY: "auto",
                   paddingBottom: "160px",
+                  paddingTop: "50px",
                   width: "100%",
                   display: "flex",
                   flexDirection: "column",
