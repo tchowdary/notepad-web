@@ -1899,7 +1899,7 @@ const ChatBox = ({
             >
               {/* New Chat button at the top */}
               <Box sx={{ p: 1 }}>
-                <Button
+                {/* <Button
                   variant="contained"
                   fullWidth
                   onClick={createNewSession}
@@ -1917,7 +1917,7 @@ const ChatBox = ({
                   }}
                 >
                   New Chat
-                </Button>
+                </Button> */}
                 
                 {/* Search input without red outline */}
                 <Box
