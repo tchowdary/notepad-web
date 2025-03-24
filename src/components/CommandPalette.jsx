@@ -27,14 +27,14 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
       tabInactive: '#e0e0e0'
     },
     dark: {
-      bg: '#1e1e1e',
+      bg: '#1a1a2e',
       text: '#cccccc',
       secondaryText: '#666666',
       selected: '#04395e',
       selectedText: '#ffffff',
       hover: '#2a2d2e',
       border: '#333333',
-      input: '#1e1e1e',
+      input: '#1a1a2e',
       tabActive: '#04395e',
       tabInactive: '#333333'
     }
