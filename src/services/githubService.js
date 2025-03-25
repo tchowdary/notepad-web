@@ -492,28 +492,61 @@ class GitHubService {
         request.onsuccess = () => resolve(request.result);
       });
 
+      // Get current date for day comparison
+      const today = new Date();
+      const todayDateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+
       // Sync each file that meets our criteria
       let syncCount = 0;
       for (const tab of tabs) {
         if (this.shouldSyncFile(tab.name)) {
-          const needsSync = !tab.lastSynced || (tab.lastModified && this.compareDates(tab.lastModified, tab.lastSynced));
+          // Check if the file was modified today or has never been synced or force sync is enabled
+          let modifiedToday = false;
+          if (tab.lastModified) {
+            const lastModifiedDate = new Date(tab.lastModified);
+            const lastModifiedDateString = lastModifiedDate.toISOString().split('T')[0];
+            modifiedToday = lastModifiedDateString === todayDateString;
+          }
+          
+          // A file needs sync if:
+          // 1. It has never been synced (no lastSynced)
+          // 2. It was modified today and has changes since last sync
+          // 3. Force sync is enabled
+          const needsSync = !tab.lastSynced || 
+                          (modifiedToday && 
+                           this.compareDates(tab.lastModified, tab.lastSynced)) ||
+                          tab.forceSync;
           
           console.log(`Tab ${tab.name} sync status:`, {
             lastModified: tab.lastModified,
             lastSynced: tab.lastSynced,
+            modifiedToday,
             needsSync
           });
 
           if (needsSync) {
             try {
               await this.uploadFile(tab.name, tab.content, tab);
+              
+              // Clear the forceSync flag after successful sync
+              if (tab.forceSync) {
+                const updateTx = db.transaction(TABS_STORE, 'readwrite');
+                const updateStore = updateTx.objectStore(TABS_STORE);
+                tab.forceSync = false;
+                await new Promise((resolve, reject) => {
+                  const request = updateStore.put(tab);
+                  request.onerror = () => reject(request.error);
+                  request.onsuccess = () => resolve();
+                });
+              }
+              
               syncCount++;
               console.log(`Synced ${tab.name} to GitHub`);
             } catch (error) {
               console.error(`Failed to sync file ${tab.name}:`, error);
             }
           } else {
-            console.log(`Skipping ${tab.name} - no changes since last sync`);
+            console.log(`Skipping ${tab.name} - no changes since last sync or not modified today`);
           }
         }
       }
@@ -524,6 +557,51 @@ class GitHubService {
       console.log(`Synced ${syncCount} files to GitHub`);
     } catch (error) {
       console.error('Error in syncAllFiles:', error);
+    }
+  }
+
+  async forceSyncTab(tabId) {
+    if (!this.isConfigured()) {
+      return { success: false, message: 'GitHub is not configured' };
+    }
+    
+    try {
+      const db = await openDB();
+      const tx = db.transaction(TABS_STORE, 'readwrite');
+      const store = tx.objectStore(TABS_STORE);
+      
+      // Get the tab
+      const tab = await new Promise((resolve, reject) => {
+        const request = store.get(tabId);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+      
+      if (!tab) {
+        return { success: false, message: 'Tab not found' };
+      }
+      
+      // Mark the tab for forced sync
+      tab.forceSync = true;
+      
+      // Save the updated tab
+      await new Promise((resolve, reject) => {
+        const request = store.put(tab);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+      
+      // Trigger sync for this tab
+      try {
+        await this.uploadFile(tab.name, tab.content, tab);
+        return { success: true, message: `Successfully synced ${tab.name} to GitHub` };
+      } catch (error) {
+        console.error(`Failed to force sync ${tab.name}:`, error);
+        return { success: false, message: `Failed to sync: ${error.message}` };
+      }
+    } catch (error) {
+      console.error('Error in forceSyncTab:', error);
+      return { success: false, message: `Error: ${error.message}` };
     }
   }
 
