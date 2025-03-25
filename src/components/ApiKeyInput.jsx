@@ -33,13 +33,6 @@ const DEFAULT_MODELS = {
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
     { id: 'o3-mini', name: 'o3 Mini' },
   ],
-  groq: [
-    { id: 'deepseek-r1-distill-llama-70b', name: 'DeepSeek R1 Distill LLaMA 70B' }
-  ],
-  deepseek: [
-    { id: 'deepseek-chat', name: 'DeepSeek V3 Chat' },
-    { id: 'deepseek-reasoner', name: 'DeepSeek R1' }
-  ],
   anthropic: [
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
     { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku' }
@@ -67,20 +60,6 @@ const ApiKeyInput = ({ open, onClose }) => {
       models: DEFAULT_MODELS.openai,
       selectedModel: localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
       modelSettings: JSON.parse(localStorage.getItem('openai_model_settings') || '{}'),
-    },
-    groq: {
-      key: localStorage.getItem('groq_api_key') || '',
-      models: DEFAULT_MODELS.groq,
-      selectedModel: localStorage.getItem('groq_model') || DEFAULT_MODELS.groq[0].id,
-      temperature: parseFloat(localStorage.getItem('groq_temperature')) || 0.6,
-      modelSettings: JSON.parse(localStorage.getItem('groq_model_settings') || '{}'),
-    },
-    deepseek: {
-      key: localStorage.getItem('deepseek_api_key') || '',
-      models: DEFAULT_MODELS.deepseek,
-      selectedModel: localStorage.getItem('deepseek_model') || DEFAULT_MODELS.deepseek[0].id,
-      temperature: parseFloat(localStorage.getItem('deepseek_temperature')) || 0,
-      modelSettings: JSON.parse(localStorage.getItem('deepseek_model_settings') || '{}'),
     },
     anthropic: {
       key: localStorage.getItem('anthropic_api_key') || '',
@@ -111,18 +90,6 @@ const ApiKeyInput = ({ open, onClose }) => {
           selectedModel: parsed.openai?.selectedModel || localStorage.getItem('openai_model') || DEFAULT_MODELS.openai[0].id,
           modelSettings: parsed.openai?.modelSettings || JSON.parse(localStorage.getItem('openai_model_settings') || '{}'),
         },
-        groq: {
-          key: parsed.groq?.key || localStorage.getItem('groq_api_key') || '',
-          models: parsed.groq?.models || DEFAULT_MODELS.groq,
-          selectedModel: parsed.groq?.selectedModel || localStorage.getItem('groq_model') || DEFAULT_MODELS.groq[0].id,
-          modelSettings: parsed.groq?.modelSettings || JSON.parse(localStorage.getItem('groq_model_settings') || '{}'),
-        },
-        deepseek: {
-          key: parsed.deepseek?.key || localStorage.getItem('deepseek_api_key') || '',
-          models: parsed.deepseek?.models || DEFAULT_MODELS.deepseek,
-          selectedModel: parsed.deepseek?.selectedModel || localStorage.getItem('deepseek_model') || DEFAULT_MODELS.deepseek[0].id,
-          modelSettings: parsed.deepseek?.modelSettings || JSON.parse(localStorage.getItem('deepseek_model_settings') || '{}'),
-        },
         anthropic: {
           key: parsed.anthropic?.key || localStorage.getItem('anthropic_api_key') || '',
           models: parsed.anthropic?.models || DEFAULT_MODELS.anthropic,
@@ -149,16 +116,6 @@ const ApiKeyInput = ({ open, onClose }) => {
       localStorage.setItem('openai_api_key', providers.openai.key);
       localStorage.setItem('openai_model', providers.openai.selectedModel);
     }
-    if (providers.groq.key) {
-      localStorage.setItem('groq_api_key', providers.groq.key);
-      localStorage.setItem('groq_model', providers.groq.selectedModel);
-      localStorage.setItem('groq_temperature', providers.groq.temperature);
-    }
-    if (providers.deepseek.key) {
-      localStorage.setItem('deepseek_api_key', providers.deepseek.key);
-      localStorage.setItem('deepseek_model', providers.deepseek.selectedModel);
-      localStorage.setItem('deepseek_temperature', providers.deepseek.temperature);
-    }
     if (providers.anthropic.key) {
       localStorage.setItem('anthropic_api_key', providers.anthropic.key);
       localStorage.setItem('anthropic_model', providers.anthropic.selectedModel);
@@ -178,7 +135,7 @@ const ApiKeyInput = ({ open, onClose }) => {
   };
 
   const getCurrentProvider = () => {
-    return activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini';
+    return activeTab === 0 ? 'openai' : activeTab === 1 ? 'anthropic' : 'gemini';
   };
 
   const handleAddModel = () => {
@@ -454,8 +411,6 @@ const ApiKeyInput = ({ open, onClose }) => {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab label="OpenAI" />
-          <Tab label="Groq" />
-          <Tab label="DeepSeek" />
           <Tab label="Anthropic" />
           <Tab label="Gemini" />
           <Tab label="Proxy" />
@@ -463,11 +418,9 @@ const ApiKeyInput = ({ open, onClose }) => {
 
         <DialogContent>
           {activeTab === 0 && <ProviderContent provider="openai" />}
-          {activeTab === 1 && <ProviderContent provider="groq" />}
-          {activeTab === 2 && <ProviderContent provider="deepseek" />}
-          {activeTab === 3 && <ProviderContent provider="anthropic" />}
-          {activeTab === 4 && <ProviderContent provider="gemini" />}
-          {activeTab === 5 && (
+          {activeTab === 1 && <ProviderContent provider="anthropic" />}
+          {activeTab === 2 && <ProviderContent provider="gemini" />}
+          {activeTab === 3 && (
             <Box sx={{ mt: 2 }}>
               <TextField
                 fullWidth
