@@ -1073,6 +1073,7 @@ function App() {
                     setActiveTab={setActiveTab}
                     isSyncing={isSyncing}
                     syncStatus={syncStatus}
+                    onCommandPaletteOpen={() => setShowCommandPalette(true)}
                   />
                 </Box>
 
@@ -1105,12 +1106,13 @@ function App() {
                 <ResponsiveToolbar
                   darkMode={darkMode}
                   onDarkModeChange={() => setDarkMode(!darkMode)}
-                  onChatToggle={() => setShowChat(!showChat)}
+                  onChatToggle={handleChatToggle}
                   showChat={showChat}
                   onSidebarToggle={() => setShowSidebar(!showSidebar)}
                   showSidebar={showSidebar}
                   onCopy={handleCopyContent}
                   onClear={handleClearContent}
+                  onCommandPaletteOpen={() => setShowCommandPalette(true)}
                 />
                 <Box sx={{ 
                   display: 'flex', 

@@ -31,6 +31,7 @@ import {
   Chat as ChatIcon,
   ViewColumn as SplitViewIcon,
   CalendarViewWeek as WeeklyNotesIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import ApiKeyInput from './ApiKeyInput';
@@ -65,6 +66,7 @@ const Toolbar = ({
   tabs,
   activeTab,
   setActiveTab,
+  onCommandPaletteOpen,
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
@@ -185,6 +187,12 @@ const Toolbar = ({
         <Tooltip title="Todo Manager">
           <IconButton onClick={onTodoClick} size="small">
             <TodoManagerIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Command Palette (Ctrl+P)">
+          <IconButton onClick={onCommandPaletteOpen} size="small">
+            <SearchIcon />
           </IconButton>
         </Tooltip>
 

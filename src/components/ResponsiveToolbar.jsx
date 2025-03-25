@@ -12,6 +12,7 @@ import {
   Menu as MenuIcon,
   ContentCopy as CopyIcon,
   Clear as ClearIcon,
+  Search as SearchIcon,
 } from "@mui/icons-material";
 
 const ResponsiveToolbar = ({
@@ -23,6 +24,7 @@ const ResponsiveToolbar = ({
   showSidebar,
   onCopy,
   onClear,
+  onCommandPaletteOpen,
   className,
 }) => {
   const theme = useTheme();
@@ -73,6 +75,10 @@ const ResponsiveToolbar = ({
 
         <IconButton onClick={onClear} size="small" sx={{ padding: '4px' }}>
           <ClearIcon />
+        </IconButton>
+
+        <IconButton onClick={onCommandPaletteOpen} size="small" sx={{ padding: '4px' }}>
+          <SearchIcon />
         </IconButton>
 
         <IconButton onClick={onChatToggle} size="small" sx={{ padding: '4px' }}>
