@@ -607,9 +607,9 @@ const ChatBox = ({
   useEffect(() => {
     const fetchProviders = async () => {
       try {
-        console.log("Fetching providers...");
+        //console.log("Fetching providers...");
         const availableProviders = await getAvailableProviders();
-        console.log("Providers fetched:", availableProviders);
+        //console.log("Providers fetched:", availableProviders);
 
         // Ensure providers is an array and has valid structure
         if (
@@ -881,18 +881,8 @@ const ChatBox = ({
   }, [messages, isNewMessage]);
 
   useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setShowScrollButton(!isNearBottom);
-    };
-
-    container.addEventListener("scroll", handleScroll);
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, []);
+    setShowScrollButton(messages.length > 1);
+  }, [messages.length]);
 
   useEffect(() => {
     const originalTitle = document.title;
@@ -956,10 +946,6 @@ const ChatBox = ({
       setModelSettings({ ...settings });
     }
   }, [selectedProvider]);
-
-  useEffect(() => {
-    console.log("Model settings updated:", modelSettings);
-  }, [modelSettings]);
 
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
