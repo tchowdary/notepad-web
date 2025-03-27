@@ -427,7 +427,8 @@ const ChatBox = ({
             updatedMessages,
             modelId,
             apiKey,
-            selectedInstruction
+            selectedInstruction,
+            true
           );
           finalResponse = response;
           const newUpdatedMessages = [...updatedMessages, finalResponse];
