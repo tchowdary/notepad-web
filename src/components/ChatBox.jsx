@@ -994,6 +994,25 @@ const ChatBox = ({
     }
   };
 
+  const switchSession = async (sessionId) => {
+    try {
+      const session = await chatStorage.getSession(sessionId);
+      if (session) {
+        setActiveSessionId(session.id);
+        setMessages(session.messages || []);
+        setHistoryAnchorEl(null);
+        
+        // Scroll to the bottom after switching sessions
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100); // Small delay to ensure the messages have been rendered
+      }
+    } catch (error) {
+      console.error("Error switching session:", error);
+      setError("Failed to switch chat session");
+    }
+  };
+
   const createNewSession = async () => {
     try {
       const newSession = {
@@ -1016,20 +1035,6 @@ const ChatBox = ({
     } catch (error) {
       console.error("Error creating new session:", error);
       setError("Failed to create new chat session");
-    }
-  };
-
-  const switchSession = async (sessionId) => {
-    try {
-      const session = await chatStorage.getSession(sessionId);
-      if (session) {
-        setActiveSessionId(session.id);
-        setMessages(session.messages || []);
-        setHistoryAnchorEl(null);
-      }
-    } catch (error) {
-      console.error("Error switching session:", error);
-      setError("Failed to switch chat session");
     }
   };
 
@@ -1786,8 +1791,7 @@ const ChatBox = ({
         button
         selected={session.id === activeSessionId}
         onClick={() => {
-          setActiveSessionId(session.id);
-          setMessages(session.messages || []);
+          switchSession(session.id);
         }}
         sx={{
           borderRadius: 1,
