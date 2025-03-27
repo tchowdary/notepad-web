@@ -300,6 +300,10 @@ const ChatBox = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewMessage, setIsNewMessage] = useState(false);
 
+  // State for model selection dropdown
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [modelDropdownAnchorEl, setModelDropdownAnchorEl] = useState(null);
+
   const initialized = useRef(false);
 
   const handleSendMessage = useCallback(async () => {
@@ -594,9 +598,7 @@ const ChatBox = ({
         if (typeof message.content === "string") {
           content = message.content;
         } else if (Array.isArray(message.content)) {
-          const textContent = message.content.find(
-            (item) => item.type === "text"
-          );
+          const textContent = message.content.find((item) => item.type === "text");
           content = textContent ? textContent.text : "";
         }
         return content.toLowerCase().includes(searchQuery.toLowerCase());
@@ -946,6 +948,44 @@ const ChatBox = ({
       setModelSettings({ ...settings });
     }
   }, [selectedProvider]);
+
+  // Handle keyboard shortcut for model selection
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check for Control + /
+      if (e.ctrlKey && e.key === '/') {
+        e.preventDefault();
+        console.log("Control + / shortcut detected");
+        
+        // Open our custom dropdown
+        setModelDropdownOpen(true);
+        // Use a dummy anchor element (the document body)
+        setModelDropdownAnchorEl(document.body);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Handle model selection and create new chat
+  const handleModelSelect = (providerAndModel) => {
+    setSelectedProvider(providerAndModel);
+    localStorage.setItem("last_selected_provider", providerAndModel);
+    setModelDropdownOpen(false);
+    
+    // Create a new chat session with this model
+    createNewSession().then(() => {
+      // Focus on the input field after creating a new session
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 100); // Small delay to ensure the component has updated
+    });
+  };
 
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
@@ -1464,6 +1504,7 @@ const ChatBox = ({
           }}
         >
           <InputBase
+            inputRef={inputRef}
             sx={{
               flex: 1,
               minHeight: "60px",
@@ -1484,7 +1525,6 @@ const ChatBox = ({
             onPaste={handlePaste}
             multiline
             maxRows={6}
-            ref={inputRef}
             startAdornment={
               <InputAdornment position="start">
                 <IconButton
@@ -1517,7 +1557,7 @@ const ChatBox = ({
           />
           {selectedFile && (
             <Box sx={{ display: "flex", alignItems: "center", px: 1, mb: 1 }}>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="text.secondary">
                 {selectedFile.name}
               </Typography>
               <IconButton
@@ -1561,6 +1601,16 @@ const ChatBox = ({
                     },
                   }}
                   IconComponent={KeyboardArrowDownIcon}
+                  MenuProps={{
+                    anchorOrigin: {
+                      vertical: 'bottom',
+                      horizontal: 'left',
+                    },
+                    transformOrigin: {
+                      vertical: 'top',
+                      horizontal: 'left',
+                    },
+                  }}
                 >
                   {providers.map((provider) =>
                     provider.models.map((model) => (
@@ -1737,7 +1787,7 @@ const ChatBox = ({
         selected={session.id === activeSessionId}
         onClick={() => {
           setActiveSessionId(session.id);
-          setMessages(session.messages);
+          setMessages(session.messages || []);
         }}
         sx={{
           borderRadius: 1,
@@ -2187,7 +2237,7 @@ const ChatBox = ({
                         position: "relative",
                         backgroundColor:
                           message.role === "user"
-                            ? themeStyles.action.hover
+                            ? themeStyles.background.default
                             : themeStyles.background.default,
                         color: themeStyles.text.primary,
                         borderRadius: 2,
@@ -2682,6 +2732,44 @@ const ChatBox = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Custom model selection dropdown for keyboard shortcut */}
+      <Menu
+        open={modelDropdownOpen}
+        anchorEl={modelDropdownAnchorEl}
+        onClose={() => setModelDropdownOpen(false)}
+        anchorOrigin={{
+          vertical: 'center',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'center',
+          horizontal: 'center',
+        }}
+      >
+        <Box sx={{ p: 1, textAlign: 'center' }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Select Model
+          </Typography>
+        </Box>
+        {providers.map((provider) =>
+          provider.models.map((model) => (
+            <MenuItem
+              key={`shortcut-${provider.name}|${model.id}`}
+              value={`${provider.name}|${model.id}`}
+              selected={selectedProvider === `${provider.name}|${model.id}`}
+              onClick={() => handleModelSelect(`${provider.name}|${model.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleModelSelect(`${provider.name}|${model.id}`);
+                }
+              }}
+            >
+              {model.name}
+            </MenuItem>
+          ))
+        )}
+      </Menu>
     </Box>
   );
 };
