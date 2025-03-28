@@ -155,23 +155,19 @@ const ChatBox = ({
   const themeStyles = useMemo(
     () => ({
       root: {
-        position: "fixed",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: fullScreen ? "100%" : "400px",
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
         backgroundColor: getThemeColor(
           "palette.background.default",
           darkModeState ? "#1a1a2e" : "#FFFCF0"
         ),
-        borderLeft: `1px solid ${getThemeColor(
+        borderLeft: fullScreen ? 'none' : `1px solid ${getThemeColor(
           "palette.divider",
           darkModeState ? "#333333" : "#e0e0e0"
         )}`,
-        display: "flex",
-        flexDirection: "column",
-        zIndex: 1000,
-        transition: "width 0.3s ease",
+        zIndex: fullScreen ? 1000 : 1,
       },
       messageContainer: {
         flex: 1,
@@ -1866,9 +1862,9 @@ const ChatBox = ({
           p: 1,
         }}
       >
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+        {/* <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Chat
-        </Typography>
+        </Typography> */}
         <Box>
           {setDarkMode && (
             <IconButton onClick={() => setDarkMode(!darkMode)} size="small">

@@ -1123,7 +1123,7 @@ function App() {
                   <Box sx={{ 
                     flex: 1,
                     display: 'flex',
-                    flexDirection: showChat ? 'row' : 'column',
+                    flexDirection: 'row',
                     overflow: 'hidden',
                     position: 'relative'
                   }}>
@@ -1131,10 +1131,11 @@ function App() {
                     <Box 
                       onClick={handleEditorClick}
                       sx={{ 
-                        flex: 1,
+                        flex: showChat ? '0 1 60%' : 1,
                         minWidth: 0,
                         position: 'relative',
                         overflow: 'auto',
+                        transition: 'flex 0.3s ease',
                         // Add overlay when sidebar is shown in mobile
                         '&::after': {
                           content: '""',
@@ -1146,7 +1147,7 @@ function App() {
                           bottom: 0,
                           bgcolor: 'rgba(0, 0, 0, 0.3)',
                           zIndex: 1,
-                          pointerEvents: 'none' // Allow scrolling when overlay is shown
+                          pointerEvents: 'none'
                         }
                       }}
                     >
@@ -1176,12 +1177,14 @@ function App() {
                             zIndex: theme.zIndex.drawer + 2,
                             bgcolor: 'background.default',
                           } : {
-                            width: '40%',
-                            minWidth: '400px',
+                            flex: '0 0 40%',
+                            minWidth: { xs: '300px', sm: '350px', md: '400px' },
                             maxWidth: '800px',
                             height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
                             position: 'relative',
-                            borderLeft: `1px solid ${theme.palette.divider}`,
+                            transition: 'flex 0.3s ease',
                           })
                         }}
                       >
