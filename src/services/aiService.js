@@ -503,6 +503,7 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
     if (onStream) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
 
       try {
         while (true) {
@@ -510,31 +511,38 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
           if (done) break;
 
           const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
+          buffer += chunk;
+          
+          // Process complete lines from the buffer
+          let lineEnd;
+          while ((lineEnd = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, lineEnd);
+            buffer = buffer.slice(lineEnd + 1);
+            
             if (line.startsWith('data: ')) {
               const data = line.slice(6).trim();
               if (data === '[DONE]') {
                 break;
               }
+              
               try {
                 // Parse the stream data
                 const parsedData = JSON.parse(data);
+                console.log('Parsed stream data:', parsedData);
                 
                 // Check if the response is encrypted and decrypt if needed
-                let contentData = parsedData;
                 if (encryptionEnabled && encryptionKey && parsedData.encrypted) {
-                  contentData = decryptPayload(parsedData, encryptionKey);
-                }
-                
-                // Extract the content and send it to the stream handler
-                const { content } = contentData;
-                if (content) {
-                  onStream(content);
+                  // Decrypt the encrypted chunk
+                  const decryptedData = decryptPayload(parsedData, encryptionKey);
+                  if (decryptedData.content) {
+                    onStream(decryptedData.content);
+                  }
+                } else if (parsedData.content) {
+                  // Handle unencrypted content
+                  onStream(parsedData.content);
                 }
               } catch (e) {
-                console.error('Error parsing stream data:', e);
+                console.error('Error processing stream data:', e);
               }
             }
           }
