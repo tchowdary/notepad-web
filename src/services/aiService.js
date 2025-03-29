@@ -482,11 +482,6 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
       'Content-Type': 'application/json',
       'x-api-key': proxyKey,
     };
-    
-    // Add encryption header if encryption is enabled
-    if (encryptionEnabled && encryptionKey) {
-      headers['x-encryption-enabled'] = 'true';
-    }
 
     // Prepare the final request body - encrypt if encryption is enabled
     const finalRequestBody = encryptionEnabled && encryptionKey 

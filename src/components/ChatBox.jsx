@@ -103,15 +103,36 @@ const generateTitleFromUserMessage = async ({ message }) => {
       ? `${truncatedMessage}...`
       : truncatedMessage;
 
-    const { text: title } = await generateText({
-      model: "4o-mini",
-      system: `
+    // Create messages array for sendProxyMessage
+    const messages = [
+      {
+        role: "user",
+        content: titlePrompt,
+      }
+    ];
+
+    // Create custom instruction for title generation
+    const customInstruction = {
+      content: `
         - you will generate a short title based on the first message a user begins a conversation with
         - ensure it is not more than 80 characters long
         - the title should be a summary of the user's message
-        - do not use quotes or colons`,
-      prompt: titlePrompt,
-    });
+        - do not use quotes or colons
+        - return only the title with no additional text
+      `
+    };
+
+    // Use sendProxyMessage to get the title with encryption support
+    const response = await sendProxyMessage(
+      messages,
+      "4o-mini", // Use the same model as before
+      null, // Use the proxy key from localStorage
+      customInstruction,
+      null // No streaming for title generation
+    );
+
+    // Extract the title from the response
+    const title = response.content;
 
     return title || messageText.slice(0, 80); // Fallback to simple title if AI fails
   } catch (error) {
