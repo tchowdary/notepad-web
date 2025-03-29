@@ -450,14 +450,14 @@ const sendGeminiMessage = async (messages, model, apiKey, customInstruction, onS
 
 const sendProxyMessage = async (messages, model, apiKey, customInstruction, onStream) => {
   try {
-    console.log('sendProxyMessage called with model:', model);
+    //console.log('sendProxyMessage called with model:', model);
     
     // Use the provided apiKey if available, otherwise get it from the proxy config
     const proxyKey = apiKey || getProxyConfig().proxyKey;
     const requestEndpoint = getProxyEndpoint('/api/request');
     
-    console.log('Request endpoint:', requestEndpoint);
-    console.log('Proxy Key exists:', !!proxyKey);
+    //console.log('Request endpoint:', requestEndpoint);
+    //console.log('Proxy Key exists:', !!proxyKey);
 
     const messagePayload = [...messages];
     if (customInstruction) {
@@ -471,7 +471,7 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
       stream: Boolean(onStream),
     };
 
-    console.log('Request body:', JSON.stringify(requestBody));
+    //conso le.log('Request body:', JSON.stringify(requestBody));
 
     // Check if encryption is enabled
     const encryptionEnabled = isEncryptionEnabled();
@@ -494,7 +494,7 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
       body: JSON.stringify(finalRequestBody),
     });
 
-    console.log('Response status:', response.status);
+    //console.log('Response status:', response.status);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -528,7 +528,7 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
               try {
                 // Parse the stream data
                 const parsedData = JSON.parse(data);
-                console.log('Parsed stream data:', parsedData);
+                //console.log('Parsed stream data:', parsedData);
                 
                 // Check if the response is encrypted and decrypt if needed
                 if (encryptionEnabled && encryptionKey && parsedData.encrypted) {
@@ -604,19 +604,19 @@ const getAISettings = () => {
 
 const getAvailableProviders = async () => {
   try {
-    console.log('getAvailableProviders called');
+    //console.log('getAvailableProviders called');
     
     try {
       const { proxyUrl, proxyKey } = getProxyConfig();
-      console.log('Proxy URL:', proxyUrl);
-      console.log('Proxy Key exists:', !!proxyKey);
+      //console.log('Proxy URL:', proxyUrl);
+      //console.log('Proxy Key exists:', !!proxyKey);
       
       // Construct the models endpoint URL
       const modelsEndpoint = getProxyEndpoint('/api/models');
-      console.log('Models endpoint:', modelsEndpoint);
+      //console.log('Models endpoint:', modelsEndpoint);
       
       // Fetch available models from the API with the API key in headers
-      console.log('Fetching models...');
+      //console.log('Fetching models...');
       const response = await fetch(modelsEndpoint, {
         headers: {
           'x-api-key': proxyKey,
@@ -628,7 +628,7 @@ const getAvailableProviders = async () => {
       }
       
       const models = await response.json();
-      console.log('Models received:', models);
+      //console.log('Models received:', models);
       
       if (!Array.isArray(models)) {
         throw new Error('Invalid models response: expected an array');
