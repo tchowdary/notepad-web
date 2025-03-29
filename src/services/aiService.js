@@ -1,3 +1,5 @@
+import { prepareEncryptedPayload, decryptPayload, isEncryptionEnabled, getEncryptionKey } from '../utils/encryptionUtils';
+
 const getProxyConfig = () => {
   const proxyUrl = localStorage.getItem('proxy_url');
   const proxyKey = localStorage.getItem('proxy_key');
@@ -462,7 +464,7 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
       messagePayload.unshift({ role: 'system', content: customInstruction.content });
     }
 
-    // Create a simplified request body with just the model name
+    // Create a request body with the model name and messages
     const requestBody = {
       model,
       messages: messagePayload.map(({ role, content }) => ({ role, content })),
@@ -471,13 +473,30 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
 
     console.log('Request body:', JSON.stringify(requestBody));
 
+    // Check if encryption is enabled
+    const encryptionEnabled = isEncryptionEnabled();
+    const encryptionKey = getEncryptionKey();
+    
+    // Create headers object
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': proxyKey,
+    };
+    
+    // Add encryption header if encryption is enabled
+    if (encryptionEnabled && encryptionKey) {
+      headers['x-encryption-enabled'] = 'true';
+    }
+
+    // Prepare the final request body - encrypt if encryption is enabled
+    const finalRequestBody = encryptionEnabled && encryptionKey 
+      ? prepareEncryptedPayload(requestBody, encryptionKey)
+      : requestBody;
+
     const response = await fetch(requestEndpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': proxyKey,
-      },
-      body: JSON.stringify(requestBody),
+      headers,
+      body: JSON.stringify(finalRequestBody),
     });
 
     console.log('Response status:', response.status);
@@ -505,7 +524,17 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
                 break;
               }
               try {
-                const { content } = JSON.parse(data);
+                // Parse the stream data
+                const parsedData = JSON.parse(data);
+                
+                // Check if the response is encrypted and decrypt if needed
+                let contentData = parsedData;
+                if (encryptionEnabled && encryptionKey && parsedData.encrypted) {
+                  contentData = decryptPayload(parsedData, encryptionKey);
+                }
+                
+                // Extract the content and send it to the stream handler
+                const { content } = contentData;
                 if (content) {
                   onStream(content);
                 }
@@ -525,8 +554,16 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
       return { role: 'assistant', content: '' };
     }
 
-    const data = await response.json();
-    return { role: 'assistant', content: data.content };
+    // Handle non-streaming responses
+    const responseData = await response.json();
+    
+    // Decrypt the response if it's encrypted
+    if (encryptionEnabled && encryptionKey && responseData.encrypted) {
+      const decryptedData = decryptPayload(responseData, encryptionKey);
+      return { role: 'assistant', content: decryptedData.content };
+    }
+    
+    return { role: 'assistant', content: responseData.content };
   } catch (error) {
     console.error('API error:', error);
     throw error;

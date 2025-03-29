@@ -20,6 +20,8 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Divider,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
@@ -57,7 +59,9 @@ const ApiKeyInput = ({ open, onClose }) => {
   const [editingModel, setEditingModel] = useState(null);
   const [proxyConfig, setProxyConfig] = useState({
     url: localStorage.getItem('proxy_url') || '',
-    key: localStorage.getItem('proxy_key') || ''
+    key: localStorage.getItem('proxy_key') || '',
+    encryptionKey: localStorage.getItem('proxy_encryption_key') || '',
+    encryptionEnabled: Boolean(localStorage.getItem('proxy_encryption_key'))
   });
   
   // Provider states
@@ -174,6 +178,13 @@ const ApiKeyInput = ({ open, onClose }) => {
     localStorage.setItem('proxy_url', proxyConfig.url);
     localStorage.setItem('proxy_key', proxyConfig.key);
     
+    // Save encryption key if enabled, otherwise remove it
+    if (proxyConfig.encryptionEnabled && proxyConfig.encryptionKey) {
+      localStorage.setItem('proxy_encryption_key', proxyConfig.encryptionKey);
+    } else {
+      localStorage.removeItem('proxy_encryption_key');
+    }
+    
     onClose();
   };
 
@@ -264,6 +275,18 @@ const ApiKeyInput = ({ open, onClose }) => {
       localStorage.setItem('ai_settings', JSON.stringify(updated));
       return updated;
     });
+  };
+
+  const handleProxyConfigChange = (e) => {
+    const { name, value } = e.target;
+    setProxyConfig(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEncryptionToggle = (e) => {
+    setProxyConfig(prev => ({ 
+      ...prev, 
+      encryptionEnabled: e.target.checked 
+    }));
   };
 
   const ModelDialog = () => (
@@ -446,43 +469,37 @@ const ApiKeyInput = ({ open, onClose }) => {
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle>Configure AI Models</DialogTitle>
-        <Tabs
-          value={activeTab}
-          onChange={(_, newValue) => setActiveTab(newValue)}
-          centered
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab label="OpenAI" />
-          <Tab label="Groq" />
-          <Tab label="DeepSeek" />
-          <Tab label="Anthropic" />
-          <Tab label="Gemini" />
-          <Tab label="Proxy" />
-        </Tabs>
-
+        <DialogTitle>API Settings</DialogTitle>
         <DialogContent>
-          {activeTab === 0 && <ProviderContent provider="openai" />}
-          {activeTab === 1 && <ProviderContent provider="groq" />}
-          {activeTab === 2 && <ProviderContent provider="deepseek" />}
-          {activeTab === 3 && <ProviderContent provider="anthropic" />}
-          {activeTab === 4 && <ProviderContent provider="gemini" />}
-          {activeTab === 5 && (
+          <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+            <Tab label="OpenAI" />
+            <Tab label="Groq" />
+            <Tab label="DeepSeek" />
+            <Tab label="Anthropic" />
+            <Tab label="Gemini" />
+            <Tab label="Proxy" />
+          </Tabs>
+
+          {activeTab === 5 ? (
             <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>Proxy Configuration</Typography>
               <TextField
                 fullWidth
+                margin="normal"
                 label="Proxy URL"
-                type="text"
+                name="url"
                 value={proxyConfig.url}
-                onChange={(e) => setProxyConfig(prev => ({ ...prev, url: e.target.value }))}
-                sx={{ mb: 2 }}
+                onChange={handleProxyConfigChange}
+                placeholder="https://your-proxy-url.com"
               />
               <TextField
                 fullWidth
+                margin="normal"
                 label="Proxy API Key"
-                type={showKey ? 'text' : 'password'}
+                name="key"
+                type={showKey ? "text" : "password"}
                 value={proxyConfig.key}
-                onChange={(e) => setProxyConfig(prev => ({ ...prev, key: e.target.value }))}
+                onChange={handleProxyConfigChange}
                 InputProps={{
                   endAdornment: (
                     <IconButton onClick={() => setShowKey(!showKey)}>
@@ -491,17 +508,183 @@ const ApiKeyInput = ({ open, onClose }) => {
                   ),
                 }}
               />
+              <Box sx={{ mt: 2, mb: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={proxyConfig.encryptionEnabled}
+                      onChange={handleEncryptionToggle}
+                      name="encryptionEnabled"
+                    />
+                  }
+                  label="Enable Message Encryption"
+                />
+              </Box>
+              {proxyConfig.encryptionEnabled && (
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Encryption Key"
+                  name="encryptionKey"
+                  type={showKey ? "text" : "password"}
+                  value={proxyConfig.encryptionKey}
+                  onChange={handleProxyConfigChange}
+                  helperText="This key will be used to encrypt messages sent to the proxy server"
+                  InputProps={{
+                    endAdornment: (
+                      <IconButton onClick={() => setShowKey(!showKey)}>
+                        {showKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    ),
+                  }}
+                />
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+              <Box sx={{ mt: 2 }}>
+                <TextField
+                  label="API Key"
+                  type={showKey ? 'text' : 'password'}
+                  fullWidth
+                  value={providers[activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini'].key}
+                  onChange={(e) => handleProviderChange(activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini', 'key', e.target.value)}
+                  InputProps={{
+                    endAdornment: (
+                      <IconButton onClick={() => setShowKey(!showKey)}>
+                        {showKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    ),
+                  }}
+                />
+              </Box>
+
+              <Box sx={{ mt: 2 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Model</InputLabel>
+                  <Select
+                    value={providers[activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini'].selectedModel}
+                    onChange={(e) => handleProviderChange(activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini', 'selectedModel', e.target.value)}
+                    label="Model"
+                  >
+                    {providers[activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini'].models.map((model) => (
+                      <MenuItem key={model.id} value={model.id}>
+                        {model.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              <Box sx={{ mt: 2 }}>
+                <List>
+                  {providers[activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini'].models.map((model) => (
+                    <React.Fragment key={model.id}>
+                      <ListItem>
+                        <ListItemText
+                          primary={model.name}
+                          secondary={model.id}
+                        />
+                        <ListItemSecondaryAction>
+                          <IconButton edge="end" onClick={() => handleEditModel(model)}>
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton edge="end" onClick={() => handleDeleteModel(model.id)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                      <Box sx={{ pl: 2, pr: 2, pb: 2 }}>
+                        <FormControl fullWidth sx={{ mb: 1 }}>
+                          <InputLabel>Temperature</InputLabel>
+                          <Select
+                            value={providers[activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini'].modelSettings[model.id]?.temperature ?? 'none'}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              handleModelSettingChange(
+                                activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini',
+                                model.id,
+                                'temperature',
+                                value === 'none' ? undefined : parseFloat(value)
+                              );
+                            }}
+                            label="Temperature"
+                            size="small"
+                          >
+                            <MenuItem value="none">None</MenuItem>
+                            <MenuItem value={0}>0 - Deterministic</MenuItem>
+                            <MenuItem value={0.3}>0.3 - Conservative</MenuItem>
+                            <MenuItem value={0.7}>0.7 - Balanced</MenuItem>
+                            <MenuItem value={1}>1.0 - Creative</MenuItem>
+                          </Select>
+                        </FormControl>
+                        {(activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini') === 'openai' && (
+                          <FormControl fullWidth>
+                            <InputLabel>Reasoning Effort</InputLabel>
+                            <Select
+                              value={providers.openai.modelSettings[model.id]?.reasoningEffort || 'none'}
+                              onChange={(e) => handleModelSettingChange('openai', model.id, 'reasoningEffort', e.target.value)}
+                              label="Reasoning Effort"
+                              size="small"
+                            >
+                              <MenuItem value="none">None</MenuItem>
+                              <MenuItem value="low">Low</MenuItem>
+                              <MenuItem value="medium">Medium</MenuItem>
+                              <MenuItem value="high">High</MenuItem>
+                            </Select>
+                          </FormControl>
+                        )}
+                        {(activeTab === 0 ? 'openai' : activeTab === 1 ? 'groq' : activeTab === 2 ? 'deepseek' : activeTab === 3 ? 'anthropic' : 'gemini') === 'anthropic' && (
+                          <>
+                            <FormControl fullWidth sx={{ mb: 1 }}>
+                              <InputLabel>Thinking</InputLabel>
+                              <Select
+                                value={providers.anthropic.modelSettings[model.id]?.thinking ?? false}
+                                onChange={(e) => handleModelSettingChange('anthropic', model.id, 'thinking', e.target.value)}
+                                label="Thinking"
+                                size="small"
+                              >
+                                <MenuItem value={false}>Disabled</MenuItem>
+                                <MenuItem value={true}>Enabled</MenuItem>
+                              </Select>
+                            </FormControl>
+                            {providers.anthropic.modelSettings[model.id]?.thinking && (
+                              <FormControl fullWidth>
+                                <InputLabel>Budget Tokens</InputLabel>
+                                <Select
+                                  value={providers.anthropic.modelSettings[model.id]?.budget_tokens ?? 16000}
+                                  onChange={(e) => handleModelSettingChange('anthropic', model.id, 'budget_tokens', parseInt(e.target.value))}
+                                  label="Budget Tokens"
+                                  size="small"
+                                >
+                                  <MenuItem value={8000}>8,000 tokens</MenuItem>
+                                  <MenuItem value={16000}>16,000 tokens</MenuItem>
+                                  <MenuItem value={24000}>24,000 tokens</MenuItem>
+                                  <MenuItem value={32000}>32,000 tokens</MenuItem>
+                                </Select>
+                              </FormControl>
+                            )}
+                          </>
+                        )}
+                      </Box>
+                      <Divider />
+                    </React.Fragment>
+                  ))}
+                </List>
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle1">Models</Typography>
+                <Button
+                  startIcon={<AddIcon />}
+                  onClick={handleAddModel}
+                  size="small"
+                >
+                  Add Model
+                </Button>
+              </Box>
             </Box>
           )}
-
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Configured Providers: {Object.entries(providers)
-                .filter(([_, config]) => config.key)
-                .map(([name]) => name.charAt(0).toUpperCase() + name.slice(1))
-                .join(', ') || 'None'}
-            </Typography>
-          </Box>
         </DialogContent>
 
         <DialogActions>
