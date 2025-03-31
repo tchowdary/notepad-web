@@ -1893,12 +1893,20 @@ const ChatBox = ({
             </IconButton>
           )}
           {!fullScreen && (
-            <IconButton
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              size="small"
-            >
-              <FullscreenIcon />
-            </IconButton>
+            <>
+              <IconButton
+                onClick={(event) => setHistoryAnchorEl(event.currentTarget)}
+                size="small"
+              >
+                <HistoryIcon />
+              </IconButton>
+              <IconButton
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                size="small"
+              >
+                <FullscreenIcon />
+              </IconButton>
+            </>
           )}
         </Box>
       </Box>
@@ -2373,11 +2381,31 @@ const ChatBox = ({
               overflow: "hidden",
             }}
           >
+            {/* Top Bar with History Icon */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                padding: "8px",
+                borderBottom: `1px solid ${themeStyles.divider}`,
+              }}
+            >
+              <Tooltip title="Chat History">
+                <IconButton
+                  onClick={(event) => setHistoryAnchorEl(event.currentTarget)}
+                  size="small"
+                >
+                  <HistoryIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            
             {/* Chat Messages Container */}
             <Box
               ref={messagesContainerRef}
               sx={{
-                flexGrow: 1,
+                flex: 1,
                 overflowY: "auto",
                 paddingBottom: "160px",
                 width: "100%",
@@ -2567,24 +2595,29 @@ const ChatBox = ({
         }}
       >
         {sessions.map((session) => {
-          const firstMessage = session.messages[0];
-          let preview = "";
-
-          if (firstMessage) {
-            if (typeof firstMessage.content === "string") {
-              preview = firstMessage.content;
-            } else if (Array.isArray(firstMessage.content)) {
-              const textContent = firstMessage.content.find(
-                (item) => item.type === "text"
-              );
-              preview = textContent ? textContent.text : "[No text available]";
-            } else if (firstMessage.content?.type === "image") {
-              preview = "[Image]";
+          // Prioritize showing the title if available
+          let displayText = session.title || "";
+          
+          // If no title is available, fall back to message preview
+          if (!displayText) {
+            const firstMessage = session.messages[0];
+            
+            if (firstMessage) {
+              if (typeof firstMessage.content === "string") {
+                displayText = firstMessage.content;
+              } else if (Array.isArray(firstMessage.content)) {
+                const textContent = firstMessage.content.find(
+                  (item) => item.type === "text"
+                );
+                displayText = textContent ? textContent.text : "[No text available]";
+              } else if (firstMessage.content?.type === "image") {
+                displayText = "[Image]";
+              }
             }
           }
-
-          preview =
-            preview.length > 60 ? preview.substring(0, 60) + "..." : preview;
+          
+          displayText = displayText || "New Chat";
+          displayText = displayText.length > 60 ? displayText.substring(0, 60) + "..." : displayText;
           const date = new Date(session.lastUpdated).toLocaleString();
 
           return (
@@ -2593,6 +2626,7 @@ const ChatBox = ({
               onClick={() => {
                 setActiveSessionId(session.id);
                 setMessages(session.messages);
+                setHistoryAnchorEl(null);
               }}
               selected={session.id === activeSessionId}
               sx={{
@@ -2601,7 +2635,7 @@ const ChatBox = ({
               }}
             >
               <ListItemText
-                primary={preview || "Empty session"}
+                primary={displayText}
                 secondary={date}
                 primaryTypographyProps={{
                   sx: {
