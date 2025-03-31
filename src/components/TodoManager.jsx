@@ -742,7 +742,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
         PaperProps={{
           sx: {
             height: '50%',
-            bgcolor: darkMode ? '#1a1a2e' : 'background.paper',
+            bgcolor: darkMode ? '#1f1a24' : 'background.paper',
             color: darkMode ? '#ffffff' : 'text.primary',
           }
         }}

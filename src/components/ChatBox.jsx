@@ -182,7 +182,7 @@ const ChatBox = ({
         width: '100%',
         backgroundColor: getThemeColor(
           "palette.background.default",
-          darkModeState ? "#1a1a2e" : "#FFFCF0"
+          darkModeState ? "#1f1a24" : "#FFFCF0"
         ),
         borderLeft: fullScreen ? 'none' : `1px solid ${getThemeColor(
           "palette.divider",
@@ -196,7 +196,7 @@ const ChatBox = ({
         padding: "20px",
         backgroundColor: getThemeColor(
           "palette.background.default",
-          darkModeState ? "#1a1a2e" : "#FFFCF0"
+          darkModeState ? "#1f1a24" : "#FFFCF0"
         ),
       },
       messageContent: {
@@ -223,7 +223,7 @@ const ChatBox = ({
         right: 0,
         backgroundColor: getThemeColor(
           "palette.background.default",
-          darkModeState ? "#1a1a2e" : "#FFFCF0"
+          darkModeState ? "#1f1a24" : "#FFFCF0"
         ),
         borderTop: `1px solid ${getThemeColor(
           "palette.divider",
@@ -250,7 +250,7 @@ const ChatBox = ({
       background: {
         default: getThemeColor(
           "palette.background.default",
-          darkModeState ? "#1a1a2e" : "#FFFCF0"
+          darkModeState ? "#1f1a24" : "#FFFCF0"
         ),
         paper: getThemeColor(
           "palette.background.paper",
