@@ -2258,7 +2258,9 @@ const ChatBox = ({
                         position: "relative",
                         backgroundColor:
                           message.role === "user"
-                            ? themeStyles.background.default
+                            ? darkModeState
+                              ? "rgba(55, 55, 55, 0.7)" // Distinct dark background for user messages
+                              : themeStyles.action.hover // Use theme hover color for user messages in light mode
                             : themeStyles.background.default,
                         color: themeStyles.text.primary,
                         borderRadius: 2,
@@ -2268,8 +2270,8 @@ const ChatBox = ({
                           backgroundColor:
                             message.role === "user"
                               ? darkModeState
-                                ? "rgba(255, 255, 255, 0.12)"
-                                : "rgba(0, 0, 0, 0.08)"
+                                ? "rgba(55, 55, 55, 0.7)"
+                                : themeStyles.action.hover
                               : themeStyles.background.default,
                         },
                         textAlign: "left",
@@ -2290,7 +2292,9 @@ const ChatBox = ({
                           transition: "opacity 0.2s",
                           backgroundColor:
                             message.role === "user"
-                              ? themeStyles.action.hover
+                              ? darkModeState
+                                ? "rgba(55, 55, 55, 0.7)"
+                                : themeStyles.action.hover
                               : themeStyles.background.default,
                           color:
                             message.role === "user"
@@ -2300,8 +2304,8 @@ const ChatBox = ({
                             backgroundColor:
                               message.role === "user"
                                 ? darkModeState
-                                  ? "rgba(255, 255, 255, 0.12)"
-                                  : "rgba(0, 0, 0, 0.08)"
+                                  ? "rgba(55, 55, 55, 0.7)"
+                                  : themeStyles.action.hover
                                 : themeStyles.action.hover,
                           },
                         }}
@@ -2411,7 +2415,9 @@ const ChatBox = ({
                       position: "relative",
                       backgroundColor:
                         message.role === "user"
-                          ? themeStyles.background.default
+                          ? darkModeState
+                            ? "rgba(55, 55, 55, 0.7)" // Distinct dark background for user messages
+                            : themeStyles.action.hover // Use theme hover color for user messages in light mode
                           : themeStyles.background.default,
                       color: themeStyles.text.primary,
                       borderRadius: 2,
@@ -2421,8 +2427,8 @@ const ChatBox = ({
                         backgroundColor:
                           message.role === "user"
                             ? darkModeState
-                              ? "rgba(255, 255, 255, 0.12)"
-                              : "rgba(0, 0, 0, 0.08)"
+                              ? "rgba(55, 55, 55, 0.7)"
+                              : themeStyles.action.hover
                             : themeStyles.background.default,
                       },
                       textAlign: "left",
@@ -2443,7 +2449,9 @@ const ChatBox = ({
                         transition: "opacity 0.2s",
                         backgroundColor:
                           message.role === "user"
-                            ? themeStyles.action.hover
+                            ? darkModeState
+                              ? "rgba(55, 55, 55, 0.7)"
+                              : themeStyles.action.hover
                             : themeStyles.background.default,
                         color:
                           message.role === "user"
@@ -2453,8 +2461,8 @@ const ChatBox = ({
                           backgroundColor:
                             message.role === "user"
                               ? darkModeState
-                                ? "rgba(255, 255, 255, 0.12)"
-                                : "rgba(0, 0, 0, 0.08)"
+                                ? "rgba(55, 55, 55, 0.7)"
+                                : themeStyles.action.hover
                               : themeStyles.action.hover,
                         },
                       }}
