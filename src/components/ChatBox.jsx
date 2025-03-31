@@ -1922,7 +1922,7 @@ const ChatBox = ({
               position: "relative",
             }}
           >
-            {showScrollButton && (
+            {/* {showScrollButton && (
               <Fab
                 size="small"
                 color="primary"
@@ -1940,7 +1940,7 @@ const ChatBox = ({
               >
                 <KeyboardArrowDownIcon />
               </Fab>
-            )}
+            )} */}
             {/* Sidebar */}
             <Box
               sx={{
@@ -2505,7 +2505,7 @@ const ChatBox = ({
               )}
             </Box>
 
-            {showScrollButton && (
+            {/* {showScrollButton && (
               <Fab
                 size="small"
                 color="primary"
@@ -2523,7 +2523,7 @@ const ChatBox = ({
               >
                 <KeyboardArrowDownIcon />
               </Fab>
-            )}
+            )} */}
             {renderMessageInput()}
           </Box>
         </Box>
