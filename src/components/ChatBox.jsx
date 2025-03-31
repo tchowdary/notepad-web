@@ -200,8 +200,8 @@ const ChatBox = ({
         ),
       },
       messageContent: {
-        fontFamily: "Atkinson Hyperlegible, sans-serif",
-        fontSize: "1rem",
+        fontFamily: "Geist, sans-serif",
+        fontSize: "14px",
         color: getThemeColor(
           "palette.text.primary",
           darkModeState ? "#cccccc" : "#666666"
@@ -1243,8 +1243,8 @@ const ChatBox = ({
           variant="body1"
           component="div"
           sx={{
-            fontFamily: "Atkinson Hyperlegible, sans-serif",
-            fontSize: "1rem",
+            fontFamily: "Geist, sans-serif",
+            fontSize: "16px",
             lineHeight: 1.7,
             "& h1, & h2, & h3, & h4, & h5, & h6": {
               fontWeight: 600,
@@ -1265,13 +1265,13 @@ const ChatBox = ({
             "& pre": {
               marginBottom: "1.5em",
               "& code": {
-                fontFamily: "JetBrains Mono, monospace",
-                fontSize: "1em",
+                fontFamily: "Geist Mono, monospace",
+                fontSize: "0.9em",
               },
             },
             "& code": {
-              fontFamily: "JetBrains Mono, monospace",
-              fontSize: "1em",
+              fontFamily: "Geist Mono, monospace",
+              fontSize: "0.9em",
               padding: "0.2em 0.4em",
               borderRadius: "4px",
               backgroundColor: "rgba(0, 0, 0, 0.1)",
@@ -1395,8 +1395,8 @@ const ChatBox = ({
                 variant="body2"
                 component="div"
                 sx={{
-                  fontFamily: "Atkinson Hyperlegible, sans-serif",
-                  fontSize: "1rem",
+                  fontFamily: "Geist, sans-serif",
+                  fontSize: "14px",
                   color: themeStyles.text.primary,
                   fontStyle: "italic",
                   backgroundColor: themeStyles.action.hover,
@@ -1472,8 +1472,8 @@ const ChatBox = ({
               variant="body2"
               component="div"
               sx={{
-                fontFamily: "Atkinson Hyperlegible, sans-serif",
-                fontSize: "1rem",
+                fontFamily: "Geist, sans-serif",
+                fontSize: "14px",
                 color: themeStyles.text.primary,
                 fontStyle: "italic",
                 backgroundColor: themeStyles.action.hover,
@@ -1833,7 +1833,7 @@ const ChatBox = ({
           primary={renderSessionPreview(session)}
           primaryTypographyProps={{
             sx: {
-              fontFamily: "Atkinson Hyperlegible, sans-serif",
+              fontFamily: "Geist, sans-serif",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap", 
