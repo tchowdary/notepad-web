@@ -20,7 +20,12 @@ import 'codemirror/addon/fold/brace-fold';
 import 'codemirror/addon/fold/indent-fold';
 import 'codemirror/addon/fold/comment-fold';
 import 'codemirror/addon/fold/foldgutter.css';
-import { Box, Menu, MenuItem, IconButton, Stack } from '@mui/material';
+import 'codemirror/addon/search/search';
+import 'codemirror/addon/search/searchcursor';
+import 'codemirror/addon/search/jump-to-line';
+import 'codemirror/addon/dialog/dialog';
+import 'codemirror/addon/dialog/dialog.css';
+import { Box, Menu, MenuItem, IconButton, Stack, TextField, Button, Paper, InputAdornment } from '@mui/material';
 import MarkdownPreview from './MarkdownPreview';
 import TipTapEditor from './TipTapEditor';
 import { converters } from '../utils/converters';
@@ -28,6 +33,11 @@ import {
   Code as CodeIcon,
   DataObject as JsonIcon,
   FormatAlignCenter as FormatIcon,
+  Search as SearchIcon,
+  FindReplace as FindReplaceIcon,
+  Close as CloseIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon,
 } from '@mui/icons-material';
 
 const Editor = forwardRef(({ 
@@ -50,6 +60,11 @@ const Editor = forwardRef(({
   const [isJsonMode, setIsJsonMode] = useState(false);
   const [fileMode, setFileMode] = useState('markdown');
   const [contextMenu, setContextMenu] = useState(null);
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [currentMatch, setCurrentMatch] = useState(null);
+  const [matchCount, setMatchCount] = useState(0);
 
   // Restore cursor position when editor instance or cursorPosition changes
   useEffect(() => {
@@ -167,6 +182,16 @@ const Editor = forwardRef(({
       } catch (e) {
         console.error('Invalid JSON');
       }
+    },
+    toggleFindReplace: () => {
+      setShowFindReplace(!showFindReplace);
+      if (!showFindReplace && editorInstance) {
+        // If opening find/replace, use current selection as initial find text
+        const selection = editorInstance.getSelection();
+        if (selection) {
+          setFindText(selection);
+        }
+      }
     }
   }));
 
@@ -252,7 +277,23 @@ const Editor = forwardRef(({
         } else {
           cm.replaceSelection('  ');
         }
-      }
+      },
+      // Add keyboard shortcuts for find and replace
+      'Ctrl-F': (cm) => {
+        const selection = cm.getSelection();
+        if (selection) {
+          setFindText(selection);
+        }
+        setShowFindReplace(true);
+      },
+      'Cmd-F': (cm) => {
+        const selection = cm.getSelection();
+        if (selection) {
+          setFindText(selection);
+        }
+        setShowFindReplace(true);
+      },
+      'Esc': () => setShowFindReplace(false)
     },
     foldOptions: {
       widget: '...'
@@ -262,6 +303,117 @@ const Editor = forwardRef(({
     viewportMargin: Infinity,
     filename: filename
   };
+
+  const findNext = () => {
+    if (!editorInstance || !findText) return;
+    
+    const cursor = editorInstance.getSearchCursor(findText, currentMatch?.to || editorInstance.getCursor(), { caseFold: true });
+    
+    if (cursor.findNext()) {
+      editorInstance.setSelection(cursor.from(), cursor.to());
+      editorInstance.scrollIntoView({from: cursor.from(), to: cursor.to()}, 50);
+      setCurrentMatch({ from: cursor.from(), to: cursor.to() });
+    } else {
+      // Wrap around to the beginning
+      const cursor = editorInstance.getSearchCursor(findText, { line: 0, ch: 0 }, { caseFold: true });
+      if (cursor.findNext()) {
+        editorInstance.setSelection(cursor.from(), cursor.to());
+        editorInstance.scrollIntoView({from: cursor.from(), to: cursor.to()}, 50);
+        setCurrentMatch({ from: cursor.from(), to: cursor.to() });
+      }
+    }
+  };
+
+  const findPrevious = () => {
+    if (!editorInstance || !findText) return;
+    
+    // Start from the current position or from the end if no current match
+    const startPos = currentMatch?.from || editorInstance.getCursor();
+    
+    // Find all matches up to the current position
+    const cursor = editorInstance.getSearchCursor(findText, { line: 0, ch: 0 }, { caseFold: true });
+    let prev = null;
+    let current = null;
+    
+    while (cursor.findNext()) {
+      if (cursor.from().line > startPos.line || 
+          (cursor.from().line === startPos.line && cursor.from().ch >= startPos.ch)) {
+        break;
+      }
+      prev = current;
+      current = { from: cursor.from(), to: cursor.to() };
+    }
+    
+    if (prev) {
+      // Use the previous match
+      editorInstance.setSelection(prev.from, prev.to);
+      editorInstance.scrollIntoView({from: prev.from, to: prev.to}, 50);
+      setCurrentMatch(prev);
+    } else {
+      // Wrap around to the end
+      const doc = editorInstance.getDoc();
+      const lastLine = doc.lastLine();
+      const lastLineLength = doc.getLine(lastLine).length;
+      const cursor = editorInstance.getSearchCursor(findText, { line: lastLine, ch: lastLineLength }, { caseFold: true });
+      
+      let lastMatch = null;
+      while (cursor.findPrevious()) {
+        lastMatch = { from: cursor.from(), to: cursor.to() };
+        break;
+      }
+      
+      if (lastMatch) {
+        editorInstance.setSelection(lastMatch.from, lastMatch.to);
+        editorInstance.scrollIntoView({from: lastMatch.from, to: lastMatch.to}, 50);
+        setCurrentMatch(lastMatch);
+      }
+    }
+  };
+
+  const replaceCurrentMatch = () => {
+    if (!editorInstance || !currentMatch) return;
+    
+    editorInstance.replaceRange(replaceText, currentMatch.from, currentMatch.to);
+    findNext(); // Move to next match after replacement
+  };
+
+  const replaceAll = () => {
+    if (!editorInstance || !findText) return;
+    
+    const doc = editorInstance.getDoc();
+    const cursor = editorInstance.getSearchCursor(findText, { line: 0, ch: 0 }, { caseFold: true });
+    
+    // Use a single operation for better performance and undo
+    editorInstance.operation(() => {
+      while (cursor.findNext()) {
+        cursor.replace(replaceText);
+      }
+    });
+    
+    // Reset search state
+    setCurrentMatch(null);
+    updateMatchCount();
+  };
+
+  const updateMatchCount = () => {
+    if (!editorInstance || !findText) {
+      setMatchCount(0);
+      return;
+    }
+    
+    let count = 0;
+    const cursor = editorInstance.getSearchCursor(findText, { line: 0, ch: 0 }, { caseFold: true });
+    while (cursor.findNext()) {
+      count++;
+    }
+    
+    setMatchCount(count);
+  };
+
+  // Update match count whenever find text changes
+  useEffect(() => {
+    updateMatchCount();
+  }, [findText, content]);
 
   const editorComponent = (
     <Box
@@ -299,6 +451,96 @@ const Editor = forwardRef(({
               });
             }}
           />
+          
+          {/* Find and Replace UI */}
+          {showFindReplace && (
+            <Paper 
+              elevation={3}
+              sx={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                zIndex: 1000,
+                padding: 2,
+                width: '300px',
+              }}
+            >
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <SearchIcon fontSize="small" sx={{ mr: 1 }} />
+                    <span>Find & Replace</span>
+                  </Box>
+                  <IconButton size="small" onClick={() => setShowFindReplace(false)}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="Find"
+                  value={findText}
+                  onChange={(e) => setFindText(e.target.value)}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem', marginRight: '5px' }}>
+                            {matchCount > 0 ? `${matchCount} matches` : ''}
+                          </span>
+                          <IconButton size="small" onClick={findPrevious}>
+                            <ArrowUpwardIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={findNext}>
+                            <ArrowDownwardIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </InputAdornment>
+                    ),
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.shiftKey ? findPrevious() : findNext();
+                    }
+                  }}
+                />
+                
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="Replace"
+                  value={replaceText}
+                  onChange={(e) => setReplaceText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      replaceCurrentMatch();
+                    }
+                  }}
+                />
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Button 
+                    size="small" 
+                    variant="outlined" 
+                    onClick={replaceCurrentMatch}
+                    disabled={!currentMatch}
+                  >
+                    Replace
+                  </Button>
+                  <Button 
+                    size="small" 
+                    variant="outlined" 
+                    onClick={replaceAll}
+                    disabled={matchCount === 0}
+                  >
+                    Replace All
+                  </Button>
+                </Box>
+              </Stack>
+            </Paper>
+          )}
+          
           {/* Context Menu */}
           <Menu
             open={contextMenu !== null}
@@ -330,6 +572,12 @@ const Editor = forwardRef(({
               }}
             >
               Format JSON
+            </MenuItem>
+            <MenuItem onClick={() => {
+              setShowFindReplace(true);
+              handleContextMenuClose();
+            }}>
+              Find & Replace
             </MenuItem>
             {Object.entries(converters).map(([key, converter]) => (
               <MenuItem 
