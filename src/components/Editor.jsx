@@ -373,26 +373,56 @@ const Editor = forwardRef(({
   const replaceCurrentMatch = () => {
     if (!editorInstance || !currentMatch) return;
     
-    editorInstance.replaceRange(replaceText, currentMatch.from, currentMatch.to);
-    findNext(); // Move to next match after replacement
+    try {
+      // Use the editor's replaceRange method to replace the text
+      editorInstance.replaceRange(replaceText, currentMatch.from, currentMatch.to);
+      
+      // After replacing, find the next match
+      const cursor = editorInstance.getSearchCursor(findText, currentMatch.from, { caseFold: true });
+      if (cursor.findNext()) {
+        editorInstance.setSelection(cursor.from(), cursor.to());
+        editorInstance.scrollIntoView({from: cursor.from(), to: cursor.to()}, 50);
+        setCurrentMatch({ from: cursor.from(), to: cursor.to() });
+      } else {
+        // If no more matches, try from the beginning
+        const cursor = editorInstance.getSearchCursor(findText, { line: 0, ch: 0 }, { caseFold: true });
+        if (cursor.findNext()) {
+          editorInstance.setSelection(cursor.from(), cursor.to());
+          editorInstance.scrollIntoView({from: cursor.from(), to: cursor.to()}, 50);
+          setCurrentMatch({ from: cursor.from(), to: cursor.to() });
+        } else {
+          // No matches left
+          setCurrentMatch(null);
+        }
+      }
+      
+      // Update the match count
+      updateMatchCount();
+    } catch (error) {
+      console.error('Error during replace:', error);
+    }
   };
 
   const replaceAll = () => {
     if (!editorInstance || !findText) return;
     
-    const doc = editorInstance.getDoc();
-    const cursor = editorInstance.getSearchCursor(findText, { line: 0, ch: 0 }, { caseFold: true });
-    
-    // Use a single operation for better performance and undo
-    editorInstance.operation(() => {
-      while (cursor.findNext()) {
-        cursor.replace(replaceText);
-      }
-    });
-    
-    // Reset search state
-    setCurrentMatch(null);
-    updateMatchCount();
+    try {
+      // Get the current document value
+      const currentValue = editorInstance.getValue();
+      
+      // Simple string replacement for all occurrences
+      // This is more efficient than using the cursor for large documents
+      const newValue = currentValue.split(findText).join(replaceText);
+      
+      // Set the new value
+      editorInstance.setValue(newValue);
+      
+      // Reset search state
+      setCurrentMatch(null);
+      setMatchCount(0);
+    } catch (error) {
+      console.error('Error during replaceAll:', error);
+    }
   };
 
   const updateMatchCount = () => {
