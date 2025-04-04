@@ -1,5 +1,5 @@
 export const DB_NAME = 'notepadDB';
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 export const TABS_STORE = 'tabs';
 export const DRAWINGS_STORE = 'drawings';
 export const TODO_STORE = 'todos';
@@ -18,6 +18,8 @@ export const openDB = () => {
         // Add indexes for sync tracking
         store.createIndex('lastModified', 'lastModified', { unique: false });
         store.createIndex('lastSynced', 'lastSynced', { unique: false });
+        store.createIndex('completed', 'completed', { unique: false });
+        store.createIndex('dueDate', 'dueDate', { unique: false });
       } else {
         // Add indexes to existing store if upgrading from a previous version
         const store = event.currentTarget.transaction.objectStore(TABS_STORE);
@@ -26,6 +28,12 @@ export const openDB = () => {
         }
         if (!store.indexNames.contains('lastSynced')) {
           store.createIndex('lastSynced', 'lastSynced', { unique: false });
+        }
+        if (!store.indexNames.contains('completed')) {
+          store.createIndex('completed', 'completed', { unique: false });
+        }
+        if (!store.indexNames.contains('dueDate')) {
+          store.createIndex('dueDate', 'dueDate', { unique: false });
         }
       }
       if (!db.objectStoreNames.contains(DRAWINGS_STORE)) {
@@ -63,21 +71,35 @@ export const saveTabs = async (tabs) => {
         const lastModified = existingTab && existingTab.content === tab.content
           ? existingTab.lastModified
           : now;
-          
+
         // Always preserve noteId and lastSynced from existing tab if they exist
         const noteId = tab.noteId || (existingTab ? existingTab.noteId : undefined);
         const lastSynced = tab.lastSynced || (existingTab ? existingTab.lastSynced : undefined);
         
-        // // Log for debugging
-        // if (noteId) {
-        //   console.log(`Preserving noteId ${noteId} for tab ${tab.id} (${tab.name})`);
-        // }
+        // For todo type tabs, extract completed and dueDate from content
+        let completed = undefined;
+        let dueDate = undefined;
+        
+        if (tab.editorType === 'todo' && tab.content) {
+          try {
+            const todoData = JSON.parse(tab.content);
+            completed = todoData.completed;
+            dueDate = todoData.dueDate;
+            // Remove completed and dueDate from content as they're now stored separately
+            const { completed: _, dueDate: __, ...restContent } = todoData;
+            tab.content = JSON.stringify(restContent);
+          } catch (e) {
+            console.error('Error parsing todo content:', e);
+          }
+        }
         
         return store.add({
           ...tab,
           noteId,
           lastSynced,
-          lastModified
+          lastModified,
+          completed,
+          dueDate
         });
       });
 
@@ -102,7 +124,25 @@ export const loadTabs = async () => {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => {
       const tabs = request.result;
-      resolve(tabs.length > 0 ? tabs : [{ id: 1, name: 'untitled.md', content: '', type: 'markdown' }]);
+      const processedTabs = tabs.map(tab => {
+        // For todo type tabs, merge completed and dueDate back into content
+        if (tab.editorType === 'todo' && tab.content) {
+          try {
+            const todoData = JSON.parse(tab.content);
+            const mergedContent = JSON.stringify({
+              ...todoData,
+              completed: tab.completed,
+              dueDate: tab.dueDate
+            });
+            return { ...tab, content: mergedContent };
+          } catch (e) {
+            console.error('Error parsing todo content:', e);
+            return tab;
+          }
+        }
+        return tab;
+      });
+      resolve(processedTabs.length > 0 ? processedTabs : [{ id: 1, name: 'untitled.md', content: '', type: 'markdown' }]);
     };
     request.onerror = () => reject(request.error);
   });
