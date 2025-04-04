@@ -180,7 +180,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode, onFullscreenChange, initi
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (isNotesRoute && e.key === 'Escape') {
-        navigate('/', { state: { openTodo: true } });
+        navigate('/todo');
       }
     };
     
@@ -420,7 +420,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode, onFullscreenChange, initi
   };
 
   const handleCloseNotes = () => {
-    navigate('/', { state: { openTodo: true } });
+    navigate('/todo');
   };
 
   const handleNotesChange = (newContent) => {
@@ -578,7 +578,7 @@ const TodoManager = ({ tasks, onTasksChange, darkMode, onFullscreenChange, initi
       {/* Main content */}
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Sidebar */}
-        <Box sx={{ width: 170, borderRight: 1, borderColor: 'divider', p: 2, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ width: 240, borderRight: 1, borderColor: 'divider', p: 2, display: 'flex', flexDirection: 'column' }}>
           <List>
             <ListItem button onClick={() => setSelectedProject('inbox')}>
               <ListItemIcon>

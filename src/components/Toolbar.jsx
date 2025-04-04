@@ -185,7 +185,15 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-       
+        <Tooltip title="Todo Manager">
+          <IconButton 
+            onClick={onTodoClick} 
+            size="small"
+            color={showTodoSidebar ? 'primary' : 'inherit'}
+          >
+            <TodoManagerIcon />
+          </IconButton>
+        </Tooltip>
 
         <Tooltip title="Command Palette (Ctrl+P)">
           <IconButton onClick={onCommandPaletteOpen} size="small">
@@ -340,25 +348,15 @@ const Toolbar = ({
           </IconButton>
         </Tooltip> */}
 
-        {/* <Tooltip title="Weekly Notes">
+        <Tooltip title="Weekly Notes">
           <IconButton onClick={handleWeeklyNotes} size="small">
             <WeeklyNotesIcon />
           </IconButton>
-        </Tooltip> */}
+        </Tooltip>
 
         <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
           <IconButton onClick={handleGitHubSync} size="small">
             <GitHubIcon />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title="Todo Manager">
-          <IconButton 
-            onClick={onTodoClick} 
-            size="small"
-            color={showTodoSidebar ? 'primary' : 'inherit'}
-          >
-            <TodoManagerIcon />
           </IconButton>
         </Tooltip>
 
