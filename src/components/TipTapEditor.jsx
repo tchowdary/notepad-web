@@ -340,7 +340,7 @@ const CustomImage = TiptapImage.extend({
   },
 });
 
-const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange, onFocusModeChange }, ref) => {
+const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange, onFocusModeChange, hideToc = false }, ref) => {
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -358,21 +358,29 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const isRestoringCursor = React.useRef(false);
   const isEditorReady = React.useRef(false);
   const lastKnownPosition = React.useRef(null);
+  // Only use localStorage if hideToc is not explicitly set
   const [isTocOpen, setIsTocOpen] = useState(() => {
+    if (hideToc) return false;
     const saved = localStorage.getItem('tocOpen');
-    return saved ? JSON.parse(saved) : false;
+    return saved ? JSON.parse(saved) : true;
   });
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [submenuPosition, setSubmenuPosition] = useState({ top: 0, left: 0 });
   const submenuTimeoutRef = useRef(null);
 
+  // Only save to localStorage if hideToc is not explicitly set
   useEffect(() => {
-    localStorage.setItem('tocOpen', JSON.stringify(isTocOpen));
-  }, [isTocOpen]);
+    if (!hideToc) {
+      localStorage.setItem('tocOpen', JSON.stringify(isTocOpen));
+    }
+  }, [isTocOpen, hideToc]);
 
   const toggleToc = useCallback(() => {
-    setIsTocOpen(prev => !prev);
-  }, []);
+    // Only toggle if not explicitly hidden
+    if (!hideToc) {
+      setIsTocOpen(prev => !prev);
+    }
+  }, [hideToc]);
 
   const editor = useEditor({
     extensions: [
@@ -1252,8 +1260,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       <Box
         className="editor-sidebar"
         sx={{
-          display: { xs: 'none', md: 'block' },
-          width: isTocOpen ? '300px' : '0px',
+          display: hideToc ? 'none' : { xs: 'none', md: 'block' },
+          width: isTocOpen && !hideToc ? '300px' : '0px',
           transition: 'width 0.3s ease',
           overflow: 'hidden',
           borderLeft: 1,
@@ -1276,6 +1284,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             height: '100%',
             overflow: 'auto',
             p: 2,
+            bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
+            color: darkMode ? '#fff' : '#000',
             '&::-webkit-scrollbar': {
               display: 'none'
             },
