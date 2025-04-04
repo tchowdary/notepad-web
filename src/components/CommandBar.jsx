@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,10 +15,26 @@ import { Transform as DefaultIcon } from '@mui/icons-material';
 const CommandBar = ({ open, onClose, commands }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [recentCommandIds, setRecentCommandIds] = useState([]);
-  const [filteredCommands, setFilteredCommands] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchInputRef = useRef(null);
   const listRef = useRef(null);
+
+  // Calculate filtered commands based on search query and recent commands
+  const filteredCommands = useMemo(() => {
+    let filtered;
+    if (searchQuery.trim() === '') {
+      filtered = recentCommandIds
+        .map(id => commands.find(cmd => cmd.id === id))
+        .filter(Boolean)
+        .slice(0, 5);
+    } else {
+      filtered = commands.filter(cmd =>
+        cmd.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cmd.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    return filtered;
+  }, [searchQuery, commands, recentCommandIds]);
 
   // Reset selected index when filtered commands change
   useEffect(() => {
@@ -44,23 +60,6 @@ const CommandBar = ({ open, onClose, commands }) => {
     const storedRecent = JSON.parse(localStorage.getItem('recentCommandIds') || '[]');
     setRecentCommandIds(storedRecent);
   }, []);
-
-  // Update filtered commands when search query changes
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      const recentCommands = recentCommandIds
-        .map(id => commands.find(cmd => cmd.id === id))
-        .filter(Boolean)
-        .slice(0, 5);
-      setFilteredCommands(recentCommands);
-    } else {
-      const filtered = commands.filter(cmd =>
-        cmd.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cmd.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredCommands(filtered);
-    }
-  }, [searchQuery, commands, recentCommandIds]);
 
   const handleCommandSelect = (command) => {
     const updatedRecent = [

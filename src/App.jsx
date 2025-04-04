@@ -17,6 +17,7 @@ import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
 import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
+import TodoTask from './components/TodoTask'; // Import TodoTask component
 import QuickChat from './components/QuickChat';
 import TabSwitcher from './components/TabSwitcher';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData, updateTabNoteIds } from './utils/db';
@@ -416,12 +417,34 @@ function App() {
 
   const handleNewTab = ({ type = 'codemirror', name = '', content = '' } = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    let tabName = name;
+    let tabType = 'markdown';
+    let editorType = type;
+    
+    if (!name) {
+      if (type === 'tiptap') {
+        tabName = `Note-${newId}.md`;
+      } else if (type === 'codemirror') {
+        tabName = `Code-${newId}.txt`;
+      } else if (type === 'todo') {
+        tabName = `Task-${newId}.todo`;
+        // Initialize empty todo with default structure
+        content = JSON.stringify({
+          title: '',
+          completed: false,
+          dueDate: '',
+          priority: 'normal',
+          description: ''
+        });
+      }
+    }
+    
     const newTab = {
       id: newId,
-      name: name || (type === 'tiptap' ? `Note-${newId}.md` : `Code-${newId}.txt`),
+      name: tabName,
       content: content,
-      type: 'markdown',
-      editorType: type
+      type: tabType,
+      editorType: editorType
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
     // Use requestAnimationFrame for smoother focus handling
@@ -966,6 +989,20 @@ function App() {
             setFocusMode(!focusMode);
             setShowSidebar(focusMode);
           }}
+        />
+      );
+    }
+    
+    // Use TodoTask component for todo type
+    if (tab.editorType === 'todo') {
+      return (
+        <TodoTask
+          ref={tipTapEditorRef}
+          key={tab.id}
+          id={tab.id}
+          content={tab.content}
+          onChange={(newContent) => handleContentChange(tab.id, newContent)}
+          darkMode={darkMode}
         />
       );
     }
