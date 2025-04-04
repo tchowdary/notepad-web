@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import TipTapEditor from './TipTapEditor';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -21,7 +20,7 @@ import {
   DialogActions,
   Link,
   Tooltip,
-  Paper,
+  Drawer,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -35,10 +34,6 @@ import {
   CalendarToday as CalendarIcon,
   NoteAdd as NoteIcon,
   Edit as EditIcon,
-  Fullscreen as FullscreenIcon,
-  FullscreenExit as FullscreenExitIcon,
-  Close as CloseIcon,
-  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 
 // Function to extract URLs from text
@@ -92,10 +87,7 @@ const getTodayString = () => {
   return today.toISOString().split('T')[0];
 };
 
-const TodoManager = ({ tasks, onTasksChange, darkMode, onFullscreenChange, initialFullscreen = false, isNotesRoute = false }) => {
-  const navigate = useNavigate();
-  const { taskId } = useParams();
-  const location = useLocation();
+const TodoManager = ({ tasks, onTasksChange, darkMode }) => {
   const [newTask, setNewTask] = useState('');
   const [selectedProject, setSelectedProject] = useState('inbox');
   const [anchorEl, setAnchorEl] = useState(null);
@@ -106,91 +98,8 @@ const TodoManager = ({ tasks, onTasksChange, darkMode, onFullscreenChange, initi
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskText, setEditingTaskText] = useState('');
   const [selectedTaskForNotes, setSelectedTaskForNotes] = useState(null);
-  const [isFullscreen, setIsFullscreen] = useState(initialFullscreen);
+  const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
   const dateInputRef = React.useRef(null);
-
-  // Initialize todo data from localStorage on component mount
-  useEffect(() => {
-    const loadTodoData = async () => {
-      try {
-        const storedData = localStorage.getItem('todoData');
-        if (storedData) {
-          onTasksChange(JSON.parse(storedData));
-        }
-      } catch (error) {
-        console.error('Error loading todo data:', error);
-      }
-    };
-    
-    loadTodoData();
-  }, []);
-
-  // Save todo data to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('todoData', JSON.stringify(tasks));
-  }, [tasks]);
-
-  useEffect(() => {
-    if (onFullscreenChange) {
-      onFullscreenChange(isFullscreen);
-    }
-  }, [isFullscreen, onFullscreenChange]);
-
-  // Set initial fullscreen state from props
-  useEffect(() => {
-    setIsFullscreen(initialFullscreen);
-  }, [initialFullscreen]);
-
-  // Find the task when in notes route
-  useEffect(() => {
-    if (isNotesRoute && taskId) {
-      // Find the task in all possible locations
-      let foundTask = null;
-      
-      // Check inbox
-      foundTask = tasks.inbox?.find(t => t.id === parseInt(taskId));
-      
-      // Check archive if not found
-      if (!foundTask) {
-        foundTask = tasks.archive?.find(t => t.id === parseInt(taskId));
-      }
-      
-      // Check all projects if not found
-      if (!foundTask && tasks.projects) {
-        for (const projectName in tasks.projects) {
-          const projectTasks = tasks.projects[projectName];
-          foundTask = projectTasks?.find(t => t.id === parseInt(taskId));
-          if (foundTask) {
-            setSelectedProject(projectName);
-            break;
-          }
-        }
-      }
-      
-      if (foundTask) {
-        setSelectedTaskForNotes(foundTask);
-      } else {
-        // If task not found, navigate back to todo manager
-        navigate('/todo');
-      }
-    }
-  }, [isNotesRoute, taskId, tasks, navigate]);
-
-  // Add escape key handler for notes route
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (isNotesRoute && e.key === 'Escape') {
-        navigate('/todo');
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNotesRoute, navigate]);
-
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
 
   const handleAddTask = () => {
     if (!newTask.trim()) return;
@@ -416,11 +325,13 @@ const TodoManager = ({ tasks, onTasksChange, darkMode, onFullscreenChange, initi
   };
 
   const handleOpenNotes = (task) => {
-    navigate(`/notes/${task.id}`);
+    setSelectedTaskForNotes(task);
+    setNotesDrawerOpen(true);
   };
 
   const handleCloseNotes = () => {
-    navigate('/todo');
+    setSelectedTaskForNotes(null);
+    setNotesDrawerOpen(false);
   };
 
   const handleNotesChange = (newContent) => {
@@ -483,67 +394,8 @@ const TodoManager = ({ tasks, onTasksChange, darkMode, onFullscreenChange, initi
     setEditingTaskText('');
   };
 
-  // Render notes view if in notes route
-  if (isNotesRoute && selectedTaskForNotes) {
-    return (
-      <Box sx={{ 
-        height: '100%', 
-        display: 'flex',
-        flexDirection: 'column',
-        bgcolor: darkMode ? '#1f1a24' : 'background.paper',
-        color: darkMode ? '#ffffff' : 'text.primary',
-      }}>
-        <Box
-          sx={{
-            p: 2,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: 1,
-            borderColor: 'divider'
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip title="Back to Todo Manager (Esc)">
-              <IconButton 
-                onClick={handleCloseNotes} 
-                size="small" 
-                sx={{ mr: 2, color: darkMode ? '#ffffff' : 'text.primary' }}
-              >
-                <ArrowBackIcon />
-              </IconButton>
-            </Tooltip>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontFamily: 'Rubik, sans-serif',
-                color: darkMode ? '#ffffff' : 'text.primary',
-              }}
-            >
-              Notes for: {selectedTaskForNotes.text}
-            </Typography>
-          </Box>
-        </Box>
-        <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
-          <TipTapEditor
-            content={selectedTaskForNotes.notes || ''}
-            onChange={handleNotesChange}
-            darkMode={darkMode}
-            hideToc={true}
-          />
-        </Box>
-      </Box>
-    );
-  }
-
   return (
-    <Box sx={{ 
-      height: '100%', 
-      display: 'flex',
-      flexDirection: 'column',
-      bgcolor: darkMode ? '#1f1a24' : 'background.paper',
-      color: darkMode ? '#ffffff' : 'text.primary',
-    }}>
+    <Box sx={{ height: '100%', display: 'flex' }}>
       {/* Hidden date input */}
       <input
         ref={dateInputRef}
@@ -552,361 +404,386 @@ const TodoManager = ({ tasks, onTasksChange, darkMode, onFullscreenChange, initi
         onChange={handleDateChange}
       />
 
-      {/* Header with title and fullscreen toggle */}
-      <Box sx={{ 
-        p: 2, 
-        display: 'flex', 
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderBottom: 1,
-        borderColor: 'divider'
-      }}>
-        <Typography variant="h6" sx={{ fontFamily: 'Rubik, sans-serif' }}>
-          Todo Manager
-        </Typography>
-        <Box>
-          {onFullscreenChange && (
-            <Tooltip title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
-              <IconButton onClick={toggleFullscreen} size="small" sx={{ color: darkMode ? '#ffffff' : 'text.primary' }}>
-                {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-              </IconButton>
-            </Tooltip>
-          )}
-        </Box>
+      {/* Sidebar */}
+      <Box sx={{ width: 240, borderRight: 1, borderColor: 'divider', p: 2, display: 'flex', flexDirection: 'column' }}>
+        <List>
+          <ListItem button onClick={() => setSelectedProject('inbox')}>
+            <ListItemIcon>
+              <InboxIcon />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Inbox" 
+              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
+            />
+          </ListItem>
+
+          <ListItem button onClick={() => setSelectedProject('today')}>
+            <ListItemIcon>
+              <TodayIcon />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Today" 
+              secondary={getTodayTasks().length > 0 ? `${getTodayTasks().length} tasks` : null}
+              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
+            />
+          </ListItem>
+          
+          <ListItem button onClick={() => setSelectedProject('archive')}>
+            <ListItemIcon>
+              <ArchiveIcon />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Archive"
+              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
+            />
+          </ListItem>
+
+          <Divider sx={{ my: 1 }} />
+          
+          <ListItem>
+            <ListItemText 
+              primary="Projects" 
+              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
+            />
+            <IconButton size="small" onClick={() => setNewProjectDialogOpen(true)}>
+              <AddIcon />
+            </IconButton>
+          </ListItem>
+
+          {Object.keys(tasks.projects || {}).map(project => (
+            <ListItem 
+              button 
+              key={project}
+              onClick={() => setSelectedProject(project)}
+              secondaryAction={
+                <IconButton 
+                  edge="end" 
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteProject(project);
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              }
+            >
+              <ListItemIcon>
+                <FolderIcon />
+              </ListItemIcon>
+              <ListItemText 
+                primary={project}
+                sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
+              />
+            </ListItem>
+          ))}
+        </List>
       </Box>
 
-      {/* Main content */}
-      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Sidebar */}
-        <Box sx={{ width: 240, borderRight: 1, borderColor: 'divider', p: 2, display: 'flex', flexDirection: 'column' }}>
-          <List>
-            <ListItem button onClick={() => setSelectedProject('inbox')}>
+      {/* Main Content */}
+      <Box sx={{ flex: 1, p: 2 }}>
+        <Typography 
+          variant="h6" 
+          sx={{ mb: 2, fontFamily: 'Rubik, sans-serif' }}
+        >
+          {selectedProject.charAt(0).toUpperCase() + selectedProject.slice(1)}
+        </Typography>
+
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            placeholder="Add new task"
+            onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
+            sx={{ 
+              '& .MuiInputBase-root': { 
+                fontFamily: 'Rubik, sans-serif' 
+              } 
+            }}
+          />
+          <IconButton onClick={handleAddTask}>
+            <AddIcon />
+          </IconButton>
+        </Box>
+
+        <List>
+          {getCurrentTasks().map(task => (
+            <ListItem
+              key={task.id}
+              alignItems="flex-start"
+              secondaryAction={
+                <IconButton 
+                  edge="end" 
+                  onClick={(e) => handleTaskMenu(e, task)}
+                >
+                  <MoreVertIcon />
+                </IconButton>
+              }
+            >
               <ListItemIcon>
-                <InboxIcon />
+                <Checkbox
+                  edge="start"
+                  checked={task.completed}
+                  onChange={() => handleToggleTask(task.id)}
+                />
               </ListItemIcon>
               <ListItemText 
-                primary="Inbox" 
-                sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
-              />
-            </ListItem>
-
-            <ListItem button onClick={() => setSelectedProject('today')}>
-              <ListItemIcon>
-                <TodayIcon />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Today" 
-                secondary={getTodayTasks().length > 0 ? `${getTodayTasks().length} tasks` : null}
-                sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
-              />
-            </ListItem>
-            
-            <ListItem button onClick={() => setSelectedProject('archive')}>
-              <ListItemIcon>
-                <ArchiveIcon />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Archive"
-                sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
-              />
-            </ListItem>
-
-            <Divider sx={{ my: 1 }} />
-            
-            <ListItem>
-              <ListItemText 
-                primary="Projects" 
-                sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
-              />
-              <IconButton size="small" onClick={() => setNewProjectDialogOpen(true)}>
-                <AddIcon />
-              </IconButton>
-            </ListItem>
-
-            {Object.keys(tasks.projects || {}).map(project => (
-              <ListItem 
-                button 
-                key={project}
-                onClick={() => setSelectedProject(project)}
-                secondaryAction={
-                  <IconButton 
-                    edge="end" 
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteProject(project);
+                primary={
+                  editingTaskId === task.id ? (
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={editingTaskText}
+                        onChange={(e) => setEditingTaskText(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveEditTask();
+                          }
+                        }}
+                        autoFocus
+                        sx={{ 
+                          '& .MuiInputBase-root': { 
+                            fontFamily: 'Rubik, sans-serif' 
+                          } 
+                        }}
+                      />
+                      <IconButton size="small" onClick={handleSaveEditTask}>
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" onClick={handleCancelEditTask}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    textWithLinks(task.text)
+                  )
+                }
+                secondary={
+                  <Box 
+                    component="span" 
+                    sx={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      mt: 0.5,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                        borderRadius: 1,
+                      },
+                      p: 0.5,
                     }}
+                    onClick={(e) => handleDateClick(e, task.id)}
+                  >
+                    {task.dueDate ? (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: isToday(task.dueDate) ? 'error.main' : 'text.secondary',
+                          fontFamily: 'Rubik, sans-serif',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5
+                        }}
+                      >
+                        <EventIcon fontSize="small" />
+                        {formatDate(task.dueDate)}
+                      </Typography>
+                    ) : (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                          fontFamily: 'Rubik, sans-serif',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5
+                        }}
+                      >
+                        <EventIcon fontSize="small" />
+                        Add due date
+                      </Typography>
+                    )}
+                  </Box>
+                }
+                sx={{ 
+                  '& .MuiTypography-root': { 
+                    fontFamily: 'Rubik, sans-serif',
+                    textDecoration: task.completed ? 'line-through' : 'none'
+                  } 
+                }}
+              />
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  visibility: task.notes ? 'visible' : 'hidden',
+                  '& .MuiIconButton-root': {
+                    opacity: task.notes ? 1 : 0,
+                    transition: 'opacity 0.2s',
+                  },
+                  '.MuiListItem-root:hover &': {
+                    visibility: 'visible',
+                    '& .MuiIconButton-root': {
+                      opacity: 1,
+                    },
+                  },
+                }}
+              >
+                <Tooltip title={task.notes ? "View Notes" : "Add Notes"}>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenNotes(task)}
+                    sx={{ mr: 1 }}
+                  >
+                    <NoteIcon 
+                      fontSize="small" 
+                      color={task.notes ? "primary" : "inherit"}
+                    />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Edit Task">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleStartEditTask(task)}
+                    sx={{ mr: 1 }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete Task">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDeleteTask(task.id)}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
-                }
-              >
-                <ListItemIcon>
-                  <FolderIcon />
-                </ListItemIcon>
-                <ListItemText 
-                  primary={project}
-                  sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
+                </Tooltip>
+              </Box>
+            </ListItem>
+          ))}
+        </List>
+      </Box>
 
-        {/* Main Content */}
-        <Box sx={{ flex: 1, p: 2 }}>
-          <Typography 
-            variant="h6" 
-            sx={{ mb: 2, fontFamily: 'Rubik, sans-serif' }}
+      {/* Task Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => {
+          setAnchorEl(null);
+          setSelectedTask(null);
+        }}
+      >
+        <MenuItem onClick={(e) => {
+          handleDateClick(e, selectedTask?.id);
+          setAnchorEl(null);
+        }}>
+          Set due date
+        </MenuItem>
+        <MenuItem onClick={() => handleMoveTask('today')}>
+          Move to Today
+        </MenuItem>
+        <MenuItem onClick={() => handleMoveTask('inbox')}>
+          Move to Inbox
+        </MenuItem>
+        {Object.keys(tasks.projects || {}).map(project => (
+          <MenuItem 
+            key={project}
+            onClick={() => handleMoveTask(project)}
           >
-            {selectedProject.charAt(0).toUpperCase() + selectedProject.slice(1)}
-          </Typography>
+            Move to {project}
+          </MenuItem>
+        ))}
+        <Divider />
+        <MenuItem 
+          onClick={() => handleDeleteTask(selectedTask?.id)}
+          sx={{ color: 'error.main' }}
+        >
+          Delete task
+        </MenuItem>
+      </Menu>
 
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-            <TextField
-              fullWidth
-              size="small"
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              placeholder="Add new task"
-              onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
-              sx={{ 
-                '& .MuiInputBase-root': { 
-                  fontFamily: 'Rubik, sans-serif' 
-                } 
-              }}
-            />
-            <IconButton onClick={handleAddTask}>
-              <AddIcon />
-            </IconButton>
-          </Box>
+      {/* New Project Dialog */}
+      <Dialog 
+        open={newProjectDialogOpen} 
+        onClose={() => setNewProjectDialogOpen(false)}
+      >
+        <DialogTitle sx={{ fontFamily: 'Rubik, sans-serif' }}>
+          New Project
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Project Name"
+            fullWidth
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            sx={{ 
+              '& .MuiInputBase-root': { 
+                fontFamily: 'Rubik, sans-serif' 
+              } 
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNewProjectDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleAddProject}>Create</Button>
+        </DialogActions>
+      </Dialog>
 
-          <List>
-            {getCurrentTasks().map(task => (
-              <ListItem
-                key={task.id}
-                alignItems="flex-start"
-                secondaryAction={
-                  <IconButton 
-                    edge="end" 
-                    onClick={(e) => handleTaskMenu(e, task)}
-                  >
-                    <MoreVertIcon />
-                  </IconButton>
-                }
-              >
-                <ListItemIcon>
-                  <Checkbox
-                    edge="start"
-                    checked={task.completed}
-                    onChange={() => handleToggleTask(task.id)}
-                  />
-                </ListItemIcon>
-                <ListItemText 
-                  primary={
-                    editingTaskId === task.id ? (
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          value={editingTaskText}
-                          onChange={(e) => setEditingTaskText(e.target.value)}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSaveEditTask();
-                            }
-                          }}
-                          autoFocus
-                          sx={{ 
-                            '& .MuiInputBase-root': { 
-                              fontFamily: 'Rubik, sans-serif' 
-                            } 
-                          }}
-                        />
-                        <IconButton size="small" onClick={handleSaveEditTask}>
-                          <AddIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" onClick={handleCancelEditTask}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    ) : (
-                      textWithLinks(task.text)
-                    )
-                  }
-                  secondary={
-                    <Box 
-                      component="span" 
-                      sx={{ 
-                        display: 'flex',
-                        alignItems: 'center',
-                        mt: 0.5,
-                        cursor: 'pointer',
-                        '&:hover': {
-                          bgcolor: 'action.hover',
-                          borderRadius: 1,
-                        },
-                        p: 0.5,
-                      }}
-                      onClick={(e) => handleDateClick(e, task.id)}
-                    >
-                      {task.dueDate ? (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: isToday(task.dueDate) ? 'error.main' : 'text.secondary',
-                            fontFamily: 'Rubik, sans-serif',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5
-                          }}
-                        >
-                          <EventIcon fontSize="small" />
-                          {formatDate(task.dueDate)}
-                        </Typography>
-                      ) : (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: 'text.secondary',
-                            fontFamily: 'Rubik, sans-serif',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5
-                          }}
-                        >
-                          <EventIcon fontSize="small" />
-                          Add due date
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                  sx={{ 
-                    '& .MuiTypography-root': { 
-                      fontFamily: 'Rubik, sans-serif',
-                      textDecoration: task.completed ? 'line-through' : 'none'
-                    } 
-                  }}
-                />
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    visibility: task.notes ? 'visible' : 'hidden',
-                    '& .MuiIconButton-root': {
-                      opacity: task.notes ? 1 : 0,
-                      transition: 'opacity 0.2s',
-                    },
-                    '.MuiListItem-root:hover &': {
-                      visibility: 'visible',
-                      '& .MuiIconButton-root': {
-                        opacity: 1,
-                      },
-                    },
-                  }}
-                >
-                  <Tooltip title={task.notes ? "View Notes" : "Add Notes"}>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenNotes(task)}
-                      sx={{ mr: 1 }}
-                    >
-                      <NoteIcon 
-                        fontSize="small" 
-                        color={task.notes ? "primary" : "inherit"}
-                      />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Edit Task">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleStartEditTask(task)}
-                      sx={{ mr: 1 }}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Delete Task">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDeleteTask(task.id)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-
-        {/* Task Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={() => {
-            setAnchorEl(null);
-            setSelectedTask(null);
+      {/* Notes Drawer */}
+      <Drawer
+        anchor="bottom"
+        open={notesDrawerOpen}
+        onClose={handleCloseNotes}
+        PaperProps={{
+          sx: {
+            height: '50%',
+            bgcolor: darkMode ? '#1f1a24' : 'background.paper',
+            color: darkMode ? '#ffffff' : 'text.primary',
+          }
+        }}
+      >
+        <Box 
+          sx={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            margin: '0 auto',
+            width: '100%',
+            maxWidth: '100ch',
+            p: 2,
           }}
         >
-          <MenuItem onClick={(e) => {
-            handleDateClick(e, selectedTask?.id);
-            setAnchorEl(null);
-          }}>
-            Set due date
-          </MenuItem>
-          <MenuItem onClick={() => handleMoveTask('today')}>
-            Move to Today
-          </MenuItem>
-          <MenuItem onClick={() => handleMoveTask('inbox')}>
-            Move to Inbox
-          </MenuItem>
-          {Object.keys(tasks.projects || {}).map(project => (
-            <MenuItem 
-              key={project}
-              onClick={() => handleMoveTask(project)}
-            >
-              Move to {project}
-            </MenuItem>
-          ))}
-          <Divider />
-          <MenuItem 
-            onClick={() => handleDeleteTask(selectedTask?.id)}
-            sx={{ color: 'error.main' }}
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              mb: 2,
+              fontFamily: 'Rubik, sans-serif',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
           >
-            Delete task
-          </MenuItem>
-        </Menu>
-
-        {/* New Project Dialog */}
-        <Dialog 
-          open={newProjectDialogOpen} 
-          onClose={() => setNewProjectDialogOpen(false)}
-        >
-          <DialogTitle sx={{ fontFamily: 'Rubik, sans-serif' }}>
-            New Project
-          </DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Project Name"
-              fullWidth
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              sx={{ 
-                '& .MuiInputBase-root': { 
-                  fontFamily: 'Rubik, sans-serif' 
-                } 
-              }}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setNewProjectDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddProject}>Create</Button>
-          </DialogActions>
-        </Dialog>
-      </Box>
+            Notes for: {selectedTaskForNotes?.text}
+            <IconButton onClick={handleCloseNotes} size="small">
+              <DeleteIcon />
+            </IconButton>
+          </Typography>
+          {selectedTaskForNotes && (
+            <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+              <TipTapEditor
+                content={selectedTaskForNotes.notes || ''}
+                onChange={handleNotesChange}
+                darkMode={darkMode}
+              />
+            </Box>
+          )}
+        </Box>
+      </Drawer>
     </Box>
   );
 };

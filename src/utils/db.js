@@ -1,5 +1,5 @@
 export const DB_NAME = 'notepadDB';
-export const DB_VERSION = 5; // Increment version to trigger database upgrade
+export const DB_VERSION = 4;
 export const TABS_STORE = 'tabs';
 export const DRAWINGS_STORE = 'drawings';
 export const TODO_STORE = 'todos';
@@ -32,22 +32,8 @@ export const openDB = () => {
         const store = db.createObjectStore(DRAWINGS_STORE, { keyPath: 'id' });
         store.createIndex('id', 'id', { unique: true });
       }
-      
-      // Update TODO_STORE to use task ID as keyPath
       if (!db.objectStoreNames.contains(TODO_STORE)) {
-        const store = db.createObjectStore(TODO_STORE, { keyPath: 'id' });
-        // Add indexes for querying tasks by list
-        store.createIndex('list', 'list', { unique: false });
-        store.createIndex('completed', 'completed', { unique: false });
-      } else if (event.oldVersion < 5) {
-        // If upgrading from a previous version, delete and recreate the store
-        db.deleteObjectStore(TODO_STORE);
-        const store = db.createObjectStore(TODO_STORE, { keyPath: 'id' });
-        store.createIndex('list', 'list', { unique: false });
-        store.createIndex('completed', 'completed', { unique: false });
-        
-        // We'll migrate the data in the application code after upgrade
-        console.log('Todo store upgraded to individual task storage');
+        db.createObjectStore(TODO_STORE, { keyPath: 'id' });
       }
     };
   });
@@ -172,23 +158,18 @@ export const deleteDrawing = async (id) => {
   });
 };
 
-// Save a single todo task
-export const saveTodoTask = async (task) => {
+export const saveTodoData = async (todoData) => {
   let db;
   try {
     db = await openDB();
     const tx = db.transaction(TODO_STORE, 'readwrite');
     const store = tx.objectStore(TODO_STORE);
 
-    return await new Promise((resolve, reject) => {
-      const request = store.put(task);
+    await new Promise((resolve, reject) => {
+      const request = store.put({ id: 'todoData', data: todoData });
       
-      request.onsuccess = () => {
-        resolve(request.result);
-      };
-
       request.onerror = (error) => {
-        console.error('Error saving todo task:', error);
+        console.error('Error in IndexedDB save:', error);
         reject(error);
       };
 
@@ -198,101 +179,15 @@ export const saveTodoTask = async (task) => {
       };
     });
   } catch (error) {
-    console.error('Error in saveTodoTask:', error);
-    throw error;
-  } finally {
-    if (db) {
-      db.close();
-    }
-  }
-};
-
-// Delete a todo task
-export const deleteTodoTask = async (taskId) => {
-  let db;
-  try {
-    db = await openDB();
-    const tx = db.transaction(TODO_STORE, 'readwrite');
-    const store = tx.objectStore(TODO_STORE);
-
-    return await new Promise((resolve, reject) => {
-      const request = store.delete(taskId);
-      
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = (error) => {
-        console.error('Error deleting todo task:', error);
-        reject(error);
-      };
-    });
-  } catch (error) {
-    console.error('Error in deleteTodoTask:', error);
-    throw error;
-  } finally {
-    if (db) {
-      db.close();
-    }
-  }
-};
-
-// Save multiple todo tasks in a single transaction
-export const saveTodoTasks = async (tasks) => {
-  let db;
-  try {
-    db = await openDB();
-    const tx = db.transaction(TODO_STORE, 'readwrite');
-    const store = tx.objectStore(TODO_STORE);
-
-    const promises = tasks.map(task => {
-      return new Promise((resolve, reject) => {
-        const request = store.put(task);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = (error) => reject(error);
-      });
-    });
-
-    await Promise.all(promises);
-    return true;
-  } catch (error) {
-    console.error('Error in saveTodoTasks:', error);
-    throw error;
-  } finally {
-    if (db) {
-      db.close();
-    }
-  }
-};
-
-// Save all todo data - for backward compatibility and bulk operations
-export const saveTodoData = async (todoData) => {
-  try {
-    // Extract all tasks from the todoData structure
-    const tasks = [
-      ...todoData.inbox,
-      ...todoData.archive,
-      ...Object.values(todoData.projects || {}).flat()
-    ];
-    
-    // Save all tasks individually
-    await saveTodoTasks(tasks);
-    
-    // Also save a metadata object to track lists and projects
-    await saveTodoTask({
-      id: 'todoMetadata',
-      type: 'metadata',
-      projects: Object.keys(todoData.projects || {})
-    });
-    
-    return true;
-  } catch (error) {
     console.error('Error in saveTodoData:', error);
     throw error;
+  } finally {
+    if (db) {
+      db.close();
+    }
   }
 };
 
-// Load all todo data and organize it into the expected structure
 export const loadTodoData = async () => {
   let db;
   try {
@@ -300,51 +195,25 @@ export const loadTodoData = async () => {
     const tx = db.transaction(TODO_STORE, 'readonly');
     const store = tx.objectStore(TODO_STORE);
 
-    // Get all tasks
-    const tasks = await new Promise((resolve, reject) => {
-      const request = store.getAll();
+    const data = await new Promise((resolve, reject) => {
+      const request = store.get('todoData');
       
       request.onsuccess = () => {
-        resolve(request.result || []);
+        const todoData = request.result?.data || {
+          inbox: [],
+          archive: [],
+          projects: {}
+        };
+        resolve(todoData);
       };
       
       request.onerror = (error) => {
-        console.error('Error loading todo tasks:', error);
+        console.error('Error loading todo data:', error);
         reject(error);
       };
     });
     
-    // Check if we need to migrate from old format
-    const oldFormatData = tasks.find(item => item.id === 'todoData');
-    if (oldFormatData && oldFormatData.data) {
-      console.log('Migrating from old todo data format');
-      // Delete the old format data
-      await deleteTodoTask('todoData');
-      // Save using the new format
-      await saveTodoData(oldFormatData.data);
-      // Reload tasks after migration
-      return await loadTodoData();
-    }
-    
-    // Extract metadata
-    const metadata = tasks.find(task => task.id === 'todoMetadata') || { projects: [] };
-    
-    // Filter out metadata from regular tasks
-    const regularTasks = tasks.filter(task => task.id !== 'todoMetadata' && task.type !== 'metadata');
-    
-    // Organize tasks into the expected structure
-    const todoData = {
-      inbox: regularTasks.filter(task => task.list === 'inbox'),
-      archive: regularTasks.filter(task => task.list === 'archive'),
-      projects: {}
-    };
-    
-    // Organize project tasks
-    metadata.projects.forEach(project => {
-      todoData.projects[project] = regularTasks.filter(task => task.list === project);
-    });
-    
-    return todoData;
+    return data;
   } catch (error) {
     console.error('Error in loadTodoData:', error);
     return {

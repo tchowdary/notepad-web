@@ -67,7 +67,6 @@ const Toolbar = ({
   activeTab,
   setActiveTab,
   onCommandPaletteOpen,
-  showTodoSidebar,
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
@@ -186,11 +185,7 @@ const Toolbar = ({
         </Tooltip>
 
         <Tooltip title="Todo Manager">
-          <IconButton 
-            onClick={onTodoClick} 
-            size="small"
-            color={showTodoSidebar ? 'primary' : 'inherit'}
-          >
+          <IconButton onClick={onTodoClick} size="small">
             <TodoManagerIcon />
           </IconButton>
         </Tooltip>

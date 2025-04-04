@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
 import Editor from './components/Editor';
 import TabList from './components/TabList';
@@ -52,8 +52,6 @@ function App() {
   });
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
-  const [showTodoSidebar, setShowTodoSidebar] = useState(false);
-  const [isTodoFullscreen, setIsTodoFullscreen] = useState(false);
   const [isChatFullscreen, setIsChatFullscreen] = useState(false);
   const [showApiSettings, setShowApiSettings] = useState(false);
   const [showQuickChat, setShowQuickChat] = useState(false);
@@ -67,7 +65,6 @@ function App() {
   const [syncStatus, setSyncStatus] = useState('');
 
   const location = useLocation();
-  const navigate = useNavigate();
 
   // Handle direct hash URLs for tabs
   useEffect(() => {
@@ -348,13 +345,6 @@ function App() {
         } else if (showChat) {
           handleChatToggle();
         }
-        if (isTodoFullscreen) {
-          setIsTodoFullscreen(false);
-          setShowTodoSidebar(false);
-          setShowSidebar(true);
-        } else if (showTodoSidebar) {
-          handleTodoClick();
-        }
         return;
       }
       
@@ -362,13 +352,6 @@ function App() {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
         handleChatFullscreen();
-        return;
-      }
-
-      // Open Todo in fullscreen with Ctrl/Cmd + Shift + T
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 't') {
-        e.preventDefault();
-        handleTodoFullscreenToggle(true);
         return;
       }
 
@@ -388,7 +371,7 @@ function App() {
     // Use capture phase to handle the event before React's event system
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [focusMode, showChat, isChatFullscreen, showTodoSidebar, isTodoFullscreen]);
+  }, [focusMode, showChat, isChatFullscreen]);
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -662,11 +645,25 @@ function App() {
   };
 
   const handleTodoClick = () => {
-    navigate('/todo');
-  };
+    // Check if todo tab already exists
+    const todoTab = tabs.find(tab => tab.type === 'todo');
+    if (todoTab) {
+      setActiveTab(todoTab.id);
+      return;
+    }
 
-  const handleTodoFullscreenToggle = (isFullscreen) => {
-    setIsTodoFullscreen(isFullscreen);
+    // Create new todo tab with consistent ID generation
+    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    const newTab = {
+      id: newId,
+      name: 'Todo',
+      content: '',
+      type: 'todo',
+      editorType: 'todo'
+    };
+
+    setTabs(prev => [...prev, newTab]);
+    setActiveTab(newId);
   };
 
   const handleQuickAddTask = (taskText) => {
@@ -1032,27 +1029,6 @@ function App() {
             />
           </Box>
         } />
-        <Route path="/todo" element={
-          <Box sx={{ height: '100vh', width: '100vw' }}>
-            <TodoManager 
-              tasks={todoData}
-              onTasksChange={setTodoData}
-              darkMode={darkMode}
-              onFullscreenChange={setIsTodoFullscreen}
-              initialFullscreen={isTodoFullscreen}
-            />
-          </Box>
-        } />
-        <Route path="/notes/:taskId" element={
-          <Box sx={{ height: '100vh', width: '100vw' }}>
-            <TodoManager 
-              tasks={todoData}
-              onTasksChange={setTodoData}
-              darkMode={darkMode}
-              isNotesRoute={true}
-            />
-          </Box>
-        } />
         <Route path="/*" element={
           <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
             {/* Rest of your existing App UI */}
@@ -1082,20 +1058,21 @@ function App() {
                     onNewDrawing={handleNewDrawing}
                     onConvert={(converterId) => handleConvert(converterId)}
                     onFormatJson={() => editorRef.current?.formatJson()}
-                    className="main-toolbar"
                     currentFile={activeTab ? tabs.find(tab => tab.id === activeTab) : null}
+                    setShowGitHubSettings={setShowGitHubSettings}
                     onTodoClick={handleTodoClick}
-                    onQuickAddClick={() => setQuickAddOpen(true)}
-                    onChatToggle={handleChatToggle}
+                    onQuickAddClick={handleQuickAddClick}
                     showChat={showChat}
-                    showTodoSidebar={showTodoSidebar}
+                    onChatToggle={handleChatToggle}
                     setSplitView={setSplitView}
                     setRightTab={handleSetRightTab}
                     splitView={splitView}
-                    editorRef={editorRef}
+                    editorRef={tipTapEditorRef}
                     tabs={tabs}
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
+                    isSyncing={isSyncing}
+                    syncStatus={syncStatus}
                     onCommandPaletteOpen={() => setShowCommandPalette(true)}
                   />
                 </Box>
@@ -1191,14 +1168,24 @@ function App() {
                     {showChat && (
                       <Box 
                         sx={{ 
-                          flex: '0 0 40%',
-                          minWidth: { xs: '300px', sm: '350px', md: '400px' },
-                          maxWidth: '800px',
-                          height: '100%',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          position: 'relative',
-                          transition: 'flex 0.3s ease',
+                          ...(isChatFullscreen ? {
+                            position: 'fixed',
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                            left: 0,
+                            zIndex: theme.zIndex.drawer + 2,
+                            bgcolor: 'background.default',
+                          } : {
+                            flex: '0 0 40%',
+                            minWidth: { xs: '300px', sm: '350px', md: '400px' },
+                            maxWidth: '800px',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            position: 'relative',
+                            transition: 'flex 0.3s ease',
+                          })
                         }}
                       >
                         <ChatBox 
@@ -1213,7 +1200,7 @@ function App() {
                   </Box>
 
                   {/* Right Sidebar */}
-                  {!focusMode && (showSidebar || window.innerWidth > 960) && (
+                  {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && (
                     <Box
                   
                       sx={{
