@@ -70,21 +70,24 @@ function App() {
   const navigate = useNavigate();
 
   // Handle direct hash URLs for tabs
-  useEffect(() => {
-    if (location.hash && location.hash.startsWith('#tab=')) {
-      const tabId = location.hash.substring(5);
-      if (tabs.some(tab => tab.id === tabId)) {
-        setActiveTab(tabId);
-      }
+useEffect(() => {
+  if (location.hash && location.hash.startsWith('#tab=')) {
+    const tabId = location.hash.substring(5);
+    if (tabs.some(tab => tab.id === tabId)) {
+      setActiveTab(tabId);
     }
-    
-    // Handle state from navigation
-    if (location.state) {
-      if (location.state.openTodo) {
-        setShowTodoSidebar(true);
-      }
+  }
+  
+  // Handle state from navigation - only if coming from a specific route that should open Todo
+  if (location.state && location.pathname === '/todo') {
+    if (location.state.openTodo) {
+      setShowTodoSidebar(true);
     }
-  }, [location, tabs]);
+  } else {
+    // Ensure TodoManager is hidden during normal app initialization
+    setShowTodoSidebar(false);
+  }
+}, [location, tabs]);
 
   // Update document title based on selected tab, if not on Jarvis route
   useEffect(() => {
