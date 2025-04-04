@@ -71,15 +71,20 @@ function App() {
 
   // Handle direct hash URLs for tabs
   useEffect(() => {
-    const hash = location.hash;
-    if (hash && !location.pathname.includes('chat')) {
-      const tabId = hash.slice(1); // Remove the # symbol
-      const tab = tabs.find(t => t.id === tabId);
-      if (tab) {
+    if (location.hash && location.hash.startsWith('#tab=')) {
+      const tabId = location.hash.substring(5);
+      if (tabs.some(tab => tab.id === tabId)) {
         setActiveTab(tabId);
       }
     }
-  }, [location.hash, tabs]);
+    
+    // Handle state from navigation
+    if (location.state) {
+      if (location.state.openTodo) {
+        setShowTodoSidebar(true);
+      }
+    }
+  }, [location, tabs]);
 
   // Update document title based on selected tab, if not on Jarvis route
   useEffect(() => {
@@ -662,7 +667,12 @@ function App() {
   };
 
   const handleTodoClick = () => {
-    navigate('/todo');
+    const newTodoState = !showTodoSidebar;
+    setShowTodoSidebar(newTodoState);
+    // Reset fullscreen when toggling todo sidebar
+    if (!newTodoState) {
+      setIsTodoFullscreen(false);
+    }
   };
 
   const handleTodoFullscreenToggle = (isFullscreen) => {
@@ -1144,34 +1154,20 @@ function App() {
                 }}>
                   {/* Main Content Area */}
                   <Box sx={{ 
-                    flex: 1,
                     display: 'flex',
-                    flexDirection: 'row',
-                    overflow: 'hidden',
-                    position: 'relative'
+                    flexGrow: 1,
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}>
-                    {/* Editor Area */}
+                    {/* Main editor area */}
                     <Box 
                       onClick={handleEditorClick}
                       sx={{ 
-                        flex: showChat ? '0 1 60%' : 1,
+                        flex: showChat || showTodoSidebar ? '0 1 60%' : 1,
                         minWidth: 0,
                         position: 'relative',
                         overflow: 'auto',
-                        transition: 'flex 0.3s ease',
-                        // Add overlay when sidebar is shown in mobile
-                        '&::after': {
-                          content: '""',
-                          display: { xs: showSidebar ? 'block' : 'none', md: 'none' },
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          bgcolor: 'rgba(0, 0, 0, 0.3)',
-                          zIndex: 1,
-                          pointerEvents: 'none'
-                        }
+                        transition: 'flex 0.3s ease'
                       }}
                     >
                       {splitView ? (
@@ -1188,7 +1184,7 @@ function App() {
                       )}
                     </Box>
                     
-                    {showChat && (
+                    {(showChat || showTodoSidebar) && (
                       <Box 
                         sx={{ 
                           flex: '0 0 40%',
@@ -1201,19 +1197,30 @@ function App() {
                           transition: 'flex 0.3s ease',
                         }}
                       >
-                        <ChatBox 
-                          onFullscreenChange={setIsChatFullscreen} 
-                          initialFullscreen={isChatFullscreen}
-                          initialInput={quickChatInput}
-                          createNewSessionOnMount={quickChatInput !== ''} // Only create new session if coming from quick chat
-                          onMessageSent={handleMessageSent}
-                        />
+                        {showChat && (
+                          <ChatBox 
+                            onFullscreenChange={setIsChatFullscreen} 
+                            initialFullscreen={isChatFullscreen}
+                            initialInput={quickChatInput}
+                            createNewSessionOnMount={quickChatInput !== ''} // Only create new session if coming from quick chat
+                            onMessageSent={handleMessageSent}
+                          />
+                        )}
+                        {showTodoSidebar && (
+                          <TodoManager 
+                            tasks={todoData}
+                            onTasksChange={setTodoData}
+                            darkMode={darkMode}
+                            onFullscreenChange={handleTodoFullscreenToggle}
+                            initialFullscreen={isTodoFullscreen}
+                          />
+                        )}
                       </Box>
                     )}
                   </Box>
 
                   {/* Right Sidebar */}
-                  {!focusMode && (showSidebar || window.innerWidth > 960) && (
+                  {!focusMode && (showSidebar || window.innerWidth > 960) && !(showChat || showTodoSidebar) && (
                     <Box
                   
                       sx={{
