@@ -88,13 +88,6 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
     return () => clearTimeout(timeoutId);
   }, [todoData, editorContent, debouncedOnChange]);
 
-  const handleTitleChange = (e) => {
-    setTodoData(prev => ({
-      ...prev,
-      title: e.target.value
-    }));
-  };
-
   const handleCompletedChange = () => {
     setTodoData(prev => ({
       ...prev,
@@ -175,7 +168,14 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
           borderColor: darkMode ? '#333333' : '#e0e0e0'
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        {/* Header row with checkbox and due date */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'flex-end',
+          alignItems: 'center', 
+          mb: 2,
+          gap: 1
+        }}>
           <Checkbox 
             checked={todoData.completed} 
             onChange={handleCompletedChange}
@@ -187,37 +187,6 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
             }}
           />
           <TextField
-            fullWidth
-            variant="standard"
-            placeholder="Task title"
-            value={todoData.title}
-            onChange={handleTitleChange}
-            sx={{
-              '& .MuiInputBase-input': {
-                fontSize: '1.2rem',
-                textDecoration: todoData.completed ? 'line-through' : 'none',
-                color: todoData.completed ? (darkMode ? '#aaa' : '#888') : 'inherit'
-              },
-              '& .MuiInput-underline:before': {
-                borderBottomColor: 'transparent'
-              },
-              '& .MuiInput-underline:hover:before': {
-                borderBottomColor: darkMode ? '#444' : '#ddd'
-              }
-            }}
-          />
-        </Box>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-          <IconButton 
-            size="small" 
-            onClick={handlePriorityChange}
-            sx={{ color: getPriorityColor() }}
-          >
-            <Flag />
-          </IconButton>
-          
-          <TextField
             type="date"
             size="small"
             value={todoData.dueDate}
@@ -228,7 +197,6 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
               ),
             }}
             sx={{ 
-              ml: 1,
               '& .MuiInputBase-input': {
                 color: darkMode ? '#fff' : '#333',
                 fontSize: '0.875rem',
