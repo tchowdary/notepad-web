@@ -161,8 +161,8 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
       <Paper 
         elevation={0} 
         sx={{ 
-          p: 2, 
-          mb: 2, 
+          p: 1, 
+          mb: 1, 
           bgcolor: darkMode ? '#282433' : '#FFFCF0',
           borderBottom: '1px solid',
           borderColor: darkMode ? '#333333' : '#e0e0e0'
@@ -173,13 +173,16 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
           display: 'flex', 
           justifyContent: 'flex-end',
           alignItems: 'center', 
-          mb: 2,
-          gap: 1
+          gap: 0.25
         }}>
           <Checkbox 
             checked={todoData.completed} 
             onChange={handleCompletedChange}
+            size="small"
             sx={{ 
+              padding: '1px',  
+              width: '20px',  
+              height: '20px',  
               color: darkMode ? '#aaa' : '#666',
               '&.Mui-checked': {
                 color: getPriorityColor(),
@@ -193,14 +196,25 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
             onChange={handleDueDateChange}
             InputProps={{
               startAdornment: (
-                <Today fontSize="small" sx={{ mr: 1, color: darkMode ? '#aaa' : '#666' }} />
+                <Today sx={{ 
+                  fontSize: '14px',  
+                  mr: 0.25,  
+                  color: darkMode ? '#aaa' : '#666' 
+                }} />
               ),
+              sx: { 
+                height: '20px',  
+                minWidth: 'auto'  
+              }
             }}
             sx={{ 
               '& .MuiInputBase-input': {
                 color: darkMode ? '#fff' : '#333',
-                fontSize: '0.875rem',
-                py: 0.5
+                fontSize: '0.65rem',  
+                py: 0,  
+                px: 0.25,  
+                height: '20px',  
+                lineHeight: '20px'  
               },
               '& .MuiOutlinedInput-notchedOutline': {
                 border: 'none'
