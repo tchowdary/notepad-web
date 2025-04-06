@@ -60,6 +60,7 @@ function App() {
   const [showQuickChat, setShowQuickChat] = useState(false);
   const [quickChatInput, setQuickChatInput] = useState('');
   const [showMsTodo, setShowMsTodo] = useState(false);
+  const [isMsTodoFullscreen, setIsMsTodoFullscreen] = useState(false);
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
@@ -349,6 +350,13 @@ function App() {
         } else if (showChat) {
           handleChatToggle();
         }
+        if (isMsTodoFullscreen) {
+          setIsMsTodoFullscreen(false);
+          setShowMsTodo(false);
+          setShowSidebar(true);
+        } else if (showMsTodo) {
+          handleMsTodoClick();
+        }
         return;
       }
       
@@ -356,6 +364,13 @@ function App() {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
         handleChatFullscreen();
+        return;
+      }
+
+      // Open Todo Manager in fullscreen with Ctrl/Cmd + Shift + T
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        handleMsTodoFullscreen();
         return;
       }
 
@@ -375,7 +390,7 @@ function App() {
     // Use capture phase to handle the event before React's event system
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [focusMode, showChat, isChatFullscreen]);
+  }, [focusMode, showChat, isChatFullscreen, showMsTodo, isMsTodoFullscreen]);
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -818,6 +833,21 @@ function App() {
     setShowSidebar(false);
   };
 
+  const handleMsTodoClick = () => {
+    const newTodoState = !showMsTodo;
+    setShowMsTodo(newTodoState);
+    // Reset fullscreen when toggling todo manager
+    if (!newTodoState) {
+      setIsMsTodoFullscreen(false);
+    }
+  };
+
+  const handleMsTodoFullscreen = () => {
+    setShowMsTodo(true);
+    setIsMsTodoFullscreen(true);
+    setShowSidebar(false);
+  };
+
   const handleSplitViewToggle = () => {
     setSplitView(!splitView);
     if (!splitView) {
@@ -1104,10 +1134,6 @@ function App() {
     onManualSync: handleManualSync
   });
 
-  const handleMsTodoClick = () => {
-    setShowMsTodo(!showMsTodo);
-  };
-
   const handleOpenTodo = (todo) => {
     // Check if this todo is already open in a tab
     const existingTab = tabs.find(tab => tab.noteId === todo.id);
@@ -1257,7 +1283,7 @@ function App() {
                     <Box 
                       onClick={handleEditorClick}
                       sx={{ 
-                        flex: showChat ? '0 1 60%' : 1,
+                        flex: (showChat || showMsTodo) ? '0 1 60%' : 1,
                         minWidth: 0,
                         position: 'relative',
                         overflow: 'auto',
@@ -1323,12 +1349,45 @@ function App() {
                         />
                       </Box>
                     )}
+
+                    {showMsTodo && (
+                      <Box 
+                        sx={{ 
+                          ...(isMsTodoFullscreen ? {
+                            position: 'fixed',
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                            left: 0,
+                            zIndex: theme.zIndex.drawer + 2,
+                            bgcolor: 'background.default',
+                          } : {
+                            flex: '0 0 40%',
+                            minWidth: { xs: '300px', sm: '350px', md: '400px' },
+                            maxWidth: '800px',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            position: 'relative',
+                            transition: 'flex 0.3s ease',
+                          })
+                        }}
+                      >
+                        <TodoManagerNew 
+                          darkMode={darkMode}
+                          onOpenTodo={handleOpenTodo}
+                          tabs={tabs}
+                          activeTab={activeTab}
+                          onFullscreenChange={setIsMsTodoFullscreen}
+                          isFullscreen={isMsTodoFullscreen}
+                        />
+                      </Box>
+                    )}
                   </Box>
 
                   {/* Right Sidebar */}
-                  {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && (
+                  {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && !showMsTodo && (
                     <Box
-                  
                       sx={{
                         width: 250,
                         flexShrink: 0,
@@ -1384,39 +1443,6 @@ function App() {
         activeTab={activeTab}
         onTabSelect={handleTabSelect}
       />
-      {showMsTodo && (
-        <Box sx={{ 
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          bgcolor: 'background.default',
-          zIndex: 1300,
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'flex-end', 
-            p: 1, 
-            borderBottom: 1, 
-            borderColor: 'divider' 
-          }}>
-            <IconButton onClick={handleMsTodoClick}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-          <Box sx={{ flex: 1, overflow: 'auto' }}>
-            <TodoManagerNew 
-              darkMode={darkMode} 
-              onOpenTodo={handleOpenTodo}
-              tabs={tabs}
-              activeTab={activeTab}
-            />
-          </Box>
-        </Box>
-      )}
     </ThemeProvider>
   );
 }

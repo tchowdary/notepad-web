@@ -26,7 +26,10 @@ import {
   Edit as EditIcon,
   Check as CheckIcon,
   EventNote as EventNoteIcon,
-  CalendarToday as CalendarIcon
+  CalendarToday as CalendarIcon,
+  Fullscreen as FullscreenIcon,
+  FullscreenExit as FullscreenExitIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import DbSyncService from '../services/dbSyncService';
 import TodoTask from './TodoTask';
@@ -55,7 +58,7 @@ const getTodayString = () => {
   return today.toISOString().split('T')[0];
 };
 
-const TodoManagerNew = ({ darkMode, onOpenTodo, tabs, activeTab }) => {
+const TodoManagerNew = ({ darkMode, onOpenTodo, tabs, activeTab, onFullscreenChange, isFullscreen }) => {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState('inbox');
@@ -63,6 +66,7 @@ const TodoManagerNew = ({ darkMode, onOpenTodo, tabs, activeTab }) => {
   const [newTodoDueDate, setNewTodoDueDate] = useState('');
   const [selectedTodo, setSelectedTodo] = useState(null);
   const [editMode, setEditMode] = useState(false);
+  const [compactMode, setCompactMode] = useState(!isFullscreen);
 
   // Fetch todos based on the active view
   useEffect(() => {
@@ -276,367 +280,434 @@ const TodoManagerNew = ({ darkMode, onOpenTodo, tabs, activeTab }) => {
     return tab ? tab.id : null;
   };
 
+  const handleToggleFullscreen = () => {
+    if (onFullscreenChange) {
+      onFullscreenChange(!isFullscreen);
+      setCompactMode(isFullscreen);
+    }
+  };
+
   return (
     <Box sx={{ 
       display: 'flex', 
+      flexDirection: 'column',
       height: '100%', 
       bgcolor: darkMode ? '#1f1a24' : '#FFFCF0'
     }}>
-      {/* Left Sidebar */}
+      {/* Header with controls */}
       <Box sx={{ 
-        width: 240, 
-        borderRight: 1, 
-        borderColor: 'divider', 
-        p: 2, 
         display: 'flex', 
-        flexDirection: 'column',
-        bgcolor: darkMode ? '#282433' : '#f5f5f5'
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        p: 1,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: darkMode ? '#1f1a24' : '#FFFCF0'
       }}>
-        <Typography variant="h6" sx={{ mb: 2, fontFamily: 'Rubik, sans-serif' }}>
+        <Typography variant="h6" sx={{ fontFamily: 'Rubik, sans-serif', ml: 1 }}>
           Todo
         </Typography>
-        
-        <List>
-          <ListItem 
-            button 
-            selected={activeView === 'inbox'}
-            onClick={() => setActiveView('inbox')}
-            sx={{ 
-              borderRadius: 1,
-              mb: 1,
-              bgcolor: activeView === 'inbox' ? (darkMode ? '#3a3347' : '#e0e0e0') : 'transparent'
-            }}
-          >
-            <ListItemIcon>
-              <InboxIcon color={activeView === 'inbox' ? 'primary' : 'inherit'} />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Inbox" 
-              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
-            />
-          </ListItem>
-          
-          <ListItem 
-            button 
-            selected={activeView === 'today'}
-            onClick={() => setActiveView('today')}
-            sx={{ 
-              borderRadius: 1,
-              mb: 1,
-              bgcolor: activeView === 'today' ? (darkMode ? '#3a3347' : '#e0e0e0') : 'transparent'
-            }}
-          >
-            <ListItemIcon>
-              <TodayIcon color={activeView === 'today' ? 'primary' : 'inherit'} />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Today" 
-              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
-            />
-          </ListItem>
-          
-          <ListItem 
-            button 
-            selected={activeView === 'archive'}
-            onClick={() => setActiveView('archive')}
-            sx={{ 
-              borderRadius: 1,
-              mb: 1,
-              bgcolor: activeView === 'archive' ? (darkMode ? '#3a3347' : '#e0e0e0') : 'transparent'
-            }}
-          >
-            <ListItemIcon>
-              <ArchiveIcon color={activeView === 'archive' ? 'primary' : 'inherit'} />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Completed" 
-              sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
-            />
-          </ListItem>
-        </List>
+        <Box>
+          <Tooltip title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+            <IconButton onClick={handleToggleFullscreen} size="small">
+              {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Close">
+            <IconButton onClick={() => onFullscreenChange(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
-      {/* Main Content */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2 }}>
-        <Typography variant="h6" sx={{ mb: 2, fontFamily: 'Rubik, sans-serif' }}>
-          {activeView === 'inbox' ? 'Inbox' : activeView === 'today' ? 'Today' : 'Completed'}
-        </Typography>
-
-        {/* Add Todo Form */}
-        <Paper 
-          elevation={0} 
-          sx={{ 
+      {/* Main content */}
+      <Box sx={{ 
+        display: 'flex', 
+        flex: 1,
+        overflow: 'hidden'
+      }}>
+        {/* Left Sidebar - only show in fullscreen or if not compact mode */}
+        {(!compactMode || isFullscreen) && (
+          <Box sx={{ 
+            width: isFullscreen ? 240 : 180, 
+            borderRight: 1, 
+            borderColor: 'divider', 
             p: 2, 
-            mb: 2, 
-            bgcolor: darkMode ? '#282433' : '#fff',
-            borderRadius: 2
-          }}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <TextField
-              fullWidth
-              size="small"
-              label={editMode ? "Update Todo" : "Add New Todo"}
-              value={newTodoText}
-              onChange={(e) => setNewTodoText(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  editMode ? handleUpdateTodo() : handleAddTodo();
-                }
-              }}
-              sx={{ 
-                '& .MuiInputBase-root': { 
-                  fontFamily: 'Rubik, sans-serif' 
-                } 
-              }}
-            />
-            
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField
-                type="date"
-                size="small"
-                label="Due Date"
-                value={newTodoDueDate}
-                onChange={(e) => setNewTodoDueDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ 
-                  '& .MuiInputBase-root': { 
-                    fontFamily: 'Rubik, sans-serif' 
-                  },
-                  flex: 1
-                }}
-              />
-              
-              {editMode ? (
-                <>
-                  <Button 
-                    variant="contained" 
-                    color="primary" 
-                    onClick={handleUpdateTodo}
-                    startIcon={<CheckIcon />}
-                  >
-                    Update
-                  </Button>
-                  <Button 
-                    variant="outlined" 
-                    onClick={handleCancelEdit}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button 
-                  variant="contained" 
-                  color="primary" 
-                  onClick={handleAddTodo}
-                  startIcon={<AddIcon />}
-                >
-                  Add
-                </Button>
-              )}
-            </Box>
-          </Box>
-        </Paper>
-
-        {/* Todo List */}
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            flex: 1, 
-            overflow: 'auto',
-            bgcolor: darkMode ? '#282433' : '#fff',
-            borderRadius: 2
-          }}
-        >
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : todos.length === 0 ? (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <Typography color="textSecondary">
-                No todos found in {activeView}
-              </Typography>
-            </Box>
-          ) : (
+            display: 'flex', 
+            flexDirection: 'column',
+            bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
+            overflow: 'auto'
+          }}>
             <List>
-              {todos.map((todo) => (
-                <ListItem
-                  key={todo.id}
-                  sx={{ 
-                    borderBottom: '1px solid',
-                    borderColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                    '&:hover': {
-                      bgcolor: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'
-                    }
-                  }}
-                  secondaryAction={
-                    <Box>
-                      <Tooltip title="Edit">
-                        <IconButton 
-                          edge="end" 
-                          onClick={() => handleEditTodo(todo)}
-                          size="small"
-                          sx={{ mr: 1 }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton 
-                          edge="end" 
-                          onClick={() => handleDeleteTodo(todo)}
-                          size="small"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  }
-                >
-                  <ListItemIcon>
-                    <Checkbox
-                      edge="start"
-                      checked={todo.status === 'CLOSED'}
-                      onChange={() => handleToggleTodoStatus(todo)}
-                      sx={{ 
-                        color: darkMode ? '#aaa' : '#666',
-                        '&.Mui-checked': {
-                          color: darkMode ? '#68d391' : '#4caf50',
-                        }
-                      }}
-                    />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography 
-                        sx={{ 
-                          textDecoration: todo.status === 'CLOSED' ? 'line-through' : 'none',
-                          color: todo.status === 'CLOSED' ? 'text.secondary' : 'text.primary',
-                          fontFamily: 'Rubik, sans-serif'
-                        }}
-                      >
-                        {todo.name}
-                      </Typography>
-                    }
-                    secondary={
-                      todo.due_date && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                          <CalendarIcon fontSize="small" color={isToday(todo.due_date) ? "error" : "action"} />
-                          <Typography 
-                            variant="caption"
-                            color={isToday(todo.due_date) ? "error" : "textSecondary"}
-                          >
-                            {formatDate(todo.due_date)}
-                          </Typography>
-                        </Box>
-                      )
-                    }
-                    onClick={() => handleSelectTodo(todo)}
-                    onDoubleClick={() => handleOpenTodoInTab(todo)}
-                    sx={{ cursor: 'pointer' }}
-                  />
-                </ListItem>
-              ))}
+              <ListItem 
+                button 
+                selected={activeView === 'inbox'}
+                onClick={() => setActiveView('inbox')}
+                sx={{ 
+                  borderRadius: 1,
+                  mb: 1,
+                  bgcolor: activeView === 'inbox' ? (darkMode ? '#1f1a24' : '#FFFCF0') : 'transparent'
+                }}
+              >
+                <ListItemIcon>
+                  <InboxIcon color={activeView === 'inbox' ? 'primary' : 'inherit'} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Inbox" 
+                  sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
+                />
+              </ListItem>
+              
+              <ListItem 
+                button 
+                selected={activeView === 'today'}
+                onClick={() => setActiveView('today')}
+                sx={{ 
+                  borderRadius: 1,
+                  mb: 1,
+                  bgcolor: activeView === 'today' ? (darkMode ? '#1f1a24' : '#FFFCF0') : 'transparent'
+                }}
+              >
+                <ListItemIcon>
+                  <TodayIcon color={activeView === 'today' ? 'primary' : 'inherit'} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Today" 
+                  sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
+                />
+              </ListItem>
+              
+              <ListItem 
+                button 
+                selected={activeView === 'archive'}
+                onClick={() => setActiveView('archive')}
+                sx={{ 
+                  borderRadius: 1,
+                  mb: 1,
+                  bgcolor: activeView === 'archive' ? (darkMode ? '#1f1a24' : '#FFFCF0') : 'transparent'
+                }}
+              >
+                <ListItemIcon>
+                  <ArchiveIcon color={activeView === 'archive' ? 'primary' : 'inherit'} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Completed" 
+                  sx={{ '& .MuiTypography-root': { fontFamily: 'Rubik, sans-serif' } }}
+                />
+              </ListItem>
             </List>
-          )}
-        </Paper>
-      </Box>
+          </Box>
+        )}
 
-      {/* Right Panel - Todo Details */}
-      {selectedTodo && !editMode && (
+        {/* Main Content */}
         <Box sx={{ 
-          width: 300, 
-          borderLeft: 1, 
-          borderColor: 'divider', 
-          p: 2,
-          bgcolor: darkMode ? '#282433' : '#f5f5f5',
-          display: 'flex',
-          flexDirection: 'column'
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          p: compactMode && !isFullscreen ? 1 : 2,
+          overflow: 'hidden',
         }}>
-          <Typography variant="h6" sx={{ mb: 2, fontFamily: 'Rubik, sans-serif' }}>
-            Task Details
-          </Typography>
-          
+          {/* View tabs for compact mode */}
+          {compactMode && !isFullscreen && (
+            <Tabs 
+              value={activeView} 
+              onChange={(e, newValue) => setActiveView(newValue)}
+              variant="fullWidth"
+            >
+              <Tab value="inbox" icon={<InboxIcon />} label="Inbox" />
+              <Tab value="today" icon={<TodayIcon />} label="Today" />
+              <Tab value="archive" icon={<ArchiveIcon />} label="Done" />
+            </Tabs>
+          )}
+
+          {/* Title only shown in fullscreen or non-compact mode */}
+          {(!compactMode || isFullscreen) && (
+            <Typography variant="h6" sx={{ mb: 2, fontFamily: 'Rubik, sans-serif' }}>
+              {activeView === 'inbox' ? 'Inbox' : activeView === 'today' ? 'Today' : 'Completed'}
+            </Typography>
+          )}
+
+          {/* Add Todo Form */}
           <Paper 
             elevation={0} 
             sx={{ 
-              p: 2, 
-              mb: 2, 
-              bgcolor: darkMode ? '#1f1a24' : '#fff',
+              p: compactMode && !isFullscreen ? 1 : 2, 
+              mb: 1, 
+              bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
               borderRadius: 2
             }}
           >
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-              {selectedTodo.name}
-            </Typography>
-            
-            {selectedTodo.due_date && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
-                <CalendarIcon fontSize="small" color={isToday(selectedTodo.due_date) ? "error" : "action"} />
-                <Typography>
-                  Due: {formatDate(selectedTodo.due_date)}
-                </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label={editMode ? "Update Todo" : "Add New Todo"}
+                value={newTodoText}
+                onChange={(e) => setNewTodoText(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    editMode ? handleUpdateTodo() : handleAddTodo();
+                  }
+                }}
+                sx={{ 
+                  '& .MuiInputBase-root': { 
+                    fontFamily: 'Rubik, sans-serif' 
+                  } 
+                }}
+              />
+              
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  type="date"
+                  size="small"
+                  label="Due Date"
+                  value={newTodoDueDate}
+                  onChange={(e) => setNewTodoDueDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ 
+                    '& .MuiInputBase-root': { 
+                      fontFamily: 'Rubik, sans-serif' 
+                    },
+                    flex: 1
+                  }}
+                />
+                
+                {editMode ? (
+                  <>
+                    <Button 
+                      variant="contained" 
+                      color="primary" 
+                      onClick={handleUpdateTodo}
+                      startIcon={<CheckIcon />}
+                      size={compactMode && !isFullscreen ? "small" : "medium"}
+                    >
+                      {compactMode && !isFullscreen ? "Update" : "Update Todo"}
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      onClick={handleCancelEdit}
+                      size={compactMode && !isFullscreen ? "small" : "medium"}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={handleAddTodo}
+                    startIcon={<AddIcon />}
+                    size={compactMode && !isFullscreen ? "small" : "medium"}
+                  >
+                    {compactMode && !isFullscreen ? "Add" : "Add Todo"}
+                  </Button>
+                )}
               </Box>
-            )}
-            
-            <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-              <Button 
-                variant="outlined" 
-                startIcon={<EditIcon />}
-                onClick={() => handleEditTodo(selectedTodo)}
-                fullWidth
-              >
-                Edit
-              </Button>
-              <Button 
-                variant="outlined" 
-                color="primary"
-                onClick={() => handleOpenTodoInTab(selectedTodo)}
-                fullWidth
-              >
-                Open in Tab
-              </Button>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-              <Button 
-                variant="outlined" 
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={() => handleDeleteTodo(selectedTodo)}
-                fullWidth
-              >
-                Delete
-              </Button>
             </Box>
           </Paper>
-          
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Notes
-          </Typography>
-          
+
+          {/* Todo List */}
           <Paper 
             elevation={0} 
             sx={{ 
-              p: 2, 
-              flex: 1,
-              bgcolor: darkMode ? '#1f1a24' : '#fff',
-              borderRadius: 2,
-              overflow: 'auto'
+              flex: 1, 
+              overflow: 'auto',
+              bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
+              borderRadius: 2
             }}
           >
-            {selectedTodo.content ? (
-              <Typography>
-                {selectedTodo.content}
-              </Typography>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : todos.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <Typography color="textSecondary">
+                  No todos found in {activeView}
+                </Typography>
+              </Box>
             ) : (
-              <Typography color="textSecondary" variant="body2">
-                No notes for this task
-              </Typography>
+              <List>
+                {todos.map((todo) => (
+                  <ListItem
+                    key={todo.id}
+                    sx={{ 
+                      borderBottom: '1px solid',
+                      borderColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      '&:hover': {
+                        bgcolor: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'
+                      },
+                      py: compactMode && !isFullscreen ? 0.5 : 1
+                    }}
+                    secondaryAction={
+                      <Box>
+                        <Tooltip title="Edit">
+                          <IconButton 
+                            edge="end" 
+                            onClick={() => handleEditTodo(todo)}
+                            size="small"
+                            sx={{ mr: 1 }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton 
+                            edge="end" 
+                            onClick={() => handleDeleteTodo(todo)}
+                            size="small"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    }
+                  >
+                    <ListItemIcon>
+                      <Checkbox
+                        edge="start"
+                        checked={todo.status === 'CLOSED'}
+                        onChange={() => handleToggleTodoStatus(todo)}
+                        sx={{ 
+                          color: darkMode ? '#aaa' : '#666',
+                          '&.Mui-checked': {
+                            color: darkMode ? '#68d391' : '#4caf50',
+                          }
+                        }}
+                      />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Typography 
+                          sx={{ 
+                            textDecoration: todo.status === 'CLOSED' ? 'line-through' : 'none',
+                            color: todo.status === 'CLOSED' ? 'text.secondary' : 'text.primary',
+                            fontFamily: 'Rubik, sans-serif'
+                          }}
+                        >
+                          {todo.name}
+                        </Typography>
+                      }
+                      secondary={
+                        todo.due_date && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                            <CalendarIcon fontSize="small" color={isToday(todo.due_date) ? "error" : "action"} />
+                            <Typography 
+                              variant="caption"
+                              color={isToday(todo.due_date) ? "error" : "textSecondary"}
+                            >
+                              {formatDate(todo.due_date)}
+                            </Typography>
+                          </Box>
+                        )
+                      }
+                      onClick={() => handleSelectTodo(todo)}
+                      onDoubleClick={() => handleOpenTodoInTab(todo)}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
             )}
           </Paper>
         </Box>
-      )}
+
+        {/* Right Panel - Todo Details - only show in fullscreen mode */}
+        {selectedTodo && !editMode && isFullscreen && (
+          <Box sx={{ 
+            width: 300, 
+            borderLeft: 1, 
+            borderColor: 'divider', 
+            p: 2,
+            bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <Typography variant="h6" sx={{ mb: 2, fontFamily: 'Rubik, sans-serif' }}>
+              Task Details
+            </Typography>
+            
+            <Paper 
+              elevation={0} 
+              sx={{ 
+                p: 2, 
+                mb: 2, 
+                bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
+                borderRadius: 2
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                {selectedTodo.name}
+              </Typography>
+              
+              {selectedTodo.due_date && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
+                  <CalendarIcon fontSize="small" color={isToday(selectedTodo.due_date) ? "error" : "action"} />
+                  <Typography>
+                    Due: {formatDate(selectedTodo.due_date)}
+                  </Typography>
+                </Box>
+              )}
+              
+              <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<EditIcon />}
+                  onClick={() => handleEditTodo(selectedTodo)}
+                  fullWidth
+                >
+                  Edit
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  color="primary"
+                  onClick={() => handleOpenTodoInTab(selectedTodo)}
+                  fullWidth
+                >
+                  Open in Tab
+                </Button>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Button 
+                  variant="outlined" 
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => handleDeleteTodo(selectedTodo)}
+                  fullWidth
+                >
+                  Delete
+                </Button>
+              </Box>
+            </Paper>
+            
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Notes
+            </Typography>
+            
+            <Paper 
+              elevation={0} 
+              sx={{ 
+                p: 2, 
+                flex: 1,
+                bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
+                borderRadius: 2,
+                overflow: 'auto'
+              }}
+            >
+              {selectedTodo.content ? (
+                <Typography>
+                  {selectedTodo.content}
+                </Typography>
+              ) : (
+                <Typography color="textSecondary" variant="body2">
+                  No notes for this task
+                </Typography>
+              )}
+            </Paper>
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 };
