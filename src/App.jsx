@@ -718,6 +718,21 @@ function App() {
         const isBase64 = /^[A-Za-z0-9+/=]+$/.test(file.content.replace(/\s/g, ''));
         const decodedContent = isBase64 ? atob(file.content) : file.content;
         
+        // Determine editor type based on file extension
+        let type = 'markdown';
+        let editorType = 'codemirror';
+        
+        if (file.name.endsWith('.tldraw')) {
+          type = 'tldraw';
+          editorType = 'tldraw';
+        } else if (file.name.toLowerCase().endsWith('.todo')) {
+          type = 'todo';
+          editorType = 'todo';
+        } else if (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) {
+          type = 'markdown';
+          editorType = 'tiptap';
+        }
+        
         // Create a new tab with the decoded content
         const newTab = {
           id: Date.now(),
@@ -725,9 +740,8 @@ function App() {
           content: decodedContent,
           noteId: file.noteId,
           lastSynced: new Date().toISOString(),
-          type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
-          editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
-                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror'
+          type,
+          editorType
         };
         
         // Add the new tab and set it as active
@@ -966,10 +980,25 @@ function App() {
         />
       );
     } else if (tab.type === 'todo') {
+      // Use TodoManager for the main Todo list
+      if (tab.name === 'Todo') {
+        return (
+          <TodoManager 
+            tasks={todoData}
+            onTasksChange={setTodoData}
+          />
+        );
+      }
+      
+      // Use TodoTask for individual .todo files
       return (
-        <TodoManager 
-          tasks={todoData}
-          onTasksChange={setTodoData}
+        <TodoTask
+          ref={tipTapEditorRef}
+          key={tab.id}
+          id={tab.id}
+          content={tab.content}
+          onChange={(newContent) => handleContentChange(tab.id, newContent)}
+          darkMode={darkMode}
         />
       );
     }
