@@ -1004,6 +1004,143 @@ function App() {
     }
   };
 
+  const handleTabContentChange = (tabId, newContent, additionalData = {}) => {
+    setTabs(prevTabs => {
+      return prevTabs.map(tab => {
+        if (tab.id === tabId) {
+          // Update the tab with new content and any additional data
+          const updatedTab = { ...tab, content: newContent };
+          
+          // Handle additional data like completed status or due date
+          if (additionalData.completed !== undefined) {
+            updatedTab.completed = additionalData.completed;
+          }
+          
+          if (additionalData.dueDate !== undefined) {
+            updatedTab.dueDate = additionalData.dueDate;
+          }
+          
+          return updatedTab;
+        }
+        return tab;
+      });
+    });
+  };
+
+  const handleTabNameChange = (tabId, newName) => {
+    setTabs(prevTabs => {
+      return prevTabs.map(tab => {
+        if (tab.id === tabId) {
+          // Add .todo extension if not already present
+          let displayName = newName;
+          if (!displayName.toLowerCase().endsWith('.todo')) {
+            displayName = `${displayName}.todo`;
+          }
+          
+          // Update the tab name
+          return { ...tab, name: displayName };
+        }
+        return tab;
+      });
+    });
+    
+    // If this is a todo, also update it in the database
+    const tab = tabs.find(tab => tab.id === tabId);
+    if (tab && tab.noteId && tab.editorType === 'todo') {
+      DbSyncService.updateNote({
+        id: tab.noteId,
+        name: newName // Store the original name without extension in the database
+      });
+    }
+  };
+
+  const handleOpenTodo = async (todo) => {
+    // Check if this todo is already open in a tab
+    const existingTab = tabs.find(tab => tab.noteId === todo.id);
+    
+    if (existingTab) {
+      // If the tab is already open, switch to it
+      setActiveTab(existingTab.id);
+      setShowMsTodo(false); // Close the todo manager
+    } else {
+      try {
+        // Fetch the complete todo data from the proxy API
+        const fullTodo = await DbSyncService.getNoteById(todo.id);
+        
+        if (!fullTodo) {
+          console.error('Failed to fetch todo data');
+          return;
+        }
+        
+        // Create a new tab for this todo
+        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+        
+        // Decode content if needed
+        let content = '';
+        if (fullTodo.content) {
+          try {
+            content = decodeURIComponent(escape(atob(fullTodo.content)));
+          } catch (e) {
+            console.error('Error decoding todo content:', e);
+            content = fullTodo.content;
+          }
+        }
+        
+        // Add .todo extension to the name if not already present
+        let displayName = fullTodo.name || '';
+        if (!displayName.toLowerCase().endsWith('.todo')) {
+          displayName = `${displayName}.todo`;
+        }
+        
+        const newTab = {
+          id: newId,
+          name: displayName,
+          content: content,
+          noteId: fullTodo.id,
+          type: 'markdown',
+          editorType: 'todo',
+          completed: fullTodo.status === 'CLOSED',
+          dueDate: fullTodo.due_date || ''
+        };
+        
+        setTabs(prevTabs => [...prevTabs, newTab]);
+        setActiveTab(newId);
+        setShowMsTodo(false); // Close the todo manager
+      } catch (error) {
+        console.error('Error opening todo in tab:', error);
+      }
+    }
+  };
+
+  const commandList = createCommandList({
+    onNewTab: handleNewTab,
+    onOpenFile: handleOpenFile,
+    onSaveFile: handleSaveFile,
+    onWordWrapChange: setWordWrap,
+    onDarkModeChange: setDarkMode,
+    onShowPreviewChange: setShowPreview,
+    onNewDrawing: handleNewDrawing,
+    onFocusModeChange: () => {
+      setFocusMode(!focusMode);
+      setShowSidebar(focusMode);
+    },
+    onNewTLDraw: handleNewTLDraw,
+    onConvert: handleConvert,
+    onFormatJson: () => editorRef.current?.formatJson(),
+    wordWrap,
+    darkMode,
+    showPreview,
+    focusMode,
+    setShowGitHubSettings,
+    currentFile: activeTab ? tabs.find(tab => tab.id === activeTab) : null,
+    setShowApiSettings,
+    onTodoClick: handleTodoClick,
+    onQuickAddClick: handleQuickAddClick,
+    showChat,
+    onChatToggle: handleChatToggle,
+    onManualSync: handleManualSync
+  });
+
   const renderTab = (tab) => {
     // Check if tab is undefined or null
     if (!tab) {
@@ -1048,7 +1185,9 @@ function App() {
           content={tab.content}
           completed={tab.completed}
           dueDate={tab.dueDate}
-          onChange={(newContent, attributes) => handleContentChange(tab.id, newContent, attributes)}
+          name={tab.name ? tab.name.replace(/\.todo$/i, '') : ''} // Remove .todo extension for display
+          onChange={(newContent, attributes) => handleTabContentChange(tab.id, newContent, attributes)}
+          onNameChange={(newName) => handleTabNameChange(tab.id, newName)}
           darkMode={darkMode}
         />
       );
@@ -1083,6 +1222,7 @@ function App() {
           completed={tab.completed}
           dueDate={tab.dueDate}
           onChange={(newContent, attributes) => handleContentChange(tab.id, newContent, attributes)}
+          onNameChange={(newName) => handleTabNameChange(tab.id, newName)}
           darkMode={darkMode}
         />
       );
@@ -1103,87 +1243,6 @@ function App() {
         filename={tab.name}
       />
     );
-  };
-
-  const commandList = createCommandList({
-    onNewTab: handleNewTab,
-    onOpenFile: handleOpenFile,
-    onSaveFile: handleSaveFile,
-    onWordWrapChange: setWordWrap,
-    onDarkModeChange: setDarkMode,
-    onShowPreviewChange: setShowPreview,
-    onNewDrawing: handleNewDrawing,
-    onFocusModeChange: () => {
-      setFocusMode(!focusMode);
-      setShowSidebar(focusMode);
-    },
-    onNewTLDraw: handleNewTLDraw,
-    onConvert: handleConvert,
-    onFormatJson: () => editorRef.current?.formatJson(),
-    wordWrap,
-    darkMode,
-    showPreview,
-    focusMode,
-    setShowGitHubSettings,
-    currentFile: activeTab ? tabs.find(tab => tab.id === activeTab) : null,
-    setShowApiSettings,
-    onTodoClick: handleTodoClick,
-    onQuickAddClick: handleQuickAddClick,
-    showChat,
-    onChatToggle: handleChatToggle,
-    onManualSync: handleManualSync
-  });
-
-  const handleOpenTodo = async (todo) => {
-    // Check if this todo is already open in a tab
-    const existingTab = tabs.find(tab => tab.noteId === todo.id);
-    
-    if (existingTab) {
-      // If the tab is already open, switch to it
-      setActiveTab(existingTab.id);
-      setShowMsTodo(false); // Close the todo manager
-    } else {
-      try {
-        // Fetch the complete todo data from the proxy API
-        const fullTodo = await DbSyncService.getNoteById(todo.id);
-        
-        if (!fullTodo) {
-          console.error('Failed to fetch todo data');
-          return;
-        }
-        
-        // Create a new tab for this todo
-        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-        
-        // Decode content if needed
-        let content = '';
-        if (fullTodo.content) {
-          try {
-            content = decodeURIComponent(escape(atob(fullTodo.content)));
-          } catch (e) {
-            console.error('Error decoding todo content:', e);
-            content = fullTodo.content;
-          }
-        }
-        
-        const newTab = {
-          id: newId,
-          name: fullTodo.name,
-          content: content,
-          noteId: fullTodo.id,
-          type: 'markdown',
-          editorType: 'todo',
-          completed: fullTodo.status === 'CLOSED',
-          dueDate: fullTodo.due_date || ''
-        };
-        
-        setTabs(prevTabs => [...prevTabs, newTab]);
-        setActiveTab(newId);
-        setShowMsTodo(false); // Close the todo manager
-      } catch (error) {
-        console.error('Error opening todo in tab:', error);
-      }
-    }
   };
 
   return (

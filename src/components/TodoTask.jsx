@@ -1,11 +1,12 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
 import TipTapEditor from './TipTapEditor';
-import { Box, Typography, Checkbox, TextField, Paper } from '@mui/material';
+import { Box, Typography, Checkbox, TextField, Paper, InputBase } from '@mui/material';
 import { Today } from '@mui/icons-material';
 
-const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDate }, ref) => {
+const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDate, name, onNameChange }, ref) => {
   // Store editor content directly
   const [editorContent, setEditorContent] = useState(content || '');
+  const [taskName, setTaskName] = useState(name || '');
   const tipTapEditorRef = useRef(null);
   const isInitialMount = useRef(true);
   const isUpdatingFromProps = useRef(false);
@@ -16,12 +17,13 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
     if (previousIdRef.current !== id) {
       // This is a new task, reset the editor
       setEditorContent(content || '');
+      setTaskName(name || '');
       if (tipTapEditorRef.current) {
         tipTapEditorRef.current.clearContent();
       }
       previousIdRef.current = id;
     }
-  }, [id, content]);
+  }, [id, content, name]);
 
   // Debounce the onChange callback to prevent too many updates
   const debouncedOnChange = useCallback(() => {
@@ -47,6 +49,7 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
     try {
       isUpdatingFromProps.current = true;
       setEditorContent(content || '');
+      setTaskName(name || '');
       setTimeout(() => {
         isUpdatingFromProps.current = false;
       }, 0);
@@ -54,7 +57,7 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
       console.error('Error updating content:', e);
       isUpdatingFromProps.current = false;
     }
-  }, [content, id]);
+  }, [content, id, name]);
 
   // Call the debounced onChange when state changes
   useEffect(() => {
@@ -78,6 +81,16 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
     const newDueDate = e.target.value;
     // Call onChange with the new content and due date
     onChange(editorContent, { dueDate: newDueDate });
+  };
+
+  const handleNameChange = (e) => {
+    const newName = e.target.value;
+    setTaskName(newName);
+    
+    // Call onNameChange to update the tab name
+    if (onNameChange) {
+      onNameChange(newName);
+    }
   };
 
   const handleEditorChange = (content) => {
@@ -120,13 +133,43 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
           borderColor: darkMode ? '#333333' : '#e0e0e0'
         }}
       >
-        {/* Header row with checkbox and due date */}
+        {/* Header row with checkbox, task name, and due date */}
         <Box sx={{ 
           display: 'flex', 
           justifyContent: 'flex-end',
           alignItems: 'center', 
-          gap: 0.25
+          gap: 1
         }}>
+          
+          
+          {/* Task name input */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            maxWidth: '80%',
+            flex: 1
+          }}>
+            <InputBase
+              value={taskName}
+              onChange={handleNameChange}
+              placeholder="Task name"
+              sx={{
+                width: '100%',
+                fontSize: '16px',
+                fontWeight: 'medium',
+                textAlign: 'right',
+                paddingRight: '8px',
+                color: darkMode ? '#ddd' : '#333',
+                '&::placeholder': {
+                  color: darkMode ? '#777' : '#aaa',
+                  opacity: 0.7,
+                }
+              }}
+            />
+          </Box>
+          
+          {/* Status checkbox */}
           <Checkbox 
             checked={completed || false} 
             onChange={handleCompletedChange}
