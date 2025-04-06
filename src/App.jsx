@@ -420,6 +420,8 @@ function App() {
     let tabName = name;
     let tabType = 'markdown';
     let editorType = type;
+    let completed = false;
+    let dueDate = '';
     
     if (!name) {
       if (type === 'tiptap') {
@@ -428,14 +430,8 @@ function App() {
         tabName = `Code-${newId}.txt`;
       } else if (type === 'todo') {
         tabName = `Task-${newId}.todo`;
-        // Initialize empty todo with default structure
-        content = JSON.stringify({
-          title: '',
-          completed: false,
-          dueDate: '',
-          priority: 'normal',
-          description: ''
-        });
+        // Initialize with empty content
+        content = '';
       }
     }
     
@@ -444,7 +440,9 @@ function App() {
       name: tabName,
       content: content,
       type: tabType,
-      editorType: editorType
+      editorType: editorType,
+      completed: completed,
+      dueDate: dueDate
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
     // Use requestAnimationFrame for smoother focus handling

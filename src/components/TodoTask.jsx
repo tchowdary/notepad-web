@@ -9,9 +9,19 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
   const tipTapEditorRef = useRef(null);
   const isInitialMount = useRef(true);
   const isUpdatingFromProps = useRef(false);
-  const previousContentRef = useRef(content);
-  const previousCompletedRef = useRef(completed);
-  const previousDueDateRef = useRef(dueDate);
+  const previousIdRef = useRef(id);
+
+  // Reset state when id changes (new task)
+  useEffect(() => {
+    if (previousIdRef.current !== id) {
+      // This is a new task, reset the editor
+      setEditorContent(content || '');
+      if (tipTapEditorRef.current) {
+        tipTapEditorRef.current.clearContent();
+      }
+      previousIdRef.current = id;
+    }
+  }, [id, content]);
 
   // Debounce the onChange callback to prevent too many updates
   const debouncedOnChange = useCallback(() => {
@@ -29,30 +39,22 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
       return;
     }
     
-    // Skip if content hasn't changed
-    if (content === previousContentRef.current && 
-        completed === previousCompletedRef.current && 
-        dueDate === previousDueDateRef.current) {
+    if (previousIdRef.current !== id) {
+      // Already handled in the id change effect
       return;
     }
     
-    previousContentRef.current = content;
-    previousCompletedRef.current = completed;
-    previousDueDateRef.current = dueDate;
-    
-    if (content !== previousContentRef.current) {
-      try {
-        isUpdatingFromProps.current = true;
-        setEditorContent(content || '');
-        setTimeout(() => {
-          isUpdatingFromProps.current = false;
-        }, 0);
-      } catch (e) {
-        console.error('Error updating content:', e);
+    try {
+      isUpdatingFromProps.current = true;
+      setEditorContent(content || '');
+      setTimeout(() => {
         isUpdatingFromProps.current = false;
-      }
+      }, 0);
+    } catch (e) {
+      console.error('Error updating content:', e);
+      isUpdatingFromProps.current = false;
     }
-  }, [content, completed, dueDate]);
+  }, [content, id]);
 
   // Call the debounced onChange when state changes
   useEffect(() => {
@@ -95,7 +97,9 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
     },
     clearContent: () => {
       setEditorContent('');
-      tipTapEditorRef.current?.clearContent();
+      if (tipTapEditorRef.current) {
+        tipTapEditorRef.current.clearContent();
+      }
     }
   }));
 
@@ -124,7 +128,7 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
           gap: 0.25
         }}>
           <Checkbox 
-            checked={completed} 
+            checked={completed || false} 
             onChange={handleCompletedChange}
             size="small"
             sx={{ 
@@ -176,6 +180,7 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
           content={editorContent}
           onChange={handleEditorChange}
           darkMode={darkMode}
+          key={`editor-${id}`} // Add key to force re-render when id changes
         />
       </Box>
     </Box>
