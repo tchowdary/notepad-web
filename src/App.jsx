@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Box, IconButton } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import Editor from './components/Editor';
 import TabList from './components/TabList';
 import Toolbar from './components/Toolbar';
@@ -9,6 +10,7 @@ import ExcalidrawEditor from './components/ExcalidrawEditor';
 import TLDrawEditor from './components/TLDrawEditor';
 import GitHubSettingsModal from './components/GitHubSettingsModal';
 import TodoManager from './components/TodoManager';
+import TodoManagerNew from './components/TodoManagerNew';
 import QuickAddTask from './components/QuickAddTask';
 import CommandPalette from './components/CommandPalette';
 import GitHubService from './services/githubService';
@@ -57,6 +59,7 @@ function App() {
   const [showApiSettings, setShowApiSettings] = useState(false);
   const [showQuickChat, setShowQuickChat] = useState(false);
   const [quickChatInput, setQuickChatInput] = useState('');
+  const [showMsTodo, setShowMsTodo] = useState(false);
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
@@ -1101,6 +1104,42 @@ function App() {
     onManualSync: handleManualSync
   });
 
+  const handleMsTodoClick = () => {
+    setShowMsTodo(!showMsTodo);
+  };
+
+  const handleOpenTodo = (todo) => {
+    // Check if this todo is already open in a tab
+    const existingTab = tabs.find(tab => tab.noteId === todo.id);
+    
+    if (existingTab) {
+      // If the tab is already open, switch to it
+      setActiveTab(existingTab.id);
+      setShowMsTodo(false); // Close the todo manager
+    } else {
+      // Create a new tab for this todo
+      const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+      
+      // Decode content if needed
+      let content = todo.content || '';
+      
+      const newTab = {
+        id: newId,
+        name: todo.name,
+        content: content,
+        noteId: todo.id,
+        type: 'markdown',
+        editorType: 'todo',
+        completed: todo.status === 'CLOSED',
+        dueDate: todo.due_date || ''
+      };
+      
+      setTabs(prevTabs => [...prevTabs, newTab]);
+      setActiveTab(newId);
+      setShowMsTodo(false); // Close the todo manager
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -1159,6 +1198,7 @@ function App() {
                     isSyncing={isSyncing}
                     syncStatus={syncStatus}
                     onCommandPaletteOpen={() => setShowCommandPalette(true)}
+                    onMsTodoClick={handleMsTodoClick}
                   />
                 </Box>
 
@@ -1198,6 +1238,7 @@ function App() {
                   onCopy={handleCopyContent}
                   onClear={handleClearContent}
                   onCommandPaletteOpen={() => setShowCommandPalette(true)}
+                  onMsTodoClick={handleMsTodoClick}
                 />
                 <Box sx={{ 
                   display: 'flex', 
@@ -1343,6 +1384,39 @@ function App() {
         activeTab={activeTab}
         onTabSelect={handleTabSelect}
       />
+      {showMsTodo && (
+        <Box sx={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          bgcolor: 'background.default',
+          zIndex: 1300,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            p: 1, 
+            borderBottom: 1, 
+            borderColor: 'divider' 
+          }}>
+            <IconButton onClick={handleMsTodoClick}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ flex: 1, overflow: 'auto' }}>
+            <TodoManagerNew 
+              darkMode={darkMode} 
+              onOpenTodo={handleOpenTodo}
+              tabs={tabs}
+              activeTab={activeTab}
+            />
+          </Box>
+        </Box>
+      )}
     </ThemeProvider>
   );
 }

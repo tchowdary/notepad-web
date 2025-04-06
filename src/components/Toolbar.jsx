@@ -67,6 +67,7 @@ const Toolbar = ({
   activeTab,
   setActiveTab,
   onCommandPaletteOpen,
+  onMsTodoClick,
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
@@ -186,6 +187,12 @@ const Toolbar = ({
 
         <Tooltip title="Todo Manager">
           <IconButton onClick={onTodoClick} size="small">
+            <TodoIcon />
+          </IconButton>
+        </Tooltip>
+        
+        <Tooltip title="Microsoft Todo">
+          <IconButton onClick={onMsTodoClick} size="small">
             <TodoManagerIcon />
           </IconButton>
         </Tooltip>
