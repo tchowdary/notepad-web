@@ -518,13 +518,16 @@ function App() {
     ));
   };
 
-  const handleContentChange = (id, newContent) => {
+  const handleContentChange = (id, newContent, attributes = {}) => {
     setTabs(prevTabs => {
       const updatedTabs = prevTabs.map(tab =>
         tab.id === id ? { 
           ...tab, 
           content: newContent,
-          lastModified: new Date().toISOString() // Add timestamp for sync tracking
+          lastModified: new Date().toISOString(), // Add timestamp for sync tracking
+          // Add any additional attributes passed (like completed and dueDate)
+          ...(attributes.completed !== undefined ? { completed: attributes.completed } : {}),
+          ...(attributes.dueDate !== undefined ? { dueDate: attributes.dueDate } : {})
         } : tab
       );
       return updatedTabs;
@@ -993,11 +996,12 @@ function App() {
       // Use TodoTask for individual .todo files
       return (
         <TodoTask
-          ref={tipTapEditorRef}
-          key={tab.id}
+          ref={editorRef}
           id={tab.id}
           content={tab.content}
-          onChange={(newContent) => handleContentChange(tab.id, newContent)}
+          completed={tab.completed}
+          dueDate={tab.dueDate}
+          onChange={(newContent, attributes) => handleContentChange(tab.id, newContent, attributes)}
           darkMode={darkMode}
         />
       );
@@ -1026,11 +1030,12 @@ function App() {
     if (tab.editorType === 'todo') {
       return (
         <TodoTask
-          ref={tipTapEditorRef}
-          key={tab.id}
+          ref={editorRef}
           id={tab.id}
           content={tab.content}
-          onChange={(newContent) => handleContentChange(tab.id, newContent)}
+          completed={tab.completed}
+          dueDate={tab.dueDate}
+          onChange={(newContent, attributes) => handleContentChange(tab.id, newContent, attributes)}
           darkMode={darkMode}
         />
       );

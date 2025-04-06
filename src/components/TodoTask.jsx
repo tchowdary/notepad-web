@@ -1,32 +1,17 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
 import TipTapEditor from './TipTapEditor';
-import { Box, Typography, Checkbox, TextField, IconButton, Paper } from '@mui/material';
-import { Done, Flag, Today, Delete } from '@mui/icons-material';
+import { Box, Typography, Checkbox, TextField, Paper } from '@mui/material';
+import { Today } from '@mui/icons-material';
 
-const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
-  // Parse content only once during initialization
-  const initialData = React.useMemo(() => {
-    try {
-      return content ? JSON.parse(content) : {};
-    } catch (e) {
-      console.error('Error parsing initial todo content:', e);
-      return {};
-    }
-  }, [content]);
-
-  const [todoData, setTodoData] = useState({
-    title: '',
-    completed: false,
-    dueDate: '',
-    priority: 'normal',
-    ...initialData
-  });
-  
-  const [editorContent, setEditorContent] = useState(initialData.description || '');
+const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDate }, ref) => {
+  // Store editor content directly
+  const [editorContent, setEditorContent] = useState(content || '');
   const tipTapEditorRef = useRef(null);
   const isInitialMount = useRef(true);
   const isUpdatingFromProps = useRef(false);
   const previousContentRef = useRef(content);
+  const previousCompletedRef = useRef(completed);
+  const previousDueDateRef = useRef(dueDate);
 
   // Debounce the onChange callback to prevent too many updates
   const debouncedOnChange = useCallback(() => {
@@ -34,13 +19,8 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
       return;
     }
     
-    const newContent = JSON.stringify({
-      ...todoData,
-      description: editorContent
-    });
-    
-    onChange(newContent);
-  }, [todoData, editorContent, onChange]);
+    onChange(editorContent);
+  }, [editorContent, onChange]);
 
   // Only update from props when content changes externally
   useEffect(() => {
@@ -50,30 +30,29 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
     }
     
     // Skip if content hasn't changed
-    if (content === previousContentRef.current) {
+    if (content === previousContentRef.current && 
+        completed === previousCompletedRef.current && 
+        dueDate === previousDueDateRef.current) {
       return;
     }
     
     previousContentRef.current = content;
+    previousCompletedRef.current = completed;
+    previousDueDateRef.current = dueDate;
     
-    if (content) {
+    if (content !== previousContentRef.current) {
       try {
         isUpdatingFromProps.current = true;
-        const parsedContent = JSON.parse(content);
-        setTodoData(prev => ({
-          ...prev,
-          ...parsedContent
-        }));
-        setEditorContent(parsedContent.description || '');
+        setEditorContent(content || '');
         setTimeout(() => {
           isUpdatingFromProps.current = false;
         }, 0);
       } catch (e) {
-        console.error('Error parsing todo content:', e);
+        console.error('Error updating content:', e);
         isUpdatingFromProps.current = false;
       }
     }
-  }, [content]);
+  }, [content, completed, dueDate]);
 
   // Call the debounced onChange when state changes
   useEffect(() => {
@@ -86,31 +65,17 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
     }, 300); // Debounce for 300ms
     
     return () => clearTimeout(timeoutId);
-  }, [todoData, editorContent, debouncedOnChange]);
+  }, [editorContent, debouncedOnChange]);
 
   const handleCompletedChange = () => {
-    setTodoData(prev => ({
-      ...prev,
-      completed: !prev.completed
-    }));
+    // Pass the completed status as a separate attribute to onChange
+    onChange(editorContent, { completed: !completed });
   };
 
   const handleDueDateChange = (e) => {
-    setTodoData(prev => ({
-      ...prev,
-      dueDate: e.target.value
-    }));
-  };
-
-  const handlePriorityChange = () => {
-    const priorities = ['low', 'normal', 'high'];
-    const currentIndex = priorities.indexOf(todoData.priority);
-    const nextIndex = (currentIndex + 1) % priorities.length;
-    
-    setTodoData(prev => ({
-      ...prev,
-      priority: priorities[nextIndex]
-    }));
+    const newDueDate = e.target.value;
+    // Call onChange with the new content and due date
+    onChange(editorContent, { dueDate: newDueDate });
   };
 
   const handleEditorChange = (content) => {
@@ -120,10 +85,7 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     getContent: () => {
-      return JSON.stringify({
-        ...todoData,
-        description: editorContent
-      });
+      return editorContent;
     },
     getMarkdown: () => {
       return tipTapEditorRef.current?.getMarkdown() || '';
@@ -132,24 +94,10 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
       return tipTapEditorRef.current?.getText() || '';
     },
     clearContent: () => {
-      setTodoData({
-        title: '',
-        completed: false,
-        dueDate: '',
-        priority: 'normal'
-      });
       setEditorContent('');
       tipTapEditorRef.current?.clearContent();
     }
   }));
-
-  const getPriorityColor = () => {
-    switch(todoData.priority) {
-      case 'high': return darkMode ? '#ff6b6b' : '#d32f2f';
-      case 'low': return darkMode ? '#63b3ed' : '#2196f3';
-      default: return darkMode ? '#68d391' : '#4caf50';
-    }
-  };
 
   return (
     <Box sx={{ 
@@ -176,7 +124,7 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
           gap: 0.25
         }}>
           <Checkbox 
-            checked={todoData.completed} 
+            checked={completed} 
             onChange={handleCompletedChange}
             size="small"
             sx={{ 
@@ -185,14 +133,14 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
               height: '20px',  
               color: darkMode ? '#aaa' : '#666',
               '&.Mui-checked': {
-                color: getPriorityColor(),
+                color: darkMode ? '#68d391' : '#4caf50',
               }
             }}
           />
           <TextField
             type="date"
             size="small"
-            value={todoData.dueDate}
+            value={dueDate || ''}
             onChange={handleDueDateChange}
             InputProps={{
               startAdornment: (
@@ -202,23 +150,21 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
                   color: darkMode ? '#aaa' : '#666' 
                 }} />
               ),
-              sx: { 
-                height: '20px',  
-                minWidth: 'auto'  
-              }
             }}
-            sx={{ 
-              '& .MuiInputBase-input': {
-                color: darkMode ? '#fff' : '#333',
-                fontSize: '0.65rem',  
-                py: 0,  
-                px: 0.25,  
-                height: '20px',  
-                lineHeight: '20px'  
+            sx={{
+              '& .MuiInputBase-root': {
+                height: '24px',
+                fontSize: '12px',
+                padding: '1px 5px',
+                color: darkMode ? '#ddd' : '#333',
               },
               '& .MuiOutlinedInput-notchedOutline': {
-                border: 'none'
-              }
+                borderColor: darkMode ? '#444' : '#ddd',
+              },
+              '& .MuiInputBase-input': {
+                padding: '0px 5px',
+              },
+              width: '140px'
             }}
           />
         </Box>

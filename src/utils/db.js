@@ -76,22 +76,10 @@ export const saveTabs = async (tabs) => {
         const noteId = tab.noteId || (existingTab ? existingTab.noteId : undefined);
         const lastSynced = tab.lastSynced || (existingTab ? existingTab.lastSynced : undefined);
         
-        // For todo type tabs, extract completed and dueDate from content
-        let completed = undefined;
-        let dueDate = undefined;
-        
-        if (tab.editorType === 'todo' && tab.content) {
-          try {
-            const todoData = JSON.parse(tab.content);
-            completed = todoData.completed;
-            dueDate = todoData.dueDate;
-            // Remove completed and dueDate from content as they're now stored separately
-            const { completed: _, dueDate: __, ...restContent } = todoData;
-            tab.content = JSON.stringify(restContent);
-          } catch (e) {
-            console.error('Error parsing todo content:', e);
-          }
-        }
+        // For todo type tabs, use the completed and dueDate attributes directly
+        // They are now passed as separate attributes
+        const completed = tab.completed !== undefined ? tab.completed : undefined;
+        const dueDate = tab.dueDate !== undefined ? tab.dueDate : undefined;
         
         return store.add({
           ...tab,
@@ -124,25 +112,8 @@ export const loadTabs = async () => {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => {
       const tabs = request.result;
-      const processedTabs = tabs.map(tab => {
-        // For todo type tabs, merge completed and dueDate back into content
-        if (tab.editorType === 'todo' && tab.content) {
-          try {
-            const todoData = JSON.parse(tab.content);
-            const mergedContent = JSON.stringify({
-              ...todoData,
-              completed: tab.completed,
-              dueDate: tab.dueDate
-            });
-            return { ...tab, content: mergedContent };
-          } catch (e) {
-            console.error('Error parsing todo content:', e);
-            return tab;
-          }
-        }
-        return tab;
-      });
-      resolve(processedTabs.length > 0 ? processedTabs : [{ id: 1, name: 'untitled.md', content: '', type: 'markdown' }]);
+      // Return tabs as is - completed and dueDate are now separate attributes
+      resolve(tabs.length > 0 ? tabs : [{ id: 1, name: 'untitled.md', content: '', type: 'markdown' }]);
     };
     request.onerror = () => reject(request.error);
   });
