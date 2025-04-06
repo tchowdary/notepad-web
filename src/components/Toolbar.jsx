@@ -350,11 +350,11 @@ const Toolbar = ({
           </IconButton>
         </Tooltip> */}
 
-        <Tooltip title="Weekly Notes">
+        {/* <Tooltip title="Weekly Notes">
           <IconButton onClick={handleWeeklyNotes} size="small">
             <WeeklyNotesIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
           <IconButton onClick={handleGitHubSync} size="small">

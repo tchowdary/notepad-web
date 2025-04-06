@@ -1134,7 +1134,7 @@ function App() {
     onManualSync: handleManualSync
   });
 
-  const handleOpenTodo = (todo) => {
+  const handleOpenTodo = async (todo) => {
     // Check if this todo is already open in a tab
     const existingTab = tabs.find(tab => tab.noteId === todo.id);
     
@@ -1143,26 +1143,46 @@ function App() {
       setActiveTab(existingTab.id);
       setShowMsTodo(false); // Close the todo manager
     } else {
-      // Create a new tab for this todo
-      const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-      
-      // Decode content if needed
-      let content = todo.content || '';
-      
-      const newTab = {
-        id: newId,
-        name: todo.name,
-        content: content,
-        noteId: todo.id,
-        type: 'markdown',
-        editorType: 'todo',
-        completed: todo.status === 'CLOSED',
-        dueDate: todo.due_date || ''
-      };
-      
-      setTabs(prevTabs => [...prevTabs, newTab]);
-      setActiveTab(newId);
-      setShowMsTodo(false); // Close the todo manager
+      try {
+        // Fetch the complete todo data from the proxy API
+        const fullTodo = await DbSyncService.getNoteById(todo.id);
+        
+        if (!fullTodo) {
+          console.error('Failed to fetch todo data');
+          return;
+        }
+        
+        // Create a new tab for this todo
+        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+        
+        // Decode content if needed
+        let content = '';
+        if (fullTodo.content) {
+          try {
+            content = decodeURIComponent(escape(atob(fullTodo.content)));
+          } catch (e) {
+            console.error('Error decoding todo content:', e);
+            content = fullTodo.content;
+          }
+        }
+        
+        const newTab = {
+          id: newId,
+          name: fullTodo.name,
+          content: content,
+          noteId: fullTodo.id,
+          type: 'markdown',
+          editorType: 'todo',
+          completed: fullTodo.status === 'CLOSED',
+          dueDate: fullTodo.due_date || ''
+        };
+        
+        setTabs(prevTabs => [...prevTabs, newTab]);
+        setActiveTab(newId);
+        setShowMsTodo(false); // Close the todo manager
+      } catch (error) {
+        console.error('Error opening todo in tab:', error);
+      }
     }
   };
 
