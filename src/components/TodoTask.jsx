@@ -128,7 +128,7 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id, completed, dueDa
         sx={{ 
           p: 1, 
           mb: 1, 
-          bgcolor: darkMode ? '#282433' : '#FFFCF0',
+          bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
           borderBottom: '1px solid',
           borderColor: darkMode ? '#333333' : '#e0e0e0'
         }}

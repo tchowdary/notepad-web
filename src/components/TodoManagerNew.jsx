@@ -300,7 +300,9 @@ const TodoManagerNew = ({ darkMode, onOpenTodo, tabs, activeTab, onFullscreenCha
       display: 'flex', 
       flexDirection: 'column',
       height: '100%', 
-      bgcolor: darkMode ? '#1f1a24' : '#FFFCF0'
+      bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
+      border: '1px solid',
+      borderColor: darkMode ? '#333333' : '#e0e0e0'
     }}>
       {/* Header with controls */}
       <Box sx={{ 
