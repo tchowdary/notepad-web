@@ -169,13 +169,21 @@ const TodoManagerNew = ({ darkMode, onOpenTodo, tabs, activeTab, onFullscreenCha
     try {
       setLoading(true);
       
+      // Fetch the complete todo data to preserve content
+      const fullTodo = await DbSyncService.getNoteById(todo.id);
+      
+      if (!fullTodo) {
+        console.error('Failed to fetch todo data');
+        return;
+      }
+      
       // Toggle the status
       const newStatus = todo.status === 'OPEN' ? 'CLOSED' : 'OPEN';
       
       await DbSyncService.updateNote(
         todo.id,
         todo.name,
-        todo.content || '',
+        fullTodo.content || '',  // Use the fetched content instead of todo.content
         'todo',
         todo.due_date,
         newStatus === 'CLOSED'
