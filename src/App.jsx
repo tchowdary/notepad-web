@@ -734,7 +734,21 @@ function App() {
           editorType = 'tiptap';
         }
         
-        // Create a new tab with the decoded content
+        // Extract due date and completed status from API response
+        let dueDate = '';
+        let completed = false;
+        
+        // Map API status field to completed boolean
+        if (file.status === 'CLOSED') {
+          completed = true;
+        }
+        
+        // Map API due_date field to dueDate
+        if (file.due_date) {
+          dueDate = file.due_date;
+        }
+        
+        // Create a new tab with the decoded content and extracted fields
         const newTab = {
           id: Date.now(),
           name: file.name,
@@ -742,7 +756,9 @@ function App() {
           noteId: file.noteId,
           lastSynced: new Date().toISOString(),
           type,
-          editorType
+          editorType,
+          completed,
+          dueDate
         };
         
         // Add the new tab and set it as active
