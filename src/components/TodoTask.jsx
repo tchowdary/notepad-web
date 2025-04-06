@@ -89,21 +89,17 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
   }, [todoData, editorContent, debouncedOnChange]);
 
   const handleCompletedChange = () => {
-    const newData = {
-      ...todoData,
-      completed: !todoData.completed
-    };
-    setTodoData(newData);
-    onChange(newData);
+    setTodoData(prev => ({
+      ...prev,
+      completed: !prev.completed
+    }));
   };
 
   const handleDueDateChange = (e) => {
-    const newData = {
-      ...todoData,
+    setTodoData(prev => ({
+      ...prev,
       dueDate: e.target.value
-    };
-    setTodoData(newData);
-    onChange(newData);
+    }));
   };
 
   const handlePriorityChange = () => {
@@ -111,20 +107,14 @@ const TodoTask = forwardRef(({ content, onChange, darkMode, id }, ref) => {
     const currentIndex = priorities.indexOf(todoData.priority);
     const nextIndex = (currentIndex + 1) % priorities.length;
     
-    const newData = {
-      ...todoData,
+    setTodoData(prev => ({
+      ...prev,
       priority: priorities[nextIndex]
-    };
-    setTodoData(newData);
-    onChange(newData);
+    }));
   };
 
   const handleEditorChange = (content) => {
     setEditorContent(content);
-    onChange({
-      ...todoData,
-      description: content
-    });
   };
 
   // Expose methods to parent component

@@ -520,32 +520,13 @@ function App() {
 
   const handleContentChange = (id, newContent) => {
     setTabs(prevTabs => {
-      const updatedTabs = prevTabs.map(tab => {
-        if (tab.id === id) {
-          // For todo files, parse the content to preserve todo-specific fields
-          if (tab.type === 'todo' && typeof newContent === 'object') {
-            return {
-              ...tab,
-              content: JSON.stringify({
-                text: newContent.text,
-                completed: newContent.completed,
-                dueDate: newContent.dueDate,
-                priority: newContent.priority || 'normal',
-                description: newContent.description || ''
-              }),
-              lastModified: new Date().toISOString()
-            };
-          }
-          
-          // For other files, update content as is
-          return { 
-            ...tab, 
-            content: newContent,
-            lastModified: new Date().toISOString()
-          };
-        }
-        return tab;
-      });
+      const updatedTabs = prevTabs.map(tab =>
+        tab.id === id ? { 
+          ...tab, 
+          content: newContent,
+          lastModified: new Date().toISOString() // Add timestamp for sync tracking
+        } : tab
+      );
       return updatedTabs;
     });
   };
