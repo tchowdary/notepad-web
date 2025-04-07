@@ -102,6 +102,7 @@ const TabList = ({ tabs, activeTab, onTabClose, onTabSelect, onTabRename, onTabA
       >
         <MenuItem onClick={() => handleNewTab('tiptap')}>New Doc</MenuItem>
         <MenuItem onClick={() => handleNewTab('codemirror')}>New Code</MenuItem>
+        <MenuItem onClick={() => handleNewTab('todo')}>New Task</MenuItem>
       </Menu>
     </Box>
   );

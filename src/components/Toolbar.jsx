@@ -67,6 +67,7 @@ const Toolbar = ({
   activeTab,
   setActiveTab,
   onCommandPaletteOpen,
+  onMsTodoClick,
 }) => {
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
@@ -184,8 +185,14 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Todo Manager">
+        {/* <Tooltip title="Todo Manager">
           <IconButton onClick={onTodoClick} size="small">
+            <TodoIcon />
+          </IconButton>
+        </Tooltip> */}
+        
+        <Tooltip title="Todo">
+          <IconButton onClick={onMsTodoClick} size="small">
             <TodoManagerIcon />
           </IconButton>
         </Tooltip>
@@ -343,11 +350,11 @@ const Toolbar = ({
           </IconButton>
         </Tooltip> */}
 
-        <Tooltip title="Weekly Notes">
+        {/* <Tooltip title="Weekly Notes">
           <IconButton onClick={handleWeeklyNotes} size="small">
             <WeeklyNotesIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
           <IconButton onClick={handleGitHubSync} size="small">

@@ -107,7 +107,9 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
         const tabData = {
           name: note.name,
           content: note.content,
-          noteId: note.id
+          noteId: note.id,
+          due_date: note.due_date,
+          status: note.status
         };
         
         onFileSelect(tabData);
@@ -123,7 +125,9 @@ const CommandPalette = ({ isOpen, onClose, onFileSelect, darkMode }) => {
         const tabData = {
           name: note.name,
           content: fullNote.content || '',
-          noteId: note.id
+          noteId: note.id,
+          due_date: fullNote.due_date,
+          status: fullNote.status
         };
         
         // Pass the tab data to the parent component

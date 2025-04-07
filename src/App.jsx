@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Box, IconButton } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import Editor from './components/Editor';
 import TabList from './components/TabList';
 import Toolbar from './components/Toolbar';
@@ -9,6 +10,7 @@ import ExcalidrawEditor from './components/ExcalidrawEditor';
 import TLDrawEditor from './components/TLDrawEditor';
 import GitHubSettingsModal from './components/GitHubSettingsModal';
 import TodoManager from './components/TodoManager';
+import TodoManagerNew from './components/TodoManagerNew';
 import QuickAddTask from './components/QuickAddTask';
 import CommandPalette from './components/CommandPalette';
 import GitHubService from './services/githubService';
@@ -17,6 +19,7 @@ import ChatBox from './components/ChatBox';
 import ApiKeyInput from './components/ApiKeyInput';
 import ResponsiveToolbar from './components/ResponsiveToolbar';
 import TipTapEditor from './components/TipTapEditor'; // Import TipTapEditor
+import TodoTask from './components/TodoTask'; // Import TodoTask component
 import QuickChat from './components/QuickChat';
 import TabSwitcher from './components/TabSwitcher';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData, updateTabNoteIds } from './utils/db';
@@ -56,6 +59,8 @@ function App() {
   const [showApiSettings, setShowApiSettings] = useState(false);
   const [showQuickChat, setShowQuickChat] = useState(false);
   const [quickChatInput, setQuickChatInput] = useState('');
+  const [showMsTodo, setShowMsTodo] = useState(false);
+  const [isMsTodoFullscreen, setIsMsTodoFullscreen] = useState(false);
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
@@ -345,6 +350,13 @@ function App() {
         } else if (showChat) {
           handleChatToggle();
         }
+        if (isMsTodoFullscreen) {
+          setIsMsTodoFullscreen(false);
+          setShowMsTodo(false);
+          setShowSidebar(true);
+        } else if (showMsTodo) {
+          handleMsTodoClick();
+        }
         return;
       }
       
@@ -352,6 +364,13 @@ function App() {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
         handleChatFullscreen();
+        return;
+      }
+
+      // Open Todo Manager in fullscreen with Ctrl/Cmd + Shift + T
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        handleMsTodoFullscreen();
         return;
       }
 
@@ -371,7 +390,7 @@ function App() {
     // Use capture phase to handle the event before React's event system
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [focusMode, showChat, isChatFullscreen]);
+  }, [focusMode, showChat, isChatFullscreen, showMsTodo, isMsTodoFullscreen]);
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -416,12 +435,32 @@ function App() {
 
   const handleNewTab = ({ type = 'codemirror', name = '', content = '' } = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+    let tabName = name;
+    let tabType = 'markdown';
+    let editorType = type;
+    let completed = false;
+    let dueDate = '';
+    
+    if (!name) {
+      if (type === 'tiptap') {
+        tabName = `Note-${newId}.md`;
+      } else if (type === 'codemirror') {
+        tabName = `Code-${newId}.txt`;
+      } else if (type === 'todo') {
+        tabName = `Task-${newId}.todo`;
+        // Initialize with empty content
+        content = '';
+      }
+    }
+    
     const newTab = {
       id: newId,
-      name: name || (type === 'tiptap' ? `Note-${newId}.md` : `Code-${newId}.txt`),
+      name: tabName,
       content: content,
-      type: 'markdown',
-      editorType: type
+      type: tabType,
+      editorType: editorType,
+      completed: completed,
+      dueDate: dueDate
     };
     setTabs(prevTabs => [...prevTabs, newTab]);
     // Use requestAnimationFrame for smoother focus handling
@@ -495,13 +534,16 @@ function App() {
     ));
   };
 
-  const handleContentChange = (id, newContent) => {
+  const handleContentChange = (id, newContent, attributes = {}) => {
     setTabs(prevTabs => {
       const updatedTabs = prevTabs.map(tab =>
         tab.id === id ? { 
           ...tab, 
           content: newContent,
-          lastModified: new Date().toISOString() // Add timestamp for sync tracking
+          lastModified: new Date().toISOString(), // Add timestamp for sync tracking
+          // Add any additional attributes passed (like completed and dueDate)
+          ...(attributes.completed !== undefined ? { completed: attributes.completed } : {}),
+          ...(attributes.dueDate !== undefined ? { dueDate: attributes.dueDate } : {})
         } : tab
       );
       return updatedTabs;
@@ -695,16 +737,46 @@ function App() {
         const isBase64 = /^[A-Za-z0-9+/=]+$/.test(file.content.replace(/\s/g, ''));
         const decodedContent = isBase64 ? atob(file.content) : file.content;
         
-        // Create a new tab with the decoded content
+        // Determine editor type based on file extension
+        let type = 'markdown';
+        let editorType = 'codemirror';
+        
+        if (file.name.endsWith('.tldraw')) {
+          type = 'tldraw';
+          editorType = 'tldraw';
+        } else if (file.name.toLowerCase().endsWith('.todo')) {
+          type = 'todo';
+          editorType = 'todo';
+        } else if (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) {
+          type = 'markdown';
+          editorType = 'tiptap';
+        }
+        
+        // Extract due date and completed status from API response
+        let dueDate = '';
+        let completed = false;
+        
+        // Map API status field to completed boolean
+        if (file.status === 'CLOSED') {
+          completed = true;
+        }
+        
+        // Map API due_date field to dueDate
+        if (file.due_date) {
+          dueDate = file.due_date;
+        }
+        
+        // Create a new tab with the decoded content and extracted fields
         const newTab = {
           id: Date.now(),
           name: file.name,
           content: decodedContent,
           noteId: file.noteId,
           lastSynced: new Date().toISOString(),
-          type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
-          editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
-                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror'
+          type,
+          editorType,
+          completed,
+          dueDate
         };
         
         // Add the new tab and set it as active
@@ -758,6 +830,21 @@ function App() {
   const handleChatFullscreen = () => {
     setShowChat(true);
     setIsChatFullscreen(true);
+    setShowSidebar(false);
+  };
+
+  const handleMsTodoClick = () => {
+    const newTodoState = !showMsTodo;
+    setShowMsTodo(newTodoState);
+    // Reset fullscreen when toggling todo manager
+    if (!newTodoState) {
+      setIsMsTodoFullscreen(false);
+    }
+  };
+
+  const handleMsTodoFullscreen = () => {
+    setShowMsTodo(true);
+    setIsMsTodoFullscreen(true);
     setShowSidebar(false);
   };
 
@@ -917,74 +1004,112 @@ function App() {
     }
   };
 
-  const renderTab = (tab) => {
-    // Check if tab is undefined or null
-    if (!tab) {
-      console.warn('Attempted to render undefined tab');
-      return null;
-    }
+  const handleTabContentChange = (tabId, newContent, additionalData = {}) => {
+    setTabs(prevTabs => {
+      return prevTabs.map(tab => {
+        if (tab.id === tabId) {
+          // Update the tab with new content and any additional data
+          const updatedTab = { ...tab, content: newContent };
+          
+          // Handle additional data like completed status or due date
+          if (additionalData.completed !== undefined) {
+            updatedTab.completed = additionalData.completed;
+          }
+          
+          if (additionalData.dueDate !== undefined) {
+            updatedTab.dueDate = additionalData.dueDate;
+          }
+          
+          return updatedTab;
+        }
+        return tab;
+      });
+    });
+  };
+
+  const handleTabNameChange = (tabId, newName) => {
+    setTabs(prevTabs => {
+      return prevTabs.map(tab => {
+        if (tab.id === tabId) {
+          // Add .todo extension if not already present
+          let displayName = newName;
+          if (!displayName.toLowerCase().endsWith('.todo')) {
+            displayName = `${displayName}.todo`;
+          }
+          
+          // Update the tab name
+          return { ...tab, name: displayName };
+        }
+        return tab;
+      });
+    });
     
-    if (tab.type === 'excalidraw') {
-      return (
-        <ExcalidrawEditor
-          open={true}
-          onClose={() => {}} // No-op since we're using tabs
-          darkMode={darkMode}
-          id={tab.id}
-        />
-      );
-    } else if (tab.type === 'tldraw') {
-      return (
-        <TLDrawEditor
-          darkMode={darkMode}
-          id={tab.id}
-          name={tab.name}
-          initialContent={tab.content}
-        />
-      );
-    } else if (tab.type === 'todo') {
-      return (
-        <TodoManager 
-          tasks={todoData}
-          onTasksChange={setTodoData}
-        />
-      );
+    // If this is a todo, also update it in the database
+    const tab = tabs.find(tab => tab.id === tabId);
+    if (tab && tab.noteId && tab.editorType === 'todo') {
+      DbSyncService.updateNote({
+        id: tab.noteId,
+        name: newName // Store the original name without extension in the database
+      });
     }
+  };
 
-    // Use TipTap editor for markdown files
-    if (tab.editorType === 'tiptap') {
-      return (
-        <TipTapEditor
-          ref={tipTapEditorRef}
-          key={tab.id} // Add key to force remount
-          content={tab.content}
-          onChange={(newContent) => handleContentChange(tab.id, newContent)}
-          darkMode={darkMode}
-          cursorPosition={tab.cursorPosition}
-          onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
-          onFocusModeChange={() => {
-            setFocusMode(!focusMode);
-            setShowSidebar(focusMode);
-          }}
-        />
-      );
+  const handleOpenTodo = async (todo) => {
+    // Check if this todo is already open in a tab
+    const existingTab = tabs.find(tab => tab.noteId === todo.id);
+    
+    if (existingTab) {
+      // If the tab is already open, switch to it
+      setActiveTab(existingTab.id);
+      setShowMsTodo(false); // Close the todo manager
+    } else {
+      try {
+        // Fetch the complete todo data from the proxy API
+        const fullTodo = await DbSyncService.getNoteById(todo.id);
+        
+        if (!fullTodo) {
+          console.error('Failed to fetch todo data');
+          return;
+        }
+        
+        // Create a new tab for this todo
+        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+        
+        // Decode content if needed
+        let content = '';
+        if (fullTodo.content) {
+          try {
+            content = decodeURIComponent(escape(atob(fullTodo.content)));
+          } catch (e) {
+            console.error('Error decoding todo content:', e);
+            content = fullTodo.content;
+          }
+        }
+        
+        // Add .todo extension to the name if not already present
+        let displayName = fullTodo.name || '';
+        if (!displayName.toLowerCase().endsWith('.todo')) {
+          displayName = `${displayName}.todo`;
+        }
+        
+        const newTab = {
+          id: newId,
+          name: displayName,
+          content: content,
+          noteId: fullTodo.id,
+          type: 'markdown',
+          editorType: 'todo',
+          completed: fullTodo.status === 'CLOSED',
+          dueDate: fullTodo.due_date || ''
+        };
+        
+        setTabs(prevTabs => [...prevTabs, newTab]);
+        setActiveTab(newId);
+        setShowMsTodo(false); // Close the todo manager
+      } catch (error) {
+        console.error('Error opening todo in tab:', error);
+      }
     }
-
-    // Fallback to CodeMirror editor
-    return (
-      <Editor
-        ref={editorRef}
-        content={tab.content}
-        onChange={(newContent) => handleContentChange(tab.id, newContent)}
-        wordWrap={wordWrap}
-        darkMode={darkMode}
-        showPreview={showPreview}
-        focusMode={focusMode}
-        cursorPosition={tab.cursorPosition}
-        onCursorChange={(cursor) => handleCursorChange(tab.id, cursor)}
-        filename={tab.name}
-      />
-    );
   };
 
   const commandList = createCommandList({
@@ -1015,6 +1140,110 @@ function App() {
     onChatToggle: handleChatToggle,
     onManualSync: handleManualSync
   });
+
+  const renderTab = (tab) => {
+    // Check if tab is undefined or null
+    if (!tab) {
+      console.warn('Attempted to render undefined tab');
+      return null;
+    }
+    
+    if (tab.type === 'excalidraw') {
+      return (
+        <ExcalidrawEditor
+          open={true}
+          onClose={() => {}} // No-op since we're using tabs
+          darkMode={darkMode}
+          id={tab.id}
+        />
+      );
+    } else if (tab.type === 'tldraw') {
+      return (
+        <TLDrawEditor
+          darkMode={darkMode}
+          id={tab.id}
+          name={tab.name}
+          initialContent={tab.content}
+        />
+      );
+    } else if (tab.type === 'todo') {
+      // Use TodoManager for the main Todo list
+      if (tab.name === 'Todo') {
+        return (
+          <TodoManager 
+            tasks={todoData}
+            onTasksChange={setTodoData}
+          />
+        );
+      }
+      
+      // Use TodoTask for individual .todo files
+      return (
+        <TodoTask
+          ref={editorRef}
+          id={tab.id}
+          content={tab.content}
+          completed={tab.completed}
+          dueDate={tab.dueDate}
+          name={tab.name ? tab.name.replace(/\.todo$/i, '') : ''} // Remove .todo extension for display
+          onChange={(newContent, attributes) => handleTabContentChange(tab.id, newContent, attributes)}
+          onNameChange={(newName) => handleTabNameChange(tab.id, newName)}
+          darkMode={darkMode}
+        />
+      );
+    }
+
+    // Use TipTap editor for markdown files
+    if (tab.editorType === 'tiptap') {
+      return (
+        <TipTapEditor
+          ref={tipTapEditorRef}
+          key={tab.id} // Add key to force remount
+          content={tab.content}
+          onChange={(newContent) => handleContentChange(tab.id, newContent)}
+          darkMode={darkMode}
+          cursorPosition={tab.cursorPosition}
+          onCursorChange={(pos) => handleCursorChange(tab.id, pos)}
+          onFocusModeChange={() => {
+            setFocusMode(!focusMode);
+            setShowSidebar(focusMode);
+          }}
+        />
+      );
+    }
+    
+    // Use TodoTask component for todo type
+    if (tab.editorType === 'todo') {
+      return (
+        <TodoTask
+          ref={editorRef}
+          id={tab.id}
+          content={tab.content}
+          completed={tab.completed}
+          dueDate={tab.dueDate}
+          onChange={(newContent, attributes) => handleContentChange(tab.id, newContent, attributes)}
+          onNameChange={(newName) => handleTabNameChange(tab.id, newName)}
+          darkMode={darkMode}
+        />
+      );
+    }
+
+    // Fallback to CodeMirror editor
+    return (
+      <Editor
+        ref={editorRef}
+        content={tab.content}
+        onChange={(newContent) => handleContentChange(tab.id, newContent)}
+        wordWrap={wordWrap}
+        darkMode={darkMode}
+        showPreview={showPreview}
+        focusMode={focusMode}
+        cursorPosition={tab.cursorPosition}
+        onCursorChange={(cursor) => handleCursorChange(tab.id, cursor)}
+        filename={tab.name}
+      />
+    );
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -1074,6 +1303,7 @@ function App() {
                     isSyncing={isSyncing}
                     syncStatus={syncStatus}
                     onCommandPaletteOpen={() => setShowCommandPalette(true)}
+                    onMsTodoClick={handleMsTodoClick}
                   />
                 </Box>
 
@@ -1113,6 +1343,7 @@ function App() {
                   onCopy={handleCopyContent}
                   onClear={handleClearContent}
                   onCommandPaletteOpen={() => setShowCommandPalette(true)}
+                  onMsTodoClick={handleMsTodoClick}
                 />
                 <Box sx={{ 
                   display: 'flex', 
@@ -1131,7 +1362,7 @@ function App() {
                     <Box 
                       onClick={handleEditorClick}
                       sx={{ 
-                        flex: showChat ? '0 1 60%' : 1,
+                        flex: (showChat || showMsTodo) ? '0 1 60%' : 1,
                         minWidth: 0,
                         position: 'relative',
                         overflow: 'auto',
@@ -1197,12 +1428,45 @@ function App() {
                         />
                       </Box>
                     )}
+
+                    {showMsTodo && (
+                      <Box 
+                        sx={{ 
+                          ...(isMsTodoFullscreen ? {
+                            position: 'fixed',
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                            left: 0,
+                            zIndex: theme.zIndex.drawer + 2,
+                            bgcolor: 'background.default',
+                          } : {
+                            flex: '0 0 40%',
+                            minWidth: { xs: '300px', sm: '350px', md: '400px' },
+                            maxWidth: '800px',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            position: 'relative',
+                            transition: 'flex 0.3s ease',
+                          })
+                        }}
+                      >
+                        <TodoManagerNew 
+                          darkMode={darkMode}
+                          onOpenTodo={handleOpenTodo}
+                          tabs={tabs}
+                          activeTab={activeTab}
+                          onFullscreenChange={setIsMsTodoFullscreen}
+                          isFullscreen={isMsTodoFullscreen}
+                        />
+                      </Box>
+                    )}
                   </Box>
 
                   {/* Right Sidebar */}
-                  {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && (
+                  {!focusMode && (showSidebar || window.innerWidth > 960) && !showChat && !showMsTodo && (
                     <Box
-                  
                       sx={{
                         width: 250,
                         flexShrink: 0,

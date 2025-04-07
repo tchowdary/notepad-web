@@ -94,7 +94,7 @@ class DbSyncService {
     }
   }
 
-  async createNote(name, content) {
+  async createNote(name, content, editorType, dueDate, completed) {
     if (!this.isConfigured()) return null;
     
     try {
@@ -113,7 +113,10 @@ class DbSyncService {
         },
         body: JSON.stringify({
           name,
-          content: contentBase64
+          content: contentBase64,
+          type: editorType,
+          due_date: dueDate,
+          status: completed ? 'CLOSED' : 'OPEN'
         })
       });
       
@@ -140,7 +143,7 @@ class DbSyncService {
     }
   }
 
-  async updateNote(id, name, content) {
+  async updateNote(id, name, content, editorType, dueDate, completed) {
     if (!this.isConfigured()) return null;
     
     try {
@@ -162,7 +165,10 @@ class DbSyncService {
         body: JSON.stringify({
           id,
           name,
-          content: contentBase64
+          content: contentBase64,
+          type: editorType,
+          due_date: dueDate,
+          status: completed ? 'CLOSED' : 'OPEN'
         })
       });
       
@@ -265,10 +271,10 @@ class DbSyncService {
       let result;
       if (existingNote) {
         console.log(`Found existing note with name: ${tab.name}, ID: ${existingNote.id}`);
-        result = await this.updateNote(existingNote.id, tab.name, tab.content);
+        result = await this.updateNote(existingNote.id, tab.name, tab.content, tab.editorType, tab.dueDate, tab.completed);
       } else {
         console.log(`No existing note found with name: ${tab.name}, creating new note`);
-        result = await this.createNote(tab.name, tab.content);
+        result = await this.createNote(tab.name, tab.content, tab.editorType, tab.dueDate, tab.completed);
       }
 
       // Handle the response format where note is nested in a "note" property
