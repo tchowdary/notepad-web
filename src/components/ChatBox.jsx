@@ -157,6 +157,7 @@ const ChatBox = ({
   fullScreen = false,
   darkMode,
   setDarkMode,
+  isFromResponsiveToolbar = false,
 }) => {
   const theme = useTheme();
   const [darkModeState, setDarkModeState] = useState(
@@ -219,7 +220,7 @@ const ChatBox = ({
       input: {
         position: "absolute",
         bottom: 0,
-        left: fullScreen ? "300px" : 0,
+        left: 0,
         right: 0,
         backgroundColor: getThemeColor(
           "palette.background.default",
@@ -229,12 +230,12 @@ const ChatBox = ({
           "palette.divider",
           darkModeState ? "#333333" : "#e0e0e0"
         )}`,
-        zIndex: 1,
-        width: fullScreen ? "calc(100% - 300px)" : "100%",
+        zIndex: 10,
+        width: "100%",
         display: "flex",
         justifyContent: "center",
-        alignItems: "center",
         padding: "10px 0",
+        boxSizing: "border-box",
       },
       // Common theme values
       text: {
@@ -274,7 +275,7 @@ const ChatBox = ({
         darkModeState ? "#333333" : "#e0e0e0"
       ),
     }),
-    [theme, darkModeState, fullScreen]
+    [theme, darkModeState]
   );
 
   // Update all theme references to use flattened structure
@@ -300,7 +301,7 @@ const ChatBox = ({
   const [isFullscreen, setIsFullscreen] = useState(
     fullScreen || initialFullscreen || false
   );
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(!isFromResponsiveToolbar);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [parsedStreamingContent, setParsedStreamingContent] = useState("");
@@ -1500,7 +1501,22 @@ const ChatBox = ({
   };
 
   const renderMessageInput = () => (
-    <Box sx={themeStyles.input}>
+    <Box 
+      sx={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: themeStyles.background.default,
+        borderTop: `1px solid ${themeStyles.divider}`,
+        zIndex: 10,
+        width: "100%",
+        display: "flex",
+        justifyContent: "center",
+        padding: "10px 0",
+        boxSizing: "border-box",
+      }}
+    >
       <Box
         sx={{
           width: "95%",
@@ -1930,433 +1946,474 @@ const ChatBox = ({
               position: "relative",
             }}
           >
-            {/* {showScrollButton && (
-              <Fab
-                size="small"
-                color="primary"
-                sx={{
-                  position: "fixed",
-                  right: 32,
-                  bottom: 120,
-                  zIndex: 1000,
-                  opacity: 0.9,
-                  "&:hover": {
-                    opacity: 1,
-                  },
-                }}
-                onClick={scrollToBottom}
-              >
-                <KeyboardArrowDownIcon />
-              </Fab>
-            )} */}
-            {/* Sidebar */}
+            {/* Simple header bar for fullscreen mode */}
             <Box
               sx={{
-                width: isSidebarOpen ? "270px" : "0px",
-                height: "100%",
-                bgcolor: themeStyles.background.paper,
-                transition: "width 0.2s",
-                overflow: "hidden",
-                borderRight: 1,
-                borderColor: themeStyles.divider,
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 100,
                 display: "flex",
-                flexDirection: "column",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "8px 16px",
+                borderBottom: `1px solid ${themeStyles.divider}`,
+                backgroundColor: themeStyles.background.paper,
               }}
             >
-              {/* New Chat button at the top */}
-              <Box sx={{ p: 1 }}>
-                {/* <Button
-                  variant="contained"
-                  fullWidth
-                  onClick={createNewSession}
-                  sx={{
-                    backgroundColor: themeStyles.primary.main,
-                    color: themeStyles.primary.contrastText,
-                    textTransform: "none",
-                    fontWeight: 500,
-                    "&:hover": {
-                      backgroundColor: themeStyles.primary.dark,
-                    },
-                    borderRadius: "28px",
-                    py: 0.75,
-                    mb: 1,
-                  }}
-                >
-                  New Chat
-                </Button> */}
-                
-                {/* Search input without red outline */}
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    backgroundColor: themeStyles.background.paper,
-                    borderRadius: '4px',
-                    px: 1,
-                    py: 0.5,
-                    mb: 1,
-                  }}
-                >
-                  <SearchIcon sx={{ color: themeStyles.text.secondary, mr: 1 }} />
-                  <InputBase
-                    placeholder="Search your threads..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    fullWidth
-                    sx={{
-                      color: themeStyles.text.primary,
-                      '& .MuiInputBase-input': {
-                        padding: '4px 0',
-                      },
-                      '&::placeholder': {
-                        color: themeStyles.text.secondary,
-                        opacity: 1,
-                      },
-                    }}
-                  />
-                  {searchQuery && (
-                    <IconButton
-                      size="small"
-                      onClick={() => setSearchQuery("")}
-                      sx={{ color: themeStyles.text.secondary, p: 0.5 }}
-                    >
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </Box>
-
-                {/* Toolbar with buttons */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    gap: 1,
-                    justifyContent: "flex-start",
-                    alignItems: "center",
-                  }}
-                >
+              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                Chat
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Tooltip title="Chat History">
                   <IconButton
+                    onClick={(event) => setHistoryAnchorEl(event.currentTarget)}
                     size="small"
-                    onClick={() => setHistoryAnchorEl(inputRef.current)}
                   >
                     <HistoryIcon fontSize="small" />
                   </IconButton>
+                </Tooltip>
+                <Tooltip title="Exit Fullscreen">
                   <IconButton
+                    onClick={() => {
+                      setIsFullscreen(false);
+                      if (onFullscreenChange) {
+                        onFullscreenChange(false);
+                      }
+                    }}
                     size="small"
-                    onClick={() => setIsFullscreen(true)}
                   >
                     <FullscreenIcon fontSize="small" />
                   </IconButton>
-                  <VoiceRecorder
-                    onTranscriptionComplete={async (transcript) => {
-                      try {
-                        const response = await processTranscription(transcript);
-                        const newMessage = {
-                          role: "assistant",
-                          content: response,
-                          timestamp: new Date().toISOString(),
-                        };
-                        setMessages((prev) => [
-                          ...prev,
-                          {
-                            role: "user",
-                            content: transcript,
-                            timestamp: new Date().toISOString(),
-                          },
-                          newMessage,
-                        ]);
-                      } catch (error) {
-                        console.error("Error processing voice input:", error);
-                        setError("Failed to process voice input");
-                      }
+                </Tooltip>
+              </Box>
+            </Box>
+            
+            <Box
+              sx={{
+                display: "flex",
+                flex: 1,
+                overflow: "hidden",
+              }}
+            >
+              {/* Sidebar */}
+              <Box
+                sx={{
+                  width: isSidebarOpen ? "270px" : "0px",
+                  height: "100%",
+                  bgcolor: themeStyles.background.paper,
+                  transition: "width 0.2s",
+                  overflow: "hidden",
+                  borderRight: 1,
+                  borderColor: themeStyles.divider,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {/* New Chat button at the top */}
+                <Box sx={{ p: 1 }}>
+                  {/* <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={createNewSession}
+                    sx={{
+                      backgroundColor: themeStyles.primary.main,
+                      color: themeStyles.primary.contrastText,
+                      textTransform: "none",
+                      fontWeight: 500,
+                      "&:hover": {
+                        backgroundColor: themeStyles.primary.dark,
+                      },
+                      borderRadius: "28px",
+                      py: 0.75,
+                      mb: 1,
                     }}
-                  />
-                  <IconButton
-                    size="small"
-                    onClick={() => setApiKeyDialogOpen(true)}
                   >
-                    <KeyIcon fontSize="small" />
-                  </IconButton>
-                  <Box>
-                    {setDarkMode && (
-                      <IconButton onClick={() => setDarkMode(!darkMode)} size="small">
-                        {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                    New Chat
+                  </Button> */}
+                  
+                  {/* Search input without red outline */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      backgroundColor: themeStyles.background.paper,
+                      borderRadius: '4px',
+                      px: 1,
+                      py: 0.5,
+                      mb: 1,
+                    }}
+                  >
+                    <SearchIcon sx={{ color: themeStyles.text.secondary, mr: 1 }} />
+                    <InputBase
+                      placeholder="Search your threads..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      fullWidth
+                      sx={{
+                        color: themeStyles.text.primary,
+                        '& .MuiInputBase-input': {
+                          padding: '4px 0',
+                        },
+                        '&::placeholder': {
+                          color: themeStyles.text.secondary,
+                          opacity: 1,
+                        },
+                      }}
+                    />
+                    {searchQuery && (
+                      <IconButton
+                        size="small"
+                        onClick={() => setSearchQuery("")}
+                        sx={{ color: themeStyles.text.secondary, p: 0.5 }}
+                      >
+                        <ClearIcon fontSize="small" />
                       </IconButton>
                     )}
                   </Box>
-                  <IconButton
-                    size="small"
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  >
-                    <ChevronLeftIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Box>
-              <Box
-                sx={{
-                  p: 1,
-                  borderTop: `1px solid ${themeStyles.divider}`,
-                  display: "flex",
-                  justifyContent: "center",
-                }}
-              >
-                {/* Empty box for spacing */}
-              </Box>
-              <List sx={{ flex: 1, overflowY: "auto", px: 0 }}>
-                {/* Group sessions by date */}
-                {(() => {
-                  // Group sessions by date
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  
-                  const yesterday = new Date(today);
-                  yesterday.setDate(yesterday.getDate() - 1);
-                  
-                  const thirtyDaysAgo = new Date(today);
-                  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                  
-                  const todaySessions = filteredSessions.filter(session => {
-                    const sessionDate = new Date(session.lastUpdated);
-                    return sessionDate >= today;
-                  });
-                  
-                  const yesterdaySessions = filteredSessions.filter(session => {
-                    const sessionDate = new Date(session.lastUpdated);
-                    return sessionDate >= yesterday && sessionDate < today;
-                  });
-                  
-                  const last30DaysSessions = filteredSessions.filter(session => {
-                    const sessionDate = new Date(session.lastUpdated);
-                    return sessionDate >= thirtyDaysAgo && sessionDate < yesterday;
-                  });
-                  
-                  const olderSessions = filteredSessions.filter(session => {
-                    const sessionDate = new Date(session.lastUpdated);
-                    return sessionDate < thirtyDaysAgo;
-                  });
-                  
-                  return (
-                    <>
-                      {todaySessions.length > 0 && (
-                        <>
-                          <ListSubheader 
-                            sx={{ 
-                              bgcolor: 'transparent', 
-                              color: themeStyles.primary.main,
-                              fontSize: '0.8rem',
-                              fontWeight: 500,
-                              lineHeight: '30px',
-                              pl: 2
-                            }}
-                          >
-                            Today
-                          </ListSubheader>
-                          {renderSessionGroup(todaySessions)}
-                        </>
-                      )}
-                      
-                      {yesterdaySessions.length > 0 && (
-                        <>
-                          <ListSubheader 
-                            sx={{ 
-                              bgcolor: 'transparent', 
-                              color: themeStyles.primary.main,
-                              fontSize: '0.8rem',
-                              fontWeight: 500,
-                              lineHeight: '30px',
-                              pl: 2
-                            }}
-                          >
-                            Yesterday
-                          </ListSubheader>
-                          {renderSessionGroup(yesterdaySessions)}
-                        </>
-                      )}
-                      
-                      {last30DaysSessions.length > 0 && (
-                        <>
-                          <ListSubheader 
-                            sx={{ 
-                              bgcolor: 'transparent', 
-                              color: themeStyles.primary.main,
-                              fontSize: '0.8rem',
-                              fontWeight: 500,
-                              lineHeight: '30px',
-                              pl: 2
-                            }}
-                          >
-                            Last 30 Days
-                          </ListSubheader>
-                          {renderSessionGroup(last30DaysSessions)}
-                        </>
-                      )}
-                      
-                      {olderSessions.length > 0 && (
-                        <>
-                          <ListSubheader 
-                            sx={{ 
-                              bgcolor: 'transparent', 
-                              color: themeStyles.primary.main,
-                              fontSize: '0.8rem',
-                              fontWeight: 500,
-                              lineHeight: '30px',
-                              pl: 2
-                            }}
-                          >
-                            Older
-                          </ListSubheader>
-                          {renderSessionGroup(olderSessions)}
-                        </>
-                      )}
-                      
-                      {filteredSessions.length === 0 && (
-                        <Box sx={{ p: 2, textAlign: "center" }}>
-                          <Typography variant="body2" color="text.secondary">
-                            No chats found
-                          </Typography>
-                        </Box>
-                      )}
-                    </>
-                  );
-                })()}
-              </List>
-            </Box>
 
-            {/* Main chat area */}
-            <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-              {/* Messages area */}
-              <Box
-                ref={messagesContainerRef}
-                sx={{
-                  flex: 1,
-                  overflowY: "auto",
-                  paddingBottom: "160px",
-                  paddingTop: "50px",
-                  width: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  "&::-webkit-scrollbar": {
-                    width: "8px",
-                  },
-                  "&::-webkit-scrollbar-track": {
-                    background: "transparent",
-                  },
-                  "&::-webkit-scrollbar-thumb": {
-                    background: themeStyles.divider,
-                    borderRadius: "4px",
-                  },
-                }}
-              >
-                {messages.map((message, index) => (
+                  {/* Toolbar with buttons */}
                   <Box
-                    key={index}
                     sx={{
                       display: "flex",
-                      flexDirection: "column",
+                      gap: 1,
+                      justifyContent: "flex-start",
                       alignItems: "center",
-                      width: "100%",
-                      maxWidth: isFullscreen ? "800px" : "90%",
-                      px: 2,
-                      py: 1,
                     }}
                   >
+                    <IconButton
+                      size="small"
+                      onClick={() => setHistoryAnchorEl(inputRef.current)}
+                    >
+                      <HistoryIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => setIsFullscreen(true)}
+                    >
+                      <FullscreenIcon fontSize="small" />
+                    </IconButton>
+                    <VoiceRecorder
+                      onTranscriptionComplete={async (transcript) => {
+                        try {
+                          const response = await processTranscription(transcript);
+                          const newMessage = {
+                            role: "assistant",
+                            content: response,
+                            timestamp: new Date().toISOString(),
+                          };
+                          setMessages((prev) => [
+                            ...prev,
+                            {
+                              role: "user",
+                              content: transcript,
+                              timestamp: new Date().toISOString(),
+                            },
+                            newMessage,
+                          ]);
+                        } catch (error) {
+                          console.error("Error processing voice input:", error);
+                          setError("Failed to process voice input");
+                        }
+                      }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => setApiKeyDialogOpen(true)}
+                    >
+                      <KeyIcon fontSize="small" />
+                    </IconButton>
+                    <Box>
+                      {setDarkMode && (
+                        <IconButton onClick={() => setDarkMode(!darkMode)} size="small">
+                          {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                        </IconButton>
+                      )}
+                    </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    >
+                      <ChevronLeftIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+                <Box
+                  sx={{
+                    p: 1,
+                    borderTop: `1px solid ${themeStyles.divider}`,
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  {/* Empty box for spacing */}
+                </Box>
+                <List sx={{ flex: 1, overflowY: "auto", px: 0 }}>
+                  {/* Group sessions by date */}
+                  {(() => {
+                    // Group sessions by date
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    
+                    const thirtyDaysAgo = new Date(today);
+                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                    
+                    const todaySessions = filteredSessions.filter(session => {
+                      const sessionDate = new Date(session.lastUpdated);
+                      return sessionDate >= today;
+                    });
+                    
+                    const yesterdaySessions = filteredSessions.filter(session => {
+                      const sessionDate = new Date(session.lastUpdated);
+                      return sessionDate >= yesterday && sessionDate < today;
+                    });
+                    
+                    const last30DaysSessions = filteredSessions.filter(session => {
+                      const sessionDate = new Date(session.lastUpdated);
+                      return sessionDate >= thirtyDaysAgo && sessionDate < yesterday;
+                    });
+                    
+                    const olderSessions = filteredSessions.filter(session => {
+                      const sessionDate = new Date(session.lastUpdated);
+                      return sessionDate < thirtyDaysAgo;
+                    });
+                    
+                    return (
+                      <>
+                        {todaySessions.length > 0 && (
+                          <>
+                            <ListSubheader 
+                              sx={{ 
+                                bgcolor: 'transparent', 
+                                color: themeStyles.primary.main,
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                lineHeight: '30px',
+                                pl: 2
+                              }}
+                            >
+                              Today
+                            </ListSubheader>
+                            {renderSessionGroup(todaySessions)}
+                          </>
+                        )}
+                        
+                        {yesterdaySessions.length > 0 && (
+                          <>
+                            <ListSubheader 
+                              sx={{ 
+                                bgcolor: 'transparent', 
+                                color: themeStyles.primary.main,
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                lineHeight: '30px',
+                                pl: 2
+                              }}
+                            >
+                              Yesterday
+                            </ListSubheader>
+                            {renderSessionGroup(yesterdaySessions)}
+                          </>
+                        )}
+                        
+                        {last30DaysSessions.length > 0 && (
+                          <>
+                            <ListSubheader 
+                              sx={{ 
+                                bgcolor: 'transparent', 
+                                color: themeStyles.primary.main,
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                lineHeight: '30px',
+                                pl: 2
+                              }}
+                            >
+                              Last 30 Days
+                            </ListSubheader>
+                            {renderSessionGroup(last30DaysSessions)}
+                          </>
+                        )}
+                        
+                        {olderSessions.length > 0 && (
+                          <>
+                            <ListSubheader 
+                              sx={{ 
+                                bgcolor: 'transparent', 
+                                color: themeStyles.primary.main,
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                lineHeight: '30px',
+                                pl: 2
+                              }}
+                            >
+                              Older
+                            </ListSubheader>
+                            {renderSessionGroup(olderSessions)}
+                          </>
+                        )}
+                        
+                        {filteredSessions.length === 0 && (
+                          <Box sx={{ p: 2, textAlign: "center" }}>
+                            <Typography variant="body2" color="text.secondary">
+                              No chats found
+                            </Typography>
+                          </Box>
+                        )}
+                      </>
+                    );
+                  })()}
+                </List>
+              </Box>
+
+              {/* Main chat area */}
+              <Box sx={{ 
+                flex: 1, 
+                display: "flex", 
+                flexDirection: "column",
+                height: "100%",
+                width: "100%",
+                position: "relative"
+              }}>
+                {/* Messages area */}
+                <Box
+                  ref={messagesContainerRef}
+                  sx={{
+                    flex: 1,
+                    overflowY: "auto",
+                    paddingBottom: isFullscreen ? "180px" : "160px", 
+                    paddingTop: "50px",
+                    width: "100%",
+                    height: "100%", 
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    "&::-webkit-scrollbar": {
+                      width: "8px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      background: "transparent",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      background: themeStyles.divider,
+                      borderRadius: "4px",
+                    },
+                  }}
+                >
+                  {messages.map((message, index) => (
                     <Box
+                      key={index}
                       sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
                         width: "100%",
-                        position: "relative",
-                        backgroundColor:
-                          message.role === "user"
-                            ? darkModeState
-                              ? "rgba(55, 55, 55, 0.7)" // Distinct dark background for user messages
-                              : themeStyles.action.hover // Use theme hover color for user messages in light mode
-                            : themeStyles.background.default,
-                        color: themeStyles.text.primary,
-                        borderRadius: 2,
-                        p: 2,
-                        mb: 2,
-                        "&:hover": {
-                          backgroundColor:
-                            message.role === "user"
-                              ? darkModeState
-                                ? "rgba(55, 55, 55, 0.7)"
-                                : themeStyles.action.hover
-                              : themeStyles.background.default,
-                        },
-                        textAlign: "left",
+                        maxWidth: isFullscreen ? "800px" : "90%",
+                        px: 2,
+                        py: 1,
                       }}
                     >
-                      {renderMessageContent(message.content)}
-                      <IconButton
-                        size="small"
-                        onClick={() =>
-                          handleCopyMessage(message.content, index)
-                        }
-                        className="copy-button"
+                      <Box
                         sx={{
-                          position: "absolute",
-                          top: 8,
-                          right: 8,
-                          opacity: 0,
-                          transition: "opacity 0.2s",
+                          width: "100%",
+                          position: "relative",
                           backgroundColor:
                             message.role === "user"
                               ? darkModeState
-                                ? "rgba(55, 55, 55, 0.7)"
-                                : themeStyles.action.hover
+                                ? "rgba(55, 55, 55, 0.7)" // Distinct dark background for user messages
+                                : themeStyles.action.hover // Use theme hover color for user messages in light mode
                               : themeStyles.background.default,
-                          color:
-                            message.role === "user"
-                              ? themeStyles.text.primary
-                              : themeStyles.text.primary,
+                          color: themeStyles.text.primary,
+                          borderRadius: 2,
+                          p: 2,
+                          mb: 2,
                           "&:hover": {
                             backgroundColor:
                               message.role === "user"
                                 ? darkModeState
                                   ? "rgba(55, 55, 55, 0.7)"
                                   : themeStyles.action.hover
-                                : themeStyles.action.hover,
+                                : themeStyles.background.default,
                           },
+                          textAlign: "left",
                         }}
                       >
-                        {copiedIndex === index ? (
-                          <CheckIcon fontSize="small" />
-                        ) : (
-                          <CopyIcon fontSize="small" />
-                        )}
-                      </IconButton>
+                        {renderMessageContent(message.content)}
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            handleCopyMessage(message.content, index)
+                          }
+                          className="copy-button"
+                          sx={{
+                            position: "absolute",
+                            top: 8,
+                            right: 8,
+                            opacity: 0,
+                            transition: "opacity 0.2s",
+                            backgroundColor:
+                              message.role === "user"
+                                ? darkModeState
+                                  ? "rgba(55, 55, 55, 0.7)"
+                                  : themeStyles.action.hover
+                                : themeStyles.background.default,
+                            color:
+                              message.role === "user"
+                                ? themeStyles.text.primary
+                                : themeStyles.text.primary,
+                            "&:hover": {
+                              backgroundColor:
+                                message.role === "user"
+                                  ? darkModeState
+                                    ? "rgba(55, 55, 55, 0.7)"
+                                    : themeStyles.action.hover
+                                  : themeStyles.action.hover,
+                            },
+                          }}
+                        >
+                          {copiedIndex === index ? (
+                            <CheckIcon fontSize="small" />
+                          ) : (
+                            <CopyIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Box>
                     </Box>
-                  </Box>
-                ))}
-                {isStreaming && (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      width: "100%",
-                      maxWidth: isFullscreen ? "800px" : "90%",
-                      px: 2,
-                      py: 1,
-                    }}
-                  >
+                  ))}
+                  {isStreaming && (
                     <Box
                       sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
                         width: "100%",
-                        position: "relative",
-                        backgroundColor: themeStyles.background.default,
-                        color: themeStyles.text.primary,
-                        borderRadius: 2,
-                        p: 2,
-                        textAlign: "left",
+                        maxWidth: isFullscreen ? "800px" : "90%",
+                        px: 2,
+                        py: 1,
                       }}
                     >
-                      {parsedStreamingContent}
+                      <Box
+                        sx={{
+                          width: "100%",
+                          position: "relative",
+                          backgroundColor: themeStyles.background.default,
+                          color: themeStyles.text.primary,
+                          borderRadius: 2,
+                          p: 2,
+                          textAlign: "left",
+                        }}
+                      >
+                        {parsedStreamingContent}
+                      </Box>
                     </Box>
-                  </Box>
-                )}
-              </Box>
+                  )}
+                </Box>
 
-              {renderMessageInput()}
+                {renderMessageInput()}
+              </Box>
             </Box>
           </Box>
         </Modal>
@@ -2609,7 +2666,7 @@ const ChatBox = ({
                 const textContent = firstMessage.content.find(
                   (item) => item.type === "text"
                 );
-                displayText = textContent ? textContent.text : "[No text available]";
+                displayText = textContent ? textContent.text : "";
               } else if (firstMessage.content?.type === "image") {
                 displayText = "[Image]";
               }

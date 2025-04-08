@@ -1336,7 +1336,12 @@ function App() {
                 <ResponsiveToolbar
                   darkMode={darkMode}
                   onDarkModeChange={() => setDarkMode(!darkMode)}
-                  onChatToggle={handleChatToggle}
+                  onChatToggle={() => {
+                    setShowChat(!showChat);
+                    if (!showChat) {
+                      setIsChatFullscreen(true);
+                    }
+                  }}
                   showChat={showChat}
                   onSidebarToggle={() => setShowSidebar(!showSidebar)}
                   showSidebar={showSidebar}
