@@ -2330,15 +2330,10 @@ const ChatBox = ({
                           borderRadius: 2,
                           p: 2,
                           mb: 2,
-                          "&:hover": {
-                            backgroundColor:
-                              message.role === "user"
-                                ? darkModeState
-                                  ? "rgba(55, 55, 55, 0.7)"
-                                  : themeStyles.action.hover
-                                : themeStyles.background.default,
-                          },
                           textAlign: "left",
+                          "&:hover .copy-button": {
+                            opacity: 1,
+                          },
                         }}
                       >
                         {renderMessageContent(message.content)}
@@ -2351,6 +2346,44 @@ const ChatBox = ({
                           sx={{
                             position: "absolute",
                             top: 8,
+                            right: 8,
+                            opacity: 0,
+                            transition: "opacity 0.2s",
+                            backgroundColor:
+                              message.role === "user"
+                                ? darkModeState
+                                  ? "rgba(55, 55, 55, 0.7)"
+                                  : themeStyles.action.hover
+                                : themeStyles.background.default,
+                            color:
+                              message.role === "user"
+                                ? themeStyles.text.primary
+                                : themeStyles.text.primary,
+                            "&:hover": {
+                              backgroundColor:
+                                message.role === "user"
+                                  ? darkModeState
+                                    ? "rgba(55, 55, 55, 0.7)"
+                                    : themeStyles.action.hover
+                                  : themeStyles.action.hover,
+                            },
+                          }}
+                        >
+                          {copiedIndex === index ? (
+                            <CheckIcon fontSize="small" />
+                          ) : (
+                            <CopyIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            handleCopyMessage(message.content, index)
+                          }
+                          className="copy-button"
+                          sx={{
+                            position: "absolute",
+                            bottom: 8,
                             right: 8,
                             opacity: 0,
                             transition: "opacity 0.2s",
@@ -2508,15 +2541,10 @@ const ChatBox = ({
                       borderRadius: 2,
                       p: 2,
                       mb: 2,
-                      "&:hover": {
-                        backgroundColor:
-                          message.role === "user"
-                            ? darkModeState
-                              ? "rgba(55, 55, 55, 0.7)"
-                              : themeStyles.action.hover
-                            : themeStyles.background.default,
-                      },
                       textAlign: "left",
+                      "&:hover .copy-button": {
+                        opacity: 1,
+                      },
                     }}
                   >
                     {renderMessageContent(message.content)}
@@ -2529,6 +2557,44 @@ const ChatBox = ({
                       sx={{
                         position: "absolute",
                         top: 8,
+                        right: 8,
+                        opacity: 0,
+                        transition: "opacity 0.2s",
+                        backgroundColor:
+                          message.role === "user"
+                            ? darkModeState
+                              ? "rgba(55, 55, 55, 0.7)"
+                              : themeStyles.action.hover
+                            : themeStyles.background.default,
+                        color:
+                          message.role === "user"
+                            ? themeStyles.text.primary
+                            : themeStyles.text.primary,
+                        "&:hover": {
+                          backgroundColor:
+                            message.role === "user"
+                              ? darkModeState
+                                ? "rgba(55, 55, 55, 0.7)"
+                                : themeStyles.action.hover
+                              : themeStyles.action.hover,
+                        },
+                      }}
+                    >
+                      {copiedIndex === index ? (
+                        <CheckIcon fontSize="small" />
+                      ) : (
+                        <CopyIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() =>
+                        handleCopyMessage(message.content, index)
+                      }
+                      className="copy-button"
+                      sx={{
+                        position: "absolute",
+                        bottom: 8,
                         right: 8,
                         opacity: 0,
                         transition: "opacity 0.2s",
@@ -2625,7 +2691,9 @@ const ChatBox = ({
             <MenuItem
               key={`${provider.name}|${model.id}`}
               value={`${provider.name}|${model.id}`}
-              selected={selectedProvider === `${provider.name}|${model.id}`}
+              selected={
+                selectedProvider === `${provider.name}|${model.id}`
+              }
               onClick={() => {
                 setSelectedProvider(`${provider.name}|${model.id}`);
                 localStorage.setItem(
@@ -2715,96 +2783,6 @@ const ChatBox = ({
             </MenuItem>
           );
         })}
-      </Menu>
-
-      <Menu
-        anchorEl={instructionMenuAnchorEl}
-        open={Boolean(instructionMenuAnchorEl)}
-        onClose={() => setInstructionMenuAnchorEl(null)}
-      >
-        <MenuItem
-          onClick={() => {
-            setEditingInstruction(null);
-            setNewInstructionName("");
-            setNewInstructionContent("");
-            setInstructionDialogOpen(true);
-            setInstructionMenuAnchorEl(null);
-          }}
-        >
-          <ListItemIcon>
-            <AddIcon />
-          </ListItemIcon>
-          <ListItemText primary="Create New Instruction" />
-        </MenuItem>
-        <Divider />
-        {customInstructions.length === 0 ? (
-          <MenuItem disabled>
-            <ListItemText
-              primary="No custom instructions"
-              secondary="Create one to get started"
-            />
-          </MenuItem>
-        ) : (
-          customInstructions.map((instruction) => (
-            <MenuItem
-              key={instruction.id}
-              selected={selectedInstruction?.id === instruction.id}
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                minWidth: "300px",
-              }}
-            >
-              <ListItemText
-                primary={instruction.name}
-                onClick={() => {
-                  setSelectedInstruction(instruction);
-                  localStorage.setItem(
-                    "last_selected_instruction",
-                    instruction.id
-                  );
-                  setInstructionMenuAnchorEl(null);
-                }}
-              />
-              <Box>
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditInstruction(instruction);
-                    setInstructionMenuAnchorEl(null);
-                  }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteInstruction(instruction.id);
-                    setInstructionMenuAnchorEl(null);
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </MenuItem>
-          ))
-        )}
-        {selectedInstruction && (
-          <>
-            <Divider />
-            <MenuItem
-              onClick={() => {
-                setSelectedInstruction(null);
-                localStorage.removeItem("last_selected_instruction");
-                setInstructionMenuAnchorEl(null);
-              }}
-            >
-              <ListItemText primary="Clear Selection" />
-            </MenuItem>
-          </>
-        )}
       </Menu>
 
       <ApiKeyInput
