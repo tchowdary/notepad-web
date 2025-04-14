@@ -988,7 +988,30 @@ const ChatBox = ({
     };
   }, []);
 
-  // Handle model selection and create new chat
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.ctrlKey) {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+
+        if (event.key === "Home") {
+          event.preventDefault(); // Prevent default browser scroll
+          container.scrollTop = 0; // Scroll to top
+        } else if (event.key === "End") {
+          event.preventDefault(); // Prevent default browser scroll
+          container.scrollTop = container.scrollHeight; // Scroll to bottom
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    // Cleanup function to remove the event listener
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []); // Empty dependency array ensures this runs only once on mount
+
   const handleModelSelect = (providerAndModel) => {
     setSelectedProvider(providerAndModel);
     localStorage.setItem("last_selected_provider", providerAndModel);
