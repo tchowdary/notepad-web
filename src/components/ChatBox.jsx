@@ -2182,26 +2182,39 @@ const ChatBox = ({
                     const yesterday = new Date(today);
                     yesterday.setDate(yesterday.getDate() - 1);
                     
+                    const sevenDaysAgo = new Date(today);
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    
                     const thirtyDaysAgo = new Date(today);
                     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
                     
                     const todaySessions = filteredSessions.filter(session => {
                       const sessionDate = new Date(session.lastUpdated);
-                      return sessionDate >= today;
+                      sessionDate.setHours(0, 0, 0, 0);
+                      return sessionDate.getTime() === today.getTime();
                     });
                     
                     const yesterdaySessions = filteredSessions.filter(session => {
                       const sessionDate = new Date(session.lastUpdated);
-                      return sessionDate >= yesterday && sessionDate < today;
+                      sessionDate.setHours(0, 0, 0, 0);
+                      return sessionDate.getTime() === yesterday.getTime();
+                    });
+                    
+                    const last7DaysSessions = filteredSessions.filter(session => {
+                      const sessionDate = new Date(session.lastUpdated);
+                      sessionDate.setHours(0, 0, 0, 0);
+                      return sessionDate < yesterday && sessionDate >= sevenDaysAgo;
                     });
                     
                     const last30DaysSessions = filteredSessions.filter(session => {
                       const sessionDate = new Date(session.lastUpdated);
-                      return sessionDate >= thirtyDaysAgo && sessionDate < yesterday;
+                      sessionDate.setHours(0, 0, 0, 0);
+                      return sessionDate < sevenDaysAgo && sessionDate >= thirtyDaysAgo;
                     });
                     
                     const olderSessions = filteredSessions.filter(session => {
                       const sessionDate = new Date(session.lastUpdated);
+                      sessionDate.setHours(0, 0, 0, 0);
                       return sessionDate < thirtyDaysAgo;
                     });
                     
@@ -2240,6 +2253,24 @@ const ChatBox = ({
                               Yesterday
                             </ListSubheader>
                             {renderSessionGroup(yesterdaySessions)}
+                          </>
+                        )}
+                        
+                        {last7DaysSessions.length > 0 && (
+                          <>
+                            <ListSubheader 
+                              sx={{ 
+                                bgcolor: 'transparent', 
+                                color: themeStyles.primary.main,
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                lineHeight: '30px',
+                                pl: 2
+                              }}
+                            >
+                              Last 7 Days
+                            </ListSubheader>
+                            {renderSessionGroup(last7DaysSessions)}
                           </>
                         )}
                         
