@@ -1989,30 +1989,21 @@ const ChatBox = ({
           alignItems: "center",
           width: "100%",
           backgroundColor: themeStyles.background.paper,
-          borderBottom: `1px solid ${themeStyles.divider}`,
+          borderTop: `1px solid ${themeStyles.divider}`,
           position: "absolute",
           top: 0,
           left: 0,
           zIndex: 10,
-          py: 0.5, 
-          pl: 1, 
-          pr: 0.5, 
-          borderTopLeftRadius: '20px', 
-          borderTopRightRadius: '20px',
+          p: 1,
         }}
       >
-        {/* <Typography variant=\"h6\" component=\"div\" sx={{ flexGrow: 1 }}>
+        {/* <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Chat
         </Typography> */}
-        {/* Container for right-side buttons - simplified, no border/padding */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box>
           {setDarkMode && (
-            <IconButton 
-              onClick={() => setDarkMode(!darkMode)} 
-              size="small" 
-              sx={{ mr: 0.5 }} 
-            >
-              {darkMode ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+            <IconButton onClick={() => setDarkMode(!darkMode)} size="small">
+              {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
             </IconButton>
           )}
           {!fullScreen && (
@@ -2020,15 +2011,14 @@ const ChatBox = ({
               <IconButton
                 onClick={(event) => setHistoryAnchorEl(event.currentTarget)}
                 size="small"
-                sx={{ mr: 0.5 }}
               >
-                <HistoryIcon fontSize="small" />
+                <HistoryIcon />
               </IconButton>
               <IconButton
                 onClick={() => setIsFullscreen(!isFullscreen)}
                 size="small"
               >
-                <FullscreenIcon fontSize="small" />
+                <FullscreenIcon />
               </IconButton>
             </>
           )}
@@ -2051,34 +2041,33 @@ const ChatBox = ({
               bgcolor: themeStyles.background.default,
               outline: "none",
               display: "flex",
-              flexDirection: 'column', // Stack header and content vertically
+              position: "relative",
             }}
           >
-            {/* Header bar for fullscreen mode */}
+            {/* Simple header bar for fullscreen mode */}
             <Box
               sx={{
-                width: '100%', // Ensure full width
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 100,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "4px 16px", 
-                backgroundColor: themeStyles.background.paper, 
+                padding: "8px 16px",
                 borderBottom: `1px solid ${themeStyles.divider}`,
-                borderTopLeftRadius: '20px', 
-                borderTopRightRadius: '20px',
-                flexShrink: 0, // Prevent header from shrinking
+                backgroundColor: themeStyles.background.paper,
               }}
             >
               <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
                 🤖
               </Typography>
-              {/* Container for right-side buttons in fullscreen - simplified */}
-              <Box sx={{ display: "flex", alignItems: 'center' }}> 
+              <Box sx={{ display: "flex", gap: 1 }}>
                 <Tooltip title="Chat History">
                   <IconButton
                     onClick={(event) => setHistoryAnchorEl(event.currentTarget)}
                     size="small"
-                    sx={{ mr: 0.5 }} 
                   >
                     <HistoryIcon fontSize="small" />
                   </IconButton>
@@ -2093,18 +2082,17 @@ const ChatBox = ({
                     }}
                     size="small"
                   >
-                    {/* Use FullscreenExitIcon when in fullscreen */}
-                    <FullscreenExitIcon fontSize="small" />
+                    <FullscreenIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
               </Box>
             </Box>
             
-            {/* Main content area (sidebar + chat) */}
             <Box
               sx={{
                 display: "flex",
-                flex: 1, // Take remaining vertical space
+                flex: 1,
+                overflow: "hidden",
               }}
             >
               {/* Sidebar */}
@@ -2112,16 +2100,13 @@ const ChatBox = ({
                 sx={{
                   width: isSidebarOpen ? "270px" : "0px",
                   height: "100%",
-                  bgcolor: themeStyles.background.paper, // Match header bg
+                  bgcolor: themeStyles.background.paper,
                   transition: "width 0.2s",
-                  overflowY: 'auto', // <<<<---- Restore overflow for sidebar content scrolling
+                  overflow: "hidden",
                   borderRight: 1,
                   borderColor: themeStyles.divider,
                   display: "flex",
                   flexDirection: "column",
-                  borderTopLeftRadius: '20px', // <<<<---- Rounded top-left corner
-                  marginTop: '-1px', // <<<<---- Pull sidebar up to overlay header border
-                  flexShrink: 0, // Prevent sidebar from shrinking
                 }}
               >
                 {/* New Chat button at the top */}
@@ -2240,7 +2225,7 @@ const ChatBox = ({
                     <Box>
                       {setDarkMode && (
                         <IconButton onClick={() => setDarkMode(!darkMode)} size="small">
-                          {darkMode ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+                          {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
                         </IconButton>
                       )}
                     </Box>
