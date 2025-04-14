@@ -2070,7 +2070,7 @@ const ChatBox = ({
               }}
             >
               <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                
+                🤖
               </Typography>
               {/* Container for right-side buttons in fullscreen - simplified */}
               <Box sx={{ display: "flex", alignItems: 'center' }}> 
