@@ -2337,56 +2337,20 @@ const ChatBox = ({
                         }}
                       >
                         {renderMessageContent(message.content)}
+                        {/* Single Copy Button: Bottom Left for AI, Bottom Right for User */}
                         <IconButton
                           size="small"
                           onClick={() =>
                             handleCopyMessage(message.content, index)
                           }
-                          className="copy-button"
+                          className="copy-button" // Class name for hover targeting
                           sx={{
                             position: "absolute",
-                            top: 8,
-                            right: 8,
-                            opacity: 0,
-                            transition: "opacity 0.2s",
-                            backgroundColor:
-                              message.role === "user"
-                                ? darkModeState
-                                  ? "rgba(55, 55, 55, 0.7)"
-                                  : themeStyles.action.hover
-                                : themeStyles.background.default,
-                            color:
-                              message.role === "user"
-                                ? themeStyles.text.primary
-                                : themeStyles.text.primary,
-                            "&:hover": {
-                              backgroundColor:
-                                message.role === "user"
-                                  ? darkModeState
-                                    ? "rgba(55, 55, 55, 0.7)"
-                                    : themeStyles.action.hover
-                                  : themeStyles.action.hover,
-                            },
-                          }}
-                        >
-                          {copiedIndex === index ? (
-                            <CheckIcon fontSize="small" />
-                          ) : (
-                            <CopyIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() =>
-                            handleCopyMessage(message.content, index)
-                          }
-                          className="copy-button"
-                          sx={{
-                            position: "absolute",
-                            bottom: 8,
-                            right: 8,
-                            opacity: 0,
-                            transition: "opacity 0.2s",
+                            bottom: 8, // Always at the bottom
+                            // Conditional positioning: left for AI, right for user
+                            ...(message.role !== 'user' ? { left: 8 } : { right: 8 }),
+                            opacity: 0, // Initially hidden
+                            transition: "opacity 0.2s", // Smooth transition
                             backgroundColor:
                               message.role === "user"
                                 ? darkModeState
@@ -2548,56 +2512,20 @@ const ChatBox = ({
                     }}
                   >
                     {renderMessageContent(message.content)}
+                    {/* Single Copy Button: Bottom Left for AI, Bottom Right for User */}
                     <IconButton
                       size="small"
                       onClick={() =>
                         handleCopyMessage(message.content, index)
                       }
-                      className="copy-button"
+                      className="copy-button" // Class name for hover targeting
                       sx={{
                         position: "absolute",
-                        top: 8,
-                        right: 8,
-                        opacity: 0,
-                        transition: "opacity 0.2s",
-                        backgroundColor:
-                          message.role === "user"
-                            ? darkModeState
-                              ? "rgba(55, 55, 55, 0.7)"
-                              : themeStyles.action.hover
-                            : themeStyles.background.default,
-                        color:
-                          message.role === "user"
-                            ? themeStyles.text.primary
-                            : themeStyles.text.primary,
-                        "&:hover": {
-                          backgroundColor:
-                            message.role === "user"
-                              ? darkModeState
-                                ? "rgba(55, 55, 55, 0.7)"
-                                : themeStyles.action.hover
-                              : themeStyles.action.hover,
-                        },
-                      }}
-                    >
-                      {copiedIndex === index ? (
-                        <CheckIcon fontSize="small" />
-                      ) : (
-                        <CopyIcon fontSize="small" />
-                      )}
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() =>
-                        handleCopyMessage(message.content, index)
-                      }
-                      className="copy-button"
-                      sx={{
-                        position: "absolute",
-                        bottom: 8,
-                        right: 8,
-                        opacity: 0,
-                        transition: "opacity 0.2s",
+                        bottom: 8, // Always at the bottom
+                        // Conditional positioning: left for AI, right for user
+                        ...(message.role !== 'user' ? { left: 8 } : { right: 8 }),
+                        opacity: 0, // Initially hidden
+                        transition: "opacity 0.2s", // Smooth transition
                         backgroundColor:
                           message.role === "user"
                             ? darkModeState
@@ -2750,7 +2678,7 @@ const ChatBox = ({
               key={session.id}
               onClick={() => {
                 setActiveSessionId(session.id);
-                setMessages(session.messages);
+                setMessages(session.messages || []);
                 setHistoryAnchorEl(null);
               }}
               selected={session.id === activeSessionId}
