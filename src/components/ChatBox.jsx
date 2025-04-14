@@ -2060,8 +2060,7 @@ const ChatBox = ({
                 backgroundColor: themeStyles.background.paper,
               }}
             >
-              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                🤖
+              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>              
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
                 <Tooltip title="Chat History">
