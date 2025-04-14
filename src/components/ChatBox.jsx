@@ -61,6 +61,8 @@ import {
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
 } from "@mui/icons-material";
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -85,6 +87,7 @@ import {
   restoreOriginalFavicon,
 } from "../utils/faviconUtils";
 import fileService from "../services/fileService"; // Import fileService
+import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
 const generateTitleFromUserMessage = async ({ message }) => {
   try {
@@ -797,42 +800,41 @@ const ChatBox = ({
   useEffect(() => {
     let mounted = true;
 
-    const saveSession = async () => {
-      if (!activeSessionId || messages.length === 0) return;
+    const saveActiveSessionMessages = async () => {
+      // Don't save if no active session, or if messages are empty (e.g., new session)
+      if (!activeSessionId || !messages || messages.length === 0) return;
 
       try {
         const existingSession = await chatStorage.getSession(activeSessionId);
+        // Session might have been deleted in the meantime
         if (!existingSession) return;
 
-        // Only update lastUpdated if messages have changed
-        const session = {
-          ...existingSession,
-          messages,
-          lastUpdated:
-            JSON.stringify(messages) !==
-            JSON.stringify(existingSession.messages)
-              ? new Date().toISOString()
-              : existingSession.lastUpdated,
-        };
+        // Only save if messages have actually changed compared to the stored version
+        // This prevents unnecessary saves and potential loops
+        if (JSON.stringify(messages) !== JSON.stringify(existingSession.messages)) {
+          const sessionToSave = {
+            ...existingSession,
+            messages,
+            lastUpdated: new Date().toISOString(), // Update timestamp on change
+          };
+          // console.log(`Auto-saving messages for session ${activeSessionId}`);
+          await chatStorage.saveSession(sessionToSave); // Only save the active session
+        }
 
-        await chatStorage.saveSession(session);
-        if (!mounted) return;
-
-        const updatedSessions = await chatStorage.getAllSessions();
-        if (!mounted) return;
-        setSessions(updatedSessions);
       } catch (error) {
-        console.error("Error saving session:", error);
-        if (!mounted) return;
-        setError("Failed to save chat session");
+        // Log error but don't disrupt user with a UI error for background save
+        console.error("Error auto-saving session messages:", error);
+        // setError("Failed to save chat session"); // Avoid setting global error
       }
     };
 
-    saveSession();
+    // Consider debouncing this if it causes performance issues
+    saveActiveSessionMessages();
+
     return () => {
       mounted = false;
     };
-  }, [messages, activeSessionId]);
+  }, [messages, activeSessionId]); // Trigger when messages or active session change
 
   useEffect(() => {
     const loadCustomInstructions = async () => {
@@ -1052,7 +1054,9 @@ const ChatBox = ({
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
     if (container) {
-      container.scrollTop = container.scrollHeight;
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
     }
   };
 
@@ -1544,6 +1548,58 @@ const ChatBox = ({
     return null;
   };
 
+  const handleBranchOff = async (branchIndex) => {
+    if (!activeSessionId) return; // Should not happen if button is visible
+    console.log("Branching off at index:", branchIndex); // Log index
+
+    const currentSession = sessions.find(session => session.id === activeSessionId);
+    if (!currentSession) return; // Should not happen
+
+    // Slice messages up to and including the branch point
+    const branchedMessages = currentSession.messages.slice(0, branchIndex + 1);
+    console.log("Original messages count:", currentSession.messages.length); // Log original count
+    console.log("Branched messages:", branchedMessages); // Log the result of slice
+
+    // Create new title
+    const newTitle = `Branch: ${currentSession.title || 'Untitled Chat'}`;
+    const newSessionId = uuidv4();
+
+    const newSession = {
+      id: newSessionId,
+      title: newTitle,
+      messages: branchedMessages,
+      // Add any other relevant session properties if needed
+      lastUpdated: new Date().toISOString(),
+    };
+
+    try {
+      // Use chatStorage to save the new session consistently
+      await chatStorage.saveSession(newSession);
+      console.log("Branch saved via chatStorage");
+
+      // Update the sessions list in state AFTER successful save
+      setSessions(prevSessions => [...prevSessions, newSession]);
+
+      // Set the new session as active using setTimeout
+      setTimeout(() => {
+        setActiveSessionId(newSessionId);
+        // Explicitly set messages state for the new session too
+        setMessages(branchedMessages);
+        console.log("Active session ID set to new branch:", newSessionId);
+        // Force scroll after activation to ensure the end is visible
+        setTimeout(scrollToBottom, 50); // Add a minimal delay for rendering
+      }, 0);
+
+    } catch (error) {
+      console.error("Failed to save branched session via chatStorage:", error);
+      setError("Failed to save the new branch session."); // Notify user
+    }
+  };
+
+  const handleInputChange = (event) => {
+    setInput(event.target.value);
+  };
+
   const renderMessageInput = () => (
     <Box 
       sx={{
@@ -1851,9 +1907,7 @@ const ChatBox = ({
       if (typeof firstMessage.content === "string") {
         preview = firstMessage.content;
       } else if (Array.isArray(firstMessage.content)) {
-        const textContent = firstMessage.content.find(
-          (item) => item.type === "text"
-        );
+        const textContent = firstMessage.content.find((item) => item.type === "text");
         preview = textContent ? textContent.text : "";
       }
     }
@@ -2406,7 +2460,7 @@ const ChatBox = ({
                           p: 2,
                           mb: 2,
                           textAlign: "left",
-                          "&:hover .copy-button": {
+                          "&:hover .copy-button, &:hover .branch-button": {
                             opacity: 1,
                           },
                         }}
@@ -2452,6 +2506,28 @@ const ChatBox = ({
                             <CopyIcon fontSize="small" />
                           )}
                         </IconButton>
+                        {/* Branch Off Button: Only for AI messages */}
+                        {message.role !== 'user' && (
+                          <IconButton
+                            size="small"
+                            onClick={() => handleBranchOff(index)} // Call handleBranchOff
+                            className="branch-button" // Class name for hover targeting
+                            sx={{
+                              position: "absolute",
+                              bottom: 8,
+                              left: 40, // Position next to copy button (left: 8 + 32)
+                              opacity: 0, // Initially hidden
+                              transition: "opacity 0.2s",
+                              backgroundColor: themeStyles.background.default, // Match AI message background
+                              color: themeStyles.text.primary,
+                              "&:hover": {
+                                backgroundColor: themeStyles.action.hover, // Use theme hover
+                              },
+                            }}
+                          >
+                            <AccountTreeIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </Box>
                     </Box>
                   ))}
@@ -2484,6 +2560,25 @@ const ChatBox = ({
                   )}
                 </Box>
 
+                {/* {showScrollButton && (
+                  <Fab
+                    size="small"
+                    color="primary"
+                    sx={{
+                      position: "fixed",
+                      right: 32,
+                      bottom: 120,
+                      zIndex: 1000,
+                      opacity: 0.9,
+                      "&:hover": {
+                        opacity: 1,
+                      },
+                    }}
+                    onClick={scrollToBottom}
+                  >
+                    <KeyboardArrowDownIcon />
+                  </Fab>
+                )} */}
                 {renderMessageInput()}
               </Box>
             </Box>
@@ -2581,7 +2676,7 @@ const ChatBox = ({
                       p: 2,
                       mb: 2,
                       textAlign: "left",
-                      "&:hover .copy-button": {
+                      "&:hover .copy-button, &:hover .branch-button": {
                         opacity: 1,
                       },
                     }}
@@ -2627,6 +2722,28 @@ const ChatBox = ({
                         <CopyIcon fontSize="small" />
                       )}
                     </IconButton>
+                    {/* Branch Off Button: Only for AI messages */}
+                    {message.role !== 'user' && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handleBranchOff(index)} // Call handleBranchOff
+                        className="branch-button" // Class name for hover targeting
+                        sx={{
+                          position: "absolute",
+                          bottom: 8,
+                          left: 40, // Position next to copy button (left: 8 + 32)
+                          opacity: 0, // Initially hidden
+                          transition: "opacity 0.2s",
+                          backgroundColor: themeStyles.background.default, // Match AI message background
+                          color: themeStyles.text.primary,
+                          "&:hover": {
+                            backgroundColor: themeStyles.action.hover, // Use theme hover
+                          },
+                        }}
+                      >
+                        <AccountTreeIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </Box>
                 </Box>
               ))}
