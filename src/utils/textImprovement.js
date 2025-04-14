@@ -24,10 +24,10 @@ Return only the edited text. Do not wrap your response in quotes. Do not offer a
     // Use sendProxyMessage instead of sendAnthropicMessage to leverage encryption
     const response = await sendProxyMessage(
       messages,
-      'Haiku', // Use Claude Haiku model
-      null, // Use the proxy key from localStorage
+      'o3-mini',
       null,
-      null // No streaming for text improvement
+      null,
+      null
     );
 
     if (!response || !response.content) {
