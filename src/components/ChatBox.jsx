@@ -1012,6 +1012,27 @@ const ChatBox = ({
     };
   }, []); // Empty dependency array ensures this runs only once on mount
 
+  useEffect(() => {
+    if (activeSessionId) {
+      const activeSession = sessions.find(session => session.id === activeSessionId);
+      if (activeSession && activeSession.title) {
+        document.title = activeSession.title;
+      } else {
+        // Handle case where session might not be found or title not yet generated
+        document.title = "New Chat"; // Or a default title like "Jarvis"
+      }
+    } else {
+      // No active session (e.g., initial load before selection or after clearing)
+      document.title = "Jarvis"; // Default title
+    }
+
+    // Optional: Cleanup function to reset title when component unmounts
+    return () => {
+      // Reset to a generic title if needed when navigating away
+      // document.title = "Jarvis"; 
+    };
+  }, [activeSessionId, sessions]); // Re-run effect when active session or sessions list changes
+
   const handleModelSelect = (providerAndModel) => {
     setSelectedProvider(providerAndModel);
     localStorage.setItem("last_selected_provider", providerAndModel);
