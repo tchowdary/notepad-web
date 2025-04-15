@@ -49,6 +49,7 @@ import { DOMSerializer } from 'prosemirror-model';
 import fileService from '../services/fileService';
 import DropboxConfig from './DropboxConfig';
 import BacklinkPalette from './BacklinkPalette';
+import DbSyncService from '../services/dbSyncService';
 
 // Create a new lowlight instance
 const lowlight = createLowlight();
@@ -422,21 +423,30 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   const handleBacklinkSelect = (note) => {
     if (editor) {
-      // Remove the [[ characters
-      editor.commands.deleteRange({
-        from: editor.state.selection.from - 2,
-        to: editor.state.selection.from
-      });
+      const { from } = editor.state.selection;
       
-      // Insert just the note name as a link without [[ and ]]
-      editor.chain()
-        .focus()
-        .setLink({ 
-          href: `note://${note.id}`,
-          target: '_blank',
-          class: 'internal-note-link'
-        })
-        .insertContent(note.name)
+      // Define the range to replace (the '[[')
+      const range = { from: from - 2, to: from }; 
+      
+      // Insert the note name *with* the link mark already applied
+      editor.chain().focus()
+        .insertContentAt(range, [
+          {
+            type: 'text', // Specify inserting text content
+            text: note.name,
+            marks: [ // Apply marks directly during insertion
+              {
+                type: 'link', // Specify the link mark type
+                attrs: { 
+                  href: `note://${note.id}`, // Set the custom href
+                  class: 'internal-note-link' // Apply our CSS class
+                },
+              },
+            ],
+          }
+        ])
+        // Optional: Move cursor immediately after the inserted link
+        .setTextSelection(range.from + note.name.length) 
         .run();
     }
   };
@@ -500,7 +510,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       Color,
       Underline,
       Link.configure({
-        openOnClick: true,
+        openOnClick: false, // Set to false because we have a custom click handler
+        autolink: true,     // Keep autolink for http/https if desired
+        protocols: ['http', 'https', 'mailto', 'note'], // Add 'note' protocol
+        validate: href => /^https?:\/\//.test(href) || /^mailto:/.test(href) || /^note:\/\//.test(href), // Validate allowed protocols
       }),
       Highlight.configure({
         multicolor: true,
