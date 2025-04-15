@@ -437,17 +437,19 @@ function App() {
     const handleOpenNoteInNewTab = (event) => {
       const { tabData } = event.detail;
       if (tabData && tabData.noteId) {
+        const originatingTabId = activeTab; // Capture the current active tab ID
         // Create a new tab with the note data
         const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
         const newTab = {
           id: newId,
           name: tabData.name,
           content: tabData.content,
-          type: 'markdown',
-          editorType: 'tiptap',
+          type: 'markdown', // Explicitly setting type
+          editorType: 'tiptap', // Explicitly setting editor type
           noteId: tabData.noteId,
           due_date: tabData.due_date,
-          status: tabData.status
+          status: tabData.status,
+          originTabId: originatingTabId // Store the origin tab ID
         };
         
         setTabs(prevTabs => [...prevTabs, newTab]);
@@ -503,7 +505,7 @@ function App() {
   };
 
   const handleTabClose = async (id) => {
-    const tab = tabs.find(t => t.id === id);
+    const tab = tabs.find(t => t.id === id); // Get the full tab object being closed
     if (tab?.type === 'excalidraw') {
       try {
         await deleteDrawing(id);
@@ -512,19 +514,38 @@ function App() {
       }
     }
     
+    const index = tabs.findIndex(tab => tab.id === id); // Find index in original array
     const newTabs = tabs.filter(tab => tab.id !== id);
+
     if (newTabs.length === 0) {
       // Create a new empty tab if we're closing the last one
       setTabs([{ id: 1, name: 'untitled.md', content: '', type: 'markdown', editorType: 'tiptap' }]);
       setActiveTab(1);
     } else {
-      setTabs(newTabs);
+      // Set the new tabs state first
+      setTabs(newTabs); 
+      
+      // Only change active tab if the closed tab *was* the active one
       if (activeTab === id) {
-        // Set active tab to the previous tab, or the first one if we're at the beginning
-        const index = tabs.findIndex(tab => tab.id === id);
-        const newActiveTab = tabs[index === 0 ? 1 : index - 1].id;
-        setActiveTab(newActiveTab);
+        let newActiveTabId = null;
+        // Check if the closed tab had an origin and if that origin still exists
+        if (tab?.originTabId && newTabs.some(t => t.id === tab.originTabId)) {
+          newActiveTabId = tab.originTabId; // Prioritize returning to origin
+        } else {
+          // Fallback to positional logic if no origin or origin doesn't exist
+          let newActiveTabIndex;
+          if (index >= newTabs.length) {
+            // If the closed tab was the last one, activate the new last tab
+            newActiveTabIndex = newTabs.length - 1;
+          } else {
+            // Otherwise, activate the tab at the same index the closed tab occupied
+            newActiveTabIndex = index;
+          }
+          newActiveTabId = newTabs[newActiveTabIndex].id;
+        }
+        setActiveTab(newActiveTabId);
       }
+      // If the closed tab was NOT the active one, the activeTab state remains unchanged.
     }
   };
 
