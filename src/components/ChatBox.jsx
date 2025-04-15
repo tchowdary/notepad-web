@@ -992,6 +992,15 @@ const ChatBox = ({
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      // Handle Control+Shift+O for new chat
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "o") {
+        event.preventDefault(); // Prevent default browser behavior
+        console.log("Control+Shift+O shortcut detected"); // Debug log
+        createNewSession(); // Create a new chat
+        return;
+      }
+      
+      // Handle other Control key shortcuts
       if (event.ctrlKey) {
         const container = messagesContainerRef.current;
         if (!container) return;
@@ -1098,6 +1107,13 @@ const ChatBox = ({
       setSelectedInstruction(null);
       localStorage.removeItem("last_selected_instruction");
       setInstructionMenuAnchorEl(null);
+      
+      // Focus on the input field after creating a new chat
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
     } catch (error) {
       console.error("Error creating new session:", error);
       setError("Failed to create new chat session");
@@ -2850,9 +2866,7 @@ const ChatBox = ({
               if (typeof firstMessage.content === "string") {
                 displayText = firstMessage.content;
               } else if (Array.isArray(firstMessage.content)) {
-                const textContent = firstMessage.content.find(
-                  (item) => item.type === "text"
-                );
+                const textContent = firstMessage.content.find((item) => item.type === "text");
                 displayText = textContent ? textContent.text : "";
               } else if (firstMessage.content?.type === "image") {
                 displayText = "[Image]";
