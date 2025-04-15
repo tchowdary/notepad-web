@@ -128,7 +128,7 @@ const generateTitleFromUserMessage = async ({ message }) => {
     // Use sendProxyMessage to get the title with encryption support
     const response = await sendProxyMessage(
       messages,
-      "4o-mini", // Use the same model as before
+      "GPT 4.1-nano", // Use the same model as before
       null, // Use the proxy key from localStorage
       customInstruction,
       null // No streaming for title generation
