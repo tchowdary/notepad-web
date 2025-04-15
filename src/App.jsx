@@ -433,6 +433,35 @@ function App() {
     saveTodoState();
   }, [todoData]);
 
+  useEffect(() => {
+    const handleOpenNoteInNewTab = (event) => {
+      const { tabData } = event.detail;
+      if (tabData && tabData.noteId) {
+        // Create a new tab with the note data
+        const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
+        const newTab = {
+          id: newId,
+          name: tabData.name,
+          content: tabData.content,
+          type: 'markdown',
+          editorType: 'tiptap',
+          noteId: tabData.noteId,
+          due_date: tabData.due_date,
+          status: tabData.status
+        };
+        
+        setTabs(prevTabs => [...prevTabs, newTab]);
+        // Use requestAnimationFrame for smoother focus handling
+        requestAnimationFrame(() => {
+          setActiveTab(newId);
+        });
+      }
+    };
+    
+    window.addEventListener('open-note-in-new-tab', handleOpenNoteInNewTab);
+    return () => window.removeEventListener('open-note-in-new-tab', handleOpenNoteInNewTab);
+  }, [tabs]);
+
   const handleNewTab = ({ type = 'codemirror', name = '', content = '' } = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     let tabName = name;

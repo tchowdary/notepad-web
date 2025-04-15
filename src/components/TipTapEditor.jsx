@@ -21,29 +21,9 @@ import DetailsContent from '@tiptap-pro/extension-details-content'
 import DetailsSummary from '@tiptap-pro/extension-details-summary'
 import Emoji, { gitHubEmojis } from '@tiptap-pro/extension-emoji'
 import { Mathematics } from '@tiptap-pro/extension-mathematics'
-import {
-  FormatBold,
-  FormatItalic,
-  FormatUnderlined,
-  Code,
-  FormatQuote,
-  FormatListBulleted,
-  FormatListNumbered,
-  TableChart,
-  DeleteOutline,
-  ContentCopy,
-  Mic as MicIcon,
-  List as ListIcon,
-  ChevronLeft,
-  Remove,
-  AutoFixHigh,
-  TextFields,
-  CheckBox,
-  AddCircleOutline,
-  DeleteForever,
-  Expand,
-  FormatPaint,
-} from '@mui/icons-material';
+import { Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from 'prosemirror-state';
+import { FormatBold, FormatItalic, FormatUnderlined, Code, FormatQuote, FormatListBulleted, FormatListNumbered, TableChart, DeleteOutline, ContentCopy, Mic as MicIcon, List as ListIcon, ChevronLeft, Remove, AutoFixHigh, TextFields, CheckBox, AddCircleOutline, DeleteForever, Expand, FormatPaint, } from '@mui/icons-material';
 import { Box, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, ListItemIcon, ListItemText, ToggleButton } from '@mui/material';
 import { marked } from 'marked';
 import { improveText } from '../utils/textImprovement';
@@ -68,6 +48,7 @@ import TurndownService from 'turndown';
 import { DOMSerializer } from 'prosemirror-model';
 import fileService from '../services/fileService';
 import DropboxConfig from './DropboxConfig';
+import BacklinkPalette from './BacklinkPalette';
 
 // Create a new lowlight instance
 const lowlight = createLowlight();
@@ -324,6 +305,55 @@ const getEditorStyles = (darkMode) => ({
   },
 });
 
+// Custom extension to handle backlinking
+const Backlink = Extension.create({
+  name: 'backlink',
+  
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('backlink'),
+        props: {
+          handleKeyDown: (view, event) => {
+            // Check if the last two characters are "[["
+            const { state } = view;
+            const { selection } = state;
+            const { $from } = selection;
+            
+            const currentLineText = $from.doc.textBetween(
+              $from.start(),
+              $from.pos,
+              "\n",
+              "\n"
+            );
+            
+            // If the user types [[ and the previous character isn't already [
+            if (event.key === '[' && 
+                currentLineText.length > 0 && 
+                currentLineText.slice(-1) === '[') {
+              
+              // Get the position for the popup
+              const coords = view.coordsAtPos($from.pos);
+              
+              // Dispatch a custom event to show the backlink palette
+              window.dispatchEvent(new CustomEvent('show-backlink-palette', { 
+                detail: { 
+                  position: { 
+                    top: coords.top + 20, 
+                    left: coords.left 
+                  } 
+                } 
+              }));
+            }
+            
+            return false;
+          }
+        }
+      })
+    ];
+  }
+});
+
 const CustomImage = TiptapImage.extend({
   addAttributes() {
     return {
@@ -365,6 +395,8 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [submenuPosition, setSubmenuPosition] = useState({ top: 0, left: 0 });
   const submenuTimeoutRef = useRef(null);
+  const [showBacklinkPalette, setShowBacklinkPalette] = useState(false);
+  const [backlinkPosition, setBacklinkPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     localStorage.setItem('tocOpen', JSON.stringify(isTocOpen));
@@ -373,6 +405,41 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const toggleToc = useCallback(() => {
     setIsTocOpen(prev => !prev);
   }, []);
+
+  useEffect(() => {
+    // Listen for the custom event to show the backlink palette
+    const handleShowBacklinkPalette = (event) => {
+      setBacklinkPosition(event.detail.position);
+      setShowBacklinkPalette(true);
+    };
+    
+    window.addEventListener('show-backlink-palette', handleShowBacklinkPalette);
+    
+    return () => {
+      window.removeEventListener('show-backlink-palette', handleShowBacklinkPalette);
+    };
+  }, []);
+
+  const handleBacklinkSelect = (note) => {
+    if (editor) {
+      // Remove the [[ characters
+      editor.commands.deleteRange({
+        from: editor.state.selection.from - 2,
+        to: editor.state.selection.from
+      });
+      
+      // Insert just the note name as a link without [[ and ]]
+      editor.chain()
+        .focus()
+        .setLink({ 
+          href: `note://${note.id}`,
+          target: '_blank',
+          class: 'internal-note-link'
+        })
+        .insertContent(note.name)
+        .run();
+    }
+  };
 
   const editor = useEditor({
     extensions: [
@@ -492,6 +559,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           trust: true
         },
       }),
+      Backlink,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -532,6 +600,63 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       }
     }
   });
+
+  useEffect(() => {
+    if (editor) {
+      // Add double-click handler for images
+      const handleDoubleClick = (event) => {
+        const image = event.target.closest('img');
+        if (image) {
+          window.open(image.src, '_blank');
+        }
+      };
+
+      editor.view.dom.addEventListener('dblclick', handleDoubleClick);
+      return () => editor.view.dom.removeEventListener('dblclick', handleDoubleClick);
+    }
+  }, [editor]);
+
+  useEffect(() => {
+    if (editor) {
+      // Add click handler for internal note links
+      const handleLinkClick = (event) => {
+        const link = event.target.closest('a');
+        if (link && link.href.includes('note://')) {
+          event.preventDefault();
+          
+          // Extract the note ID from the URL
+          const noteId = link.href.split('note://')[1];
+          if (noteId) {
+            // Fetch the note and open it in a new tab
+            DbSyncService.getNoteById(noteId)
+              .then(note => {
+                if (note) {
+                  // Create a tab object compatible with the app's structure
+                  const tabData = {
+                    name: note.name,
+                    content: note.content ? decodeURIComponent(escape(atob(note.content))) : '',
+                    noteId: note.id,
+                    due_date: note.due_date,
+                    status: note.status
+                  };
+                  
+                  // Open in a new tab by dispatching a custom event
+                  window.dispatchEvent(new CustomEvent('open-note-in-new-tab', { 
+                    detail: { tabData } 
+                  }));
+                }
+              })
+              .catch(error => {
+                console.error('Error fetching note:', error);
+              });
+          }
+        }
+      };
+
+      editor.view.dom.addEventListener('click', handleLinkClick);
+      return () => editor.view.dom.removeEventListener('click', handleLinkClick);
+    }
+  }, [editor]);
 
   useEffect(() => {
     if (editor) {
@@ -577,21 +702,6 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
       editor.view.dom.addEventListener('paste', handlePaste);
       return () => editor.view.dom.removeEventListener('paste', handlePaste);
-    }
-  }, [editor]);
-
-  useEffect(() => {
-    if (editor) {
-      // Add double-click handler for images
-      const handleDoubleClick = (event) => {
-        const image = event.target.closest('img');
-        if (image) {
-          window.open(image.src, '_blank');
-        }
-      };
-
-      editor.view.dom.addEventListener('dblclick', handleDoubleClick);
-      return () => editor.view.dom.removeEventListener('dblclick', handleDoubleClick);
     }
   }, [editor]);
 
@@ -1464,6 +1574,15 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         open={dropboxConfigOpen}
         onClose={() => setDropboxConfigOpen(false)}
       />
+      {showBacklinkPalette && (
+        <BacklinkPalette
+          isOpen={showBacklinkPalette}
+          onClose={() => setShowBacklinkPalette(false)}
+          onNoteSelect={handleBacklinkSelect}
+          position={backlinkPosition}
+          darkMode={darkMode}
+        />
+      )}
     </Box>
   );
 });
