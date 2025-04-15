@@ -631,11 +631,12 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
   useEffect(() => {
     if (editor) {
-      // Add click handler for internal note links
+      // Add click handler for links
       const handleLinkClick = (event) => {
         const link = event.target.closest('a');
         if (link && link.href.includes('note://')) {
-          event.preventDefault();
+          // Handle internal note links
+          event.preventDefault(); // Prevent default only for note links before handling
           
           // Extract the note ID from the URL
           const noteId = link.href.split('note://')[1];
@@ -663,7 +664,13 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
                 console.error('Error fetching note:', error);
               });
           }
+        } else if (link && (link.href.startsWith('http://') || link.href.startsWith('https://'))) {
+          // Handle external http/https links
+          event.preventDefault(); // Prevent default navigation
+          window.open(link.href, '_blank', 'noopener noreferrer'); // Open in new tab
         }
+        // No explicit handling for mailto: or other protocols needed here
+        // If they don't work due to openOnClick:false, further adjustments might be required.
       };
 
       editor.view.dom.addEventListener('click', handleLinkClick);
