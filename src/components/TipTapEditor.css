@@ -51,3 +51,29 @@
 .tiptap .details .details {
   margin: 0.5rem 0;
 }
+
+/* Internal note link styling */
+.ProseMirror a.internal-note-link {
+  color: #9c27b0;
+  text-decoration: none;
+  border-bottom: 1px dashed #9c27b0;
+  padding: 0 2px;
+  background-color: rgba(156, 39, 176, 0.05);
+}
+
+.ProseMirror a.internal-note-link:hover {
+  background-color: rgba(156, 39, 176, 0.1);
+  border-bottom: 1px solid #9c27b0;
+}
+
+/* Dark mode styling for internal links */
+.dark-mode .ProseMirror a.internal-note-link {
+  color: #ce93d8;
+  border-bottom: 1px dashed #ce93d8;
+  background-color: rgba(206, 147, 216, 0.1);
+}
+
+.dark-mode .ProseMirror a.internal-note-link:hover {
+  background-color: rgba(206, 147, 216, 0.2);
+  border-bottom: 1px solid #ce93d8;
+}
