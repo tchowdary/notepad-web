@@ -1,0 +1,64 @@
+/* Edge-specific scrollbar fixes */
+
+/* Target Edge scrollbars with the most aggressive approach */
+@supports (-ms-ime-align:auto) {
+  html, body, #root, .app-container, .editor-container, .CodeMirror, .cm-editor, .cm-scroller, 
+  .MuiBox-root, .MuiPaper-root, .MuiDrawer-paper, .MuiDialog-paper, 
+  .tab-content, .editor-wrapper, .preview-container, .split-view, .split-view > div {
+    scrollbar-width: thin !important;
+    -ms-overflow-style: none !important;
+  }
+  
+  *::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.15) !important;
+    border-radius: 4px !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* For newer Edge (Chromium-based) */
+@media all and (min--moz-device-pixel-ratio:0) and (display-mode:browser), 
+       all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+  html, body, #root, .app-container, .editor-container, .CodeMirror, .cm-editor, .cm-scroller, 
+  .MuiBox-root, .MuiPaper-root, .MuiDrawer-paper, .MuiDialog-paper, 
+  .tab-content, .editor-wrapper, .preview-container, .split-view, .split-view > div {
+    scrollbar-width: thin !important;
+  }
+  
+  *::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: transparent !important;
+    border: none !important;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.15) !important;
+    border: none !important;
+  }
+}
+
+/* Last resort Edge fix - completely hide scrollbars and use overlay scrolling */
+@supports (-ms-overflow-style: none) {
+  html, body, #root, .app-container, .editor-container, .CodeMirror, .cm-editor, .cm-scroller, 
+  .MuiBox-root, .MuiPaper-root, .MuiDrawer-paper, .MuiDialog-paper, 
+  .tab-content, .editor-wrapper, .preview-container, .split-view, .split-view > div {
+    -ms-overflow-style: none !important;
+    overflow: auto !important;
+  }
+}
