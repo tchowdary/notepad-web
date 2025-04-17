@@ -483,21 +483,27 @@ body {
 
 ::-webkit-scrollbar-track {
   background: transparent;
+  border: none;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(155, 155, 155, 0.5);
+  background-color: rgba(155, 155, 155, 0.3);
   border-radius: 4px;
+  border: none;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(155, 155, 155, 0.7);
+  background-color: rgba(155, 155, 155, 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* For Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+  scrollbar-color: rgba(155, 155, 155, 0.3) transparent;
 }
 
 /* For Edge and IE */
@@ -509,5 +515,12 @@ body {
   .scrollable-container {
     -ms-overflow-style: auto;
     scrollbar-width: thin;
+  }
+}
+
+/* Hide scrollbar borders in Edge */
+@supports (-ms-ime-align: auto) {
+  * {
+    -ms-overflow-style: -ms-autohiding-scrollbar;
   }
 }
