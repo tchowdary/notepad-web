@@ -500,12 +500,6 @@ body {
   background: transparent;
 }
 
-/* For Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(155, 155, 155, 0.3) transparent;
-}
-
 /* For Edge and IE */
 @supports (-ms-overflow-style: none) {
   html {
