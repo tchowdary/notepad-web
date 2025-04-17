@@ -481,6 +481,10 @@ function App() {
         tabName = `Task-${newId}.todo`;
         // Initialize with empty content
         content = '';
+      } else if (type === 'tldraw') {
+        tabName = `Drawing-${newId}.tldraw`;
+        tabType = 'tldraw';
+        editorType = 'tldraw';
       }
     }
     
