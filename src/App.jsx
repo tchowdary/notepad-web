@@ -261,7 +261,7 @@ function App() {
           // Create default tab if no saved tabs
           const defaultTab = { 
             id: 1, 
-            name: 'untitled.md', 
+            name: 'untitled.doc', 
             content: '', 
             type: 'markdown', 
             editorType: 'tiptap' 
@@ -275,7 +275,7 @@ function App() {
         // Create default tab on error
         const defaultTab = { 
           id: 1, 
-          name: 'untitled.md', 
+          name: 'untitled.doc', 
           content: '', 
           type: 'markdown', 
           editorType: 'tiptap' 
@@ -474,9 +474,9 @@ function App() {
     
     if (!name) {
       if (type === 'tiptap') {
-        tabName = `Note-${newId}.md`;
+        tabName = `Note-${newId}.doc`;
       } else if (type === 'codemirror') {
-        tabName = `Code-${newId}.txt`;
+        tabName = `Code-${newId}.md`;
       } else if (type === 'todo') {
         tabName = `Task-${newId}.todo`;
         // Initialize with empty content
@@ -519,7 +519,7 @@ function App() {
 
     if (newTabs.length === 0) {
       // Create a new empty tab if we're closing the last one
-      setTabs([{ id: 1, name: 'untitled.md', content: '', type: 'markdown', editorType: 'tiptap' }]);
+      setTabs([{ id: 1, name: 'untitled.doc', content: '', type: 'markdown', editorType: 'tiptap' }]);
       setActiveTab(1);
     } else {
       // Set the new tabs state first
@@ -797,9 +797,12 @@ function App() {
         } else if (file.name.toLowerCase().endsWith('.todo')) {
           type = 'todo';
           editorType = 'todo';
-        } else if (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) {
+        } else if (file.name.toLowerCase().endsWith('.doc')) {
           type = 'markdown';
           editorType = 'tiptap';
+        } else if (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) {
+          type = 'markdown';
+          editorType = 'codemirror';
         }
         
         // Extract due date and completed status from API response
@@ -859,7 +862,7 @@ function App() {
           content: parsedContent,
           type: file.name.endsWith('.tldraw') ? 'tldraw' : 'markdown',
           editorType: file.name.endsWith('.tldraw') ? 'tldraw' : 
-                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'tiptap' : 'codemirror',
+                     (file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown')) ? 'codemirror' : 'tiptap',
           path: file.path
         };
         setTabs(prev => [...prev, newTab]);
@@ -1563,7 +1566,7 @@ function App() {
         ref={fileInputRef}
         style={{ display: 'none' }}
         onChange={handleFileSelect}
-        accept=".txt,.md,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
+        accept=".md,.doc,.markdown,.json,.js,.jsx,.ts,.tsx,.html,.css,.yaml,.yml,.xml,.sql,.py,.excalidraw,.tldraw"
       />
       <QuickChat
         open={showQuickChat}
