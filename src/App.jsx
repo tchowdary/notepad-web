@@ -29,6 +29,7 @@ import { converters } from './utils/converters';
 import { chatStorage } from './services/chatStorageService';
 import { openDB, TABS_STORE } from './utils/db';
 import './App.css';
+import './edge-scrollbar.css'; // Import Edge-specific scrollbar styling
 
 function App() {
   const fileInputRef = useRef(null);

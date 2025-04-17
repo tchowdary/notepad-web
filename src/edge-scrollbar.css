@@ -1,0 +1,100 @@
+/* 
+ * Microsoft Edge Specific Scrollbar Styling
+ * This file contains styles that only target Microsoft Edge browsers
+ */
+
+/* Edge Legacy detection */
+@supports (-ms-ime-align: auto) {
+  /* Hide scrollbars by default */
+  * {
+    -ms-overflow-style: -ms-autohiding-scrollbar;
+  }
+  
+  /* Target all scrollable containers */
+  html, body, #root, .app-container, .editor-container, 
+  .CodeMirror, .cm-editor, .cm-scroller, .editor-wrapper,
+  .MuiBox-root, .MuiPaper-root, .MuiDrawer-paper, 
+  .tab-content, .preview-container, .split-view, .split-view > div {
+    scrollbar-width: thin;
+    -ms-overflow-style: none;
+  }
+  
+  /* Custom scrollbar for Edge */
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.15);
+    border-radius: 4px;
+    border: none;
+    box-shadow: none;
+  }
+  
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* Chromium-based Edge detection */
+@supports (not (-ms-ime-align: auto)) and ((-webkit-mask-image: none) or (-webkit-hyphens: none)) {
+  @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+    /* Target all scrollable containers */
+    html, body, #root, .app-container, .editor-container, 
+    .CodeMirror, .cm-editor, .cm-scroller, .editor-wrapper,
+    .MuiBox-root, .MuiPaper-root, .MuiDrawer-paper, 
+    .tab-content, .preview-container, .split-view, .split-view > div {
+      scrollbar-width: thin;
+    }
+    
+    /* Custom scrollbar for Edge */
+    *::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    
+    *::-webkit-scrollbar-track {
+      background: transparent;
+      border: none;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+      background-color: rgba(155, 155, 155, 0.15);
+      border-radius: 4px;
+      border: none;
+    }
+    
+    *::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+  }
+}
+
+/* Additional Edge detection method */
+@media screen and (min-width: 0\0) {
+  * {
+    -ms-overflow-style: none;
+  }
+  
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.15);
+    border-radius: 4px;
+    border: none;
+  }
+}
