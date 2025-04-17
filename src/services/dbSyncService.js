@@ -1,4 +1,5 @@
 import { DB_NAME, DB_VERSION, TABS_STORE, openDB } from '../utils/db';
+import { base64Utils } from '../utils/converters';
 
 class DbSyncService {
   constructor() {
@@ -102,8 +103,8 @@ class DbSyncService {
       const url = `${this.settings.proxyUrl}/api/notes`;
       console.log(`POST request to: ${url}`);
       
-      // Encode content to base64
-      const contentBase64 = btoa(unescape(encodeURIComponent(content)));
+      // Encode content to base64 with proper UTF-8 handling
+      const contentBase64 = this.encodeContentToBase64(content);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -153,8 +154,8 @@ class DbSyncService {
       const url = `${this.settings.proxyUrl}/api/notes`;
       console.log(`POST request to: ${url} with ID: ${id}`);
       
-      // Encode content to base64
-      const contentBase64 = btoa(unescape(encodeURIComponent(content)));
+      // Encode content to base64 with proper UTF-8 handling
+      const contentBase64 = this.encodeContentToBase64(content);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -485,7 +486,7 @@ class DbSyncService {
         return notes.map(note => {
           if (note.content) {
             try {
-              note.content = decodeURIComponent(escape(atob(note.content)));
+              note.content = this.decodeBase64Content(note.content);
             } catch (e) {
               console.error('Error decoding note content:', e);
             }
@@ -524,6 +525,51 @@ class DbSyncService {
       console.error(`Error getting note with ID ${noteId}:`, error);
       return null;
     }
+  }
+
+  async listNotes() {
+    if (!this.isConfigured()) return [];
+    
+    try {
+      const response = await fetch(`${this.settings.proxyUrl}/api/notes`, {
+        headers: {
+          'x-api-key': this.settings.proxyKey
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('List notes error:', errorData);
+        throw new Error(`Failed to list notes: ${errorData.message || response.statusText}`);
+      }
+      
+      const responseData = await response.json();
+      
+      // Process the notes to decode base64 content
+      if (responseData && responseData.notes && Array.isArray(responseData.notes)) {
+        responseData.notes.forEach(note => {
+          if (note.content) {
+            // Use the new decoding method
+            note.content = this.decodeBase64Content(note.content);
+          }
+        });
+      }
+      
+      return responseData && responseData.notes ? responseData.notes : [];
+    } catch (error) {
+      console.error('Error listing notes:', error);
+      return [];
+    }
+  }
+
+  // Helper method to properly encode content to base64 with UTF-8 support
+  encodeContentToBase64(content) {
+    return base64Utils.encodeToBase64(content);
+  }
+
+  // Helper method to decode base64 content with UTF-8 support
+  decodeBase64Content(base64Content) {
+    return base64Utils.decodeFromBase64(base64Content);
   }
 }
 

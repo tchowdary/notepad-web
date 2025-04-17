@@ -2,6 +2,39 @@ import CryptoJS from 'crypto-js';
 import * as asn1js from 'asn1js';
 import { Certificate } from 'pkijs';
 
+// Utility functions for consistent base64 encoding/decoding with UTF-8 support
+export const base64Utils = {
+  // Encode string to base64 with proper UTF-8 handling
+  encodeToBase64: (text) => {
+    if (!text) return '';
+    return btoa(encodeURIComponent(text).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+      return String.fromCharCode('0x' + p1);
+    }));
+  },
+  
+  // Decode base64 to string with proper UTF-8 handling
+  decodeFromBase64: (base64Text) => {
+    if (!base64Text) return '';
+    
+    try {
+      // Modern approach using Array.from for proper UTF-8 handling
+      return decodeURIComponent(Array.from(atob(base64Text), c => 
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join(''));
+    } catch (error) {
+      console.error('Error decoding base64 content:', error);
+      // Fallback to the previous method if the new one fails
+      try {
+        return decodeURIComponent(escape(atob(base64Text)));
+      } catch (fallbackError) {
+        console.error('Fallback decoding also failed:', fallbackError);
+        // Last resort - just return the raw decoded content
+        return atob(base64Text);
+      }
+    }
+  }
+};
+
 export const converters = {
   timestamp: {
     name: 'Timestamp to Date',

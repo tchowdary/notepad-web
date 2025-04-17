@@ -25,7 +25,7 @@ import TabSwitcher from './components/TabSwitcher';
 import { saveTabs, loadTabs, deleteDrawing, saveDrawing, loadTodoData, saveTodoData, updateTabNoteIds } from './utils/db';
 import { isPWA } from './utils/pwaUtils';
 import { createCommandList } from './utils/commands';
-import { converters } from './utils/converters';
+import { converters, base64Utils } from './utils/converters';
 import { chatStorage } from './services/chatStorageService';
 import { openDB, TABS_STORE } from './utils/db';
 import './App.css';
@@ -785,7 +785,7 @@ function App() {
       try {
         // Try to decode base64 content if it appears to be encoded
         const isBase64 = /^[A-Za-z0-9+/=]+$/.test(file.content.replace(/\s/g, ''));
-        const decodedContent = isBase64 ? atob(file.content) : file.content;
+        const decodedContent = isBase64 ? base64Utils.decodeFromBase64(file.content) : file.content;
         
         // Determine editor type based on file extension
         let type = 'markdown';
@@ -1129,7 +1129,7 @@ function App() {
         let content = '';
         if (fullTodo.content) {
           try {
-            content = decodeURIComponent(escape(atob(fullTodo.content)));
+            content = base64Utils.decodeFromBase64(fullTodo.content);
           } catch (e) {
             console.error('Error decoding todo content:', e);
             content = fullTodo.content;

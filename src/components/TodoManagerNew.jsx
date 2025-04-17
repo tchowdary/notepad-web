@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import DbSyncService from '../services/dbSyncService';
 import TodoTask from './TodoTask';
+import { base64Utils } from '../utils/converters';
 
 // Function to format date to dd-mm-yy format
 const formatDate = (dateString) => {
@@ -114,7 +115,7 @@ const TodoManagerNew = ({ darkMode, onOpenTodo, tabs, activeTab, onFullscreenCha
       const decodedTodos = todoList.map(todo => {
         if (todo.content) {
           try {
-            todo.content = decodeURIComponent(escape(atob(todo.content)));
+            todo.content = base64Utils.decodeFromBase64(todo.content);
           } catch (e) {
             console.error('Error decoding todo content:', e);
           }

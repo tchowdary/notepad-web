@@ -50,6 +50,7 @@ import fileService from '../services/fileService';
 import DropboxConfig from './DropboxConfig';
 import BacklinkPalette from './BacklinkPalette';
 import DbSyncService from '../services/dbSyncService';
+import { base64Utils } from '../utils/converters';
 
 // Create a new lowlight instance
 const lowlight = createLowlight();
@@ -648,7 +649,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
                   // Create a tab object compatible with the app's structure
                   const tabData = {
                     name: note.name,
-                    content: note.content ? decodeURIComponent(escape(atob(note.content))) : '',
+                    content: note.content ? base64Utils.decodeFromBase64(note.content) : '',
                     noteId: note.id,
                     due_date: note.due_date,
                     status: note.status

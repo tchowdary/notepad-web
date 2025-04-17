@@ -1,4 +1,5 @@
 import { DB_NAME, DB_VERSION, TABS_STORE, TODO_STORE, openDB } from '../utils/db';
+import { base64Utils } from '../utils/converters';
 
 class GitHubService {
   constructor() {
@@ -686,7 +687,7 @@ class GitHubService {
       }
 
       const data = await response.json();
-      const content = decodeURIComponent(escape(atob(data.content)));
+      const content = base64Utils.decodeFromBase64(data.content);
       return content;
     } catch (error) {
       console.error('Error fetching file content:', error);
