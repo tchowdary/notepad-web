@@ -1329,6 +1329,8 @@ const ChatBox = ({
             },
             "& pre": {
               marginBottom: "1.5em",
+              overflowX: "auto",
+              maxWidth: "100%",
               "& code": {
                 fontFamily: "Geist Mono, monospace",
                 fontSize: "0.9em",
