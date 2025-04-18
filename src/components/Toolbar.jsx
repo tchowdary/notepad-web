@@ -185,13 +185,13 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        {/* <Tooltip title="Todo Manager">
+        <Tooltip title="Todo">
           <IconButton onClick={onTodoClick} size="small">
             <TodoIcon />
           </IconButton>
-        </Tooltip> */}
+        </Tooltip>
         
-        <Tooltip title="Todo">
+        <Tooltip title="Todo Manager">
           <IconButton onClick={onMsTodoClick} size="small">
             <TodoManagerIcon />
           </IconButton>
