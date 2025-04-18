@@ -12,6 +12,7 @@ import {
   Paper,
   Typography,
   useTheme,
+  useMediaQuery, // Import useMediaQuery
   Select,
   MenuItem,
   Alert,
@@ -163,6 +164,7 @@ const ChatBox = ({
   isFromResponsiveToolbar = false,
 }) => {
   const theme = useTheme();
+  const isResponsiveMode = useMediaQuery(theme.breakpoints.down('md')); // Determine isResponsiveMode
   const [darkModeState, setDarkModeState] = useState(
     theme?.palette?.mode === "dark"
   );
@@ -304,7 +306,7 @@ const ChatBox = ({
   const [isFullscreen, setIsFullscreen] = useState(
     fullScreen || initialFullscreen || false
   );
-  const [isSidebarOpen, setIsSidebarOpen] = useState(!isFromResponsiveToolbar);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(fullScreen || !isResponsiveMode); // Update isSidebarOpen initial state
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [parsedStreamingContent, setParsedStreamingContent] = useState("");
