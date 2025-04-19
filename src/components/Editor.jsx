@@ -39,6 +39,9 @@ import {
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
 } from '@mui/icons-material';
+import { create, all } from 'mathjs';
+const math = create(all);
+const scope = {};
 
 const Editor = forwardRef(({ 
   content, 
@@ -303,6 +306,68 @@ const Editor = forwardRef(({
     viewportMargin: Infinity,
     filename: filename
   };
+
+  // Math eval support: Alt-= to evaluate expression using mathjs
+  useEffect(() => {
+    if (!editorInstance) return;
+    const map = {
+      'Alt-=': cm => {
+        const raw = cm.getSelection() || cm.getLine(cm.getCursor().line);
+        const expr = raw.trim();
+        let evalExpr = expr;
+
+        // normalize unit synonyms for conversions
+        if (/\bto\b/i.test(expr)) {
+          // pure unit conversions without numeric operand
+          if (/^\s*c\s+to\s+f\s*$/i.test(expr)) {
+            evalExpr = '1 degC to degF';
+          } else if (/^\s*f\s+to\s+c\s*$/i.test(expr)) {
+            evalExpr = '1 degF to degC';
+          } else {
+            evalExpr = expr
+              .replace(/\bto\s+c\b/gi, 'to degC')
+              .replace(/\bto\s+f\b/gi, 'to degF')
+              .replace(/\b([0-9]+(?:\.[0-9]+)?)\s*c\b/gi, '$1 degC')
+              .replace(/\b([0-9]+(?:\.[0-9]+)?)\s*f\b/gi, '$1 degF')
+              .replace(/\bmiles?\b/gi, 'mile')
+              .replace(/\bkm?s?\b/gi, 'km');
+          }
+        }
+        let result;
+        try {
+          result = math.evaluate(evalExpr, scope);
+        } catch (err) {
+          // fallback manual Celsius/Fahrenheit
+          const m = expr.match(/^([0-9]+(?:\.[0-9]+)?)\s*([cCfF])\s+to\s+([cCfF])$/i);
+          if (m) {
+            const val = parseFloat(m[1]);
+            const from = m[2].toLowerCase();
+            const to = m[3].toLowerCase();
+            if (from === 'c' && to === 'f') {
+              result = (val * 9/5 + 32) + ' degF';
+            } else if (from === 'f' && to === 'c') {
+              result = ((val - 32) * 5/9) + ' degC';
+            }
+          } else {
+            console.warn('Math-eval error:', err.message);
+            return;
+          }
+        }
+        if (cm.somethingSelected()) {
+          cm.replaceSelection(`${expr} = ${result}`);
+        } else {
+          const { line } = cm.getCursor();
+          cm.replaceRange(
+            `${expr} = ${result}`,
+            { line, ch: 0 },
+            { line, ch: expr.length }
+          );
+        }
+      }
+    };
+    editorInstance.addKeyMap(map);
+    return () => editorInstance.removeKeyMap(map);
+  }, [editorInstance]);
 
   const findNext = () => {
     if (!editorInstance || !findText) return;
