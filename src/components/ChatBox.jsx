@@ -2035,11 +2035,19 @@ const ChatBox = ({
                 <HistoryIcon />
               </IconButton>
               <IconButton
+                size="small"
+                onClick={() => setApiKeyDialogOpen(true)}
+              >
+                <KeyIcon fontSize="small" />
+              </IconButton>
+              <IconButton
                 onClick={() => setIsFullscreen(!isFullscreen)}
                 size="small"
               >
                 <FullscreenIcon />
               </IconButton>
+              
+              
             </>
           )}
         </Box>
@@ -2091,6 +2099,12 @@ const ChatBox = ({
                     <HistoryIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
+                <IconButton
+                  size="small"
+                  onClick={() => setApiKeyDialogOpen(true)}
+                >
+                  <KeyIcon fontSize="small" />
+                </IconButton>
                 <Tooltip title="Exit Fullscreen">
                   <IconButton
                     onClick={() => {
@@ -2191,80 +2205,7 @@ const ChatBox = ({
                   </Box>
 
                   {/* Toolbar with buttons */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      justifyContent: "flex-start",
-                      alignItems: "center",
-                    }}
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={() => setHistoryAnchorEl(inputRef.current)}
-                    >
-                      <HistoryIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => setIsFullscreen(true)}
-                    >
-                      <FullscreenIcon fontSize="small" />
-                    </IconButton>
-                    <VoiceRecorder
-                      onTranscriptionComplete={async (transcript) => {
-                        try {
-                          const response = await processTranscription(transcript);
-                          const newMessage = {
-                            role: "assistant",
-                            content: response,
-                            timestamp: new Date().toISOString(),
-                          };
-                          setMessages((prev) => [
-                            ...prev,
-                            {
-                              role: "user",
-                              content: transcript,
-                              timestamp: new Date().toISOString(),
-                            },
-                            newMessage,
-                          ]);
-                        } catch (error) {
-                          console.error("Error processing voice input:", error);
-                          setError("Failed to process voice input");
-                        }
-                      }}
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={() => setApiKeyDialogOpen(true)}
-                    >
-                      <KeyIcon fontSize="small" />
-                    </IconButton>
-                    <Box>
-                      {setDarkMode && (
-                        <IconButton onClick={() => setDarkMode(!darkMode)} size="small">
-                          {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
-                        </IconButton>
-                      )}
-                    </Box>
-                    <IconButton
-                      size="small"
-                      onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    >
-                      <ChevronLeftIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </Box>
-                <Box
-                  sx={{
-                    p: 1,
-                    borderTop: `1px solid ${themeStyles.divider}`,
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  {/* Empty box for spacing */}
+                  
                 </Box>
                 <List sx={{ flex: 1, overflowY: "auto", px: 0 }}>
                   {/* Group sessions by date */}
