@@ -71,6 +71,7 @@ const Editor = forwardRef(({
   const [charCount, setCharCount] = useState(content.length);
   const [wordCount, setWordCount] = useState(() => content.trim().split(/\s+/).filter(w => w.length > 0).length);
   const [selCharCount, setSelCharCount] = useState(0);
+  const [modeAnchor, setModeAnchor] = useState(null);
 
   // Restore cursor position when editor instance or cursorPosition changes
   useEffect(() => {
@@ -261,6 +262,35 @@ const Editor = forwardRef(({
       editorInstance.setOption('mode', mode);
     }
     handleContextMenuClose();
+  };
+
+  const handleModeClick = (e) => setModeAnchor(e.currentTarget);
+  const handleModeClose = () => setModeAnchor(null);
+  const supportedModes = [
+    { label: 'Markdown', mode: 'markdown' },
+    { label: 'JavaScript', mode: 'javascript' },
+    { label: 'JSON', mode: { name: 'javascript', json: true } },
+    { label: 'CSS', mode: 'css' },
+    { label: 'HTML/XML', mode: 'xml' },
+    { label: 'Python', mode: 'python' },
+    { label: 'SQL', mode: 'sql' },
+    { label: 'YAML', mode: 'yaml' },
+    { label: 'Plain Text', mode: null },
+  ];
+  const getModeLabel = (mode) => {
+    if (!mode) return 'Plain Text';
+    if (typeof mode === 'object' && mode.json) return 'JSON';
+    const name = typeof mode === 'string' ? mode : mode.name;
+    switch (name) {
+      case 'markdown': return 'Markdown';
+      case 'javascript': return 'JavaScript';
+      case 'css': return 'CSS';
+      case 'xml': return 'HTML/XML';
+      case 'python': return 'Python';
+      case 'sql': return 'SQL';
+      case 'yaml': return 'YAML';
+      default: return name.charAt(0).toUpperCase() + name.slice(1);
+    }
   };
 
   const options = {
@@ -739,10 +769,20 @@ const Editor = forwardRef(({
           alignItems: 'center',
         }}
       >
+        <Box onClick={handleModeClick} sx={{ mr: 2, cursor: 'pointer', color: darkMode ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}>
+          {getModeLabel(fileMode)}
+        </Box>
         {selCharCount > 0
           ? `${selCharCount} chars selected`
           : `${charCount} chars, ${wordCount} words`}
       </Box>
+      <Menu anchorEl={modeAnchor} open={Boolean(modeAnchor)} onClose={handleModeClose}>
+        {supportedModes.map(({label, mode}) => (
+          <MenuItem key={label} onClick={() => { handleLanguageChange(mode); handleModeClose(); }}>
+            {label}
+          </MenuItem>
+        ))}
+      </Menu>
     </Box>
   );
 
