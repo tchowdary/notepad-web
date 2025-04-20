@@ -68,6 +68,9 @@ const Editor = forwardRef(({
   const [replaceText, setReplaceText] = useState('');
   const [currentMatch, setCurrentMatch] = useState(null);
   const [matchCount, setMatchCount] = useState(0);
+  const [charCount, setCharCount] = useState(content.length);
+  const [wordCount, setWordCount] = useState(() => content.trim().split(/\s+/).filter(w => w.length > 0).length);
+  const [selCharCount, setSelCharCount] = useState(0);
 
   // Restore cursor position when editor instance or cursorPosition changes
   useEffect(() => {
@@ -224,6 +227,12 @@ const Editor = forwardRef(({
       editorInstance.setOption('lineWrapping', wordWrap);
     }
   }, [wordWrap, editorInstance]);
+
+  useEffect(() => {
+    setCharCount(content.length);
+    const words = content.trim().split(/\s+/).filter(w => w.length > 0).length;
+    setWordCount(words);
+  }, [content]);
 
   const handleChange = (editor, data, value) => {
     onChange(value);
@@ -543,6 +552,8 @@ const Editor = forwardRef(({
                 if (onCursorChange) {
                   onCursorChange(editor.getCursor());
                 }
+                const selection = editor.getSelection();
+                setSelCharCount(selection ? selection.length : 0);
               });
             }}
           />
@@ -710,6 +721,28 @@ const Editor = forwardRef(({
         ))}
       </Menu>
       
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          p: '2px 8px',
+          fontSize: '0.65rem',
+          lineHeight: 1.2,
+          bgcolor: 'transparent',
+          borderTop: '1px solid',
+          borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
+          color: darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+        }}
+      >
+        {selCharCount > 0
+          ? `${selCharCount} chars selected`
+          : `${charCount} chars, ${wordCount} words`}
+      </Box>
     </Box>
   );
 
