@@ -310,7 +310,7 @@ const Toolbar = ({
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="New TLDraw">
+        {/* <Tooltip title="New TLDraw">
           <IconButton
             onClick={() => {
               onNewDrawing('tldraw');
@@ -319,7 +319,7 @@ const Toolbar = ({
           >
             <DrawIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         {/* <Tooltip title="New Excalidraw">
           <IconButton

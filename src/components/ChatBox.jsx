@@ -614,8 +614,11 @@ const ChatBox = ({
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
 
+    const lowerQuery = searchQuery.toLowerCase();
     return sessions.filter((session) => {
-      // Search in all messages of the session
+      // Search in session title first
+      if (session.title?.toLowerCase().includes(lowerQuery)) return true;
+      // Then search in all messages of the session
       return session.messages?.some((message) => {
         let content = "";
         if (typeof message.content === "string") {
@@ -624,7 +627,7 @@ const ChatBox = ({
           const textContent = message.content.find((item) => item.type === "text");
           content = textContent ? textContent.text : "";
         }
-        return content.toLowerCase().includes(searchQuery.toLowerCase());
+        return content.toLowerCase().includes(lowerQuery);
       });
     });
   }, [sessions, searchQuery]);
@@ -2126,6 +2129,7 @@ const ChatBox = ({
                 display: "flex",
                 flex: 1,
                 overflow: "hidden",
+                pt: "48px", // push content below header
               }}
             >
               {/* Sidebar */}
