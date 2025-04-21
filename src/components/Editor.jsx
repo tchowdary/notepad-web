@@ -43,19 +43,25 @@ import { create, all } from 'mathjs';
 const math = create(all);
 const scope = {};
 
-const Editor = forwardRef(({ 
-  content, 
-  onChange, 
-  wordWrap = false, 
-  darkMode = false,
-  showLineNumbers = true,
-  showPreview,
-  focusMode,
-  editorType = 'codemirror',
-  cursorPosition = null,
-  onCursorChange,
-  filename = ''
-}, ref) => {
+const Editor = forwardRef((
+  { 
+    tabId, 
+    content, 
+    onChange, 
+    wordWrap = false, 
+    darkMode = false,
+    showLineNumbers = true,
+    showPreview,
+    focusMode,
+    editorType = 'codemirror',
+    cursorPosition = null,
+    onCursorChange,
+    initialScrollTop,
+    filename = '',
+    onScrollUpdate,
+  }, 
+  externalRef
+) => {
   const [editorInstance, setEditorInstance] = useState(null);
   const [improving, setImproving] = useState(false);
   const [converterAnchor, setConverterAnchor] = useState(null);
@@ -72,13 +78,17 @@ const Editor = forwardRef(({
   const [wordCount, setWordCount] = useState(() => content.trim().split(/\s+/).filter(w => w.length > 0).length);
   const [selCharCount, setSelCharCount] = useState(0);
   const [modeAnchor, setModeAnchor] = useState(null);
+  const tipTapEditorRef = React.useRef(null);
+  const codeMirrorRef = React.useRef(null);
+
+  console.log(`[Editor] Rendering with editorType: ${editorType}, tabId: ${tabId}`);
 
   // Restore cursor position when editor instance or cursorPosition changes
   useEffect(() => {
     if (editorInstance && cursorPosition && !editorInstance.somethingSelected()) {
       editorInstance.setCursor(cursorPosition);
     }
-  }, [editorInstance, cursorPosition]);
+  }, [editorInstance, cursorPosition, editorType]);
 
   // Detect file type from extension
   useEffect(() => {
@@ -169,38 +179,29 @@ const Editor = forwardRef(({
     handleContextMenuClose();
   };
 
-  useImperativeHandle(ref, () => ({
-    setConverterMenuAnchor: (anchor) => {
-      const selection = editorInstance?.getSelection();
-      setConverterAnchor(anchor);
-    },
-    getSelectedText: () => {
-      return editorInstance?.getSelection() || content;
-    },
-    formatJson: () => {
-      if (!editorInstance) return;
-      try {
-        const currentValue = editorInstance.getValue();
-        const parsedJson = JSON.parse(currentValue);
-        const formattedJson = JSON.stringify(parsedJson, null, 2);
-        editorInstance.setValue(formattedJson);
-        setIsJsonMode(true);
-        editorInstance.setOption('mode', { name: 'javascript', json: true });
-      } catch (e) {
-        console.error('Invalid JSON');
-      }
-    },
-    toggleFindReplace: () => {
-      setShowFindReplace(!showFindReplace);
-      if (!showFindReplace && editorInstance) {
-        // If opening find/replace, use current selection as initial find text
-        const selection = editorInstance.getSelection();
-        if (selection) {
-          setFindText(selection);
+  useImperativeHandle(externalRef, () => ({
+    getCurrentState: () => {
+      if (editorType === 'tiptap' && tipTapEditorRef.current) {
+        try {
+          const scrollTop = tipTapEditorRef.current.getScrollTop();
+          const cursor = tipTapEditorRef.current.getCursorPosition();
+          return { scrollTop, cursorPosition: cursor };
+        } catch (error) {
+          console.error("[Editor] Error calling TipTap ref methods:", error);
+          return { scrollTop: 0, cursorPosition: null }; // Default/error state
         }
+      } else {
+        return null; // Or return default state { scrollTop: 0, cursorPosition: null }
       }
     }
-  }));
+  }), [editorType, tipTapEditorRef]);
+
+  useEffect(() => {
+    if (editorType === 'tiptap' && initialScrollTop !== undefined && tipTapEditorRef.current) {
+      tipTapEditorRef.current.setScrollTop(initialScrollTop);
+    } else if (editorType !== 'tiptap' && initialScrollTop !== undefined && codeMirrorRef.current) {
+    }
+  }, [initialScrollTop, editorType, tabId]);
 
   const handleConverterClose = () => {
     setConverterAnchor(null);
@@ -358,9 +359,9 @@ const Editor = forwardRef(({
         // normalize unit synonyms for conversions
         if (/\bto\b/i.test(expr)) {
           // pure unit conversions without numeric operand
-          if (/^\s*c\s+to\s+f\s*$/i.test(expr)) {
+          if (/^\s*c\s+to\s*f\s*$/i.test(expr)) {
             evalExpr = '1 degC to degF';
-          } else if (/^\s*f\s+to\s+c\s*$/i.test(expr)) {
+          } else if (/^\s*f\s+to\s*c\s*$/i.test(expr)) {
             evalExpr = '1 degF to degC';
           } else {
             evalExpr = expr
@@ -730,11 +731,14 @@ const Editor = forwardRef(({
         </Box>
       ) : (
         <TipTapEditor
+          ref={tipTapEditorRef}
+          tabId={tabId}
           content={content}
           onChange={onChange}
           darkMode={darkMode}
-          cursorPosition={cursorPosition}
+          initialScrollTop={initialScrollTop}
           onCursorChange={onCursorChange}
+          onScrollUpdate={onScrollUpdate}
         />
       )}
       
@@ -814,5 +818,7 @@ const Editor = forwardRef(({
     </div>
   );
 });
+
+Editor.displayName = 'Editor';
 
 export default Editor;

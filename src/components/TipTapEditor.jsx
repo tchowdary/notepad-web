@@ -372,7 +372,18 @@ const CustomImage = TiptapImage.extend({
   },
 });
 
-const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, onCursorChange, onFocusModeChange }, ref) => {
+const TipTapEditor = forwardRef(({ 
+  tabId, 
+  content, 
+  onChange, 
+  darkMode, 
+  initialScrollTop, 
+  onCursorChange, 
+  onFocusModeChange, 
+  onScrollUpdate, // Add scroll update callback prop
+  cursorPosition // Add cursorPosition prop
+ }, ref) => {
+  const editorContainerRef = useRef(null); // Ref for the scrollable container
   const [contextMenu, setContextMenu] = React.useState(null);
   const [improving, setImproving] = React.useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -389,7 +400,10 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
   const menuRef = React.useRef(null);
   const isRestoringCursor = React.useRef(false);
   const isEditorReady = React.useRef(false);
-  const lastKnownPosition = React.useRef(null);
+  const lastKnownPosition = useRef(null); // Use ref for latest position
+  const targetScrollTopRef = useRef(initialScrollTop); // Store target scroll
+  const targetCursorPositionRef = useRef(cursorPosition); // Store target cursor
+  const needsRestorationRef = useRef(true); // Flag to restore state on next focus
   const [isTocOpen, setIsTocOpen] = useState(() => {
     const saved = localStorage.getItem('tocOpen');
     return saved ? JSON.parse(saved) : false;
@@ -726,75 +740,90 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
     }
   }, [editor]);
 
-  // Only restore cursor position when switching between tabs
+  // Effect to WATCH for prop changes and MARK state for restoration
   useEffect(() => {
-    if (editor && isEditorReady.current && cursorPosition && cursorPosition !== lastKnownPosition.current) {
-      const pos = cursorPosition;
-      lastKnownPosition.current = pos;
-      try {
-        isRestoringCursor.current = true;
-        const docLength = editor.state.doc.content.size;
-        // Ensure position is within valid range
-        let targetPos;
-        if (typeof pos === 'number') {
-          targetPos = Math.min(Math.max(0, pos), docLength);
-        } else {
-          targetPos = {
-            from: Math.min(Math.max(0, pos.from), docLength),
-            to: Math.min(Math.max(0, pos.to), docLength)
-          };
+    if (!editor || editor.isDestroyed) return; // Ensure editor is ready and not destroyed
+
+    // Update the target state based on props
+    targetScrollTopRef.current = initialScrollTop;
+    targetCursorPositionRef.current = cursorPosition;
+
+    // If tabId changes, we definitely need to restore on next focus
+    // Also set if initial values change, though tabId is the primary trigger
+    needsRestorationRef.current = true;
+  }, [editor, initialScrollTop, cursorPosition, tabId]); // Dependencies: editor, initial positions, tabId
+
+  // Effect to handle the ACTUAL restoration on FOCUS event
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleEditorFocus = () => {
+      // console.log(`[TipTapEditor] Focus event (Tab ${tabId}). Needs restoration? ${needsRestorationRef.current}`);
+      if (!needsRestorationRef.current) return; // Only restore once per flag cycle
+
+      // Mark as processed immediately to prevent race conditions
+      needsRestorationRef.current = false;
+
+      // Defer restoration slightly using setTimeout to allow editor to settle
+      const restoreTimer = setTimeout(() => {
+        if (!editor || editor.isDestroyed) {
+          console.warn(`[TipTapEditor] Restore on Focus (Tab ${tabId}): Editor destroyed before setTimeout callback.`);
+          return;
         }
 
-        // Set selection
-        if (typeof targetPos === 'number') {
-          editor.commands.setTextSelection(targetPos);
-        } else {
-          editor.commands.setTextSelection(targetPos);
+        // Restore Scroll
+        const targetScroll = targetScrollTopRef.current;
+        if (editorContainerRef.current && targetScroll !== undefined && targetScroll !== null) {
+          console.log(`[TipTapEditor] Restoring Scroll on Focus+Timeout (Tab ${tabId}) to: ${targetScroll}`);
+          editorContainerRef.current.scrollTop = targetScroll;
         }
 
-        // Get the current selection end position
-        const end = typeof targetPos === 'number' ? targetPos : targetPos.from;
-        // Only scroll if the position is valid
-        if (end <= docLength) {
-          const resolvedPos = editor.state.doc.resolve(end);
-          editor.view.dispatch(editor.state.tr.setSelection(
-            editor.state.selection.constructor.near(resolvedPos)
-          ));
-          // Scroll into view without animation
-          const editorElement = editor.view.dom.closest('.ProseMirror');
-          if (editorElement) {
-            const rect = editor.view.coordsAtPos(end);
-            if (rect) {
-              const containerRect = editorElement.getBoundingClientRect();
-              const scrollTop = rect.top - containerRect.top - (editorElement.clientHeight / 2);
-              requestAnimationFrame(() => {
-                editorElement.scrollTop = scrollTop;
-              });
-            }
+        // Restore Cursor
+        const targetCursor = targetCursorPositionRef.current;
+        if (targetCursor !== null && targetCursor !== undefined) {
+          if (targetCursor >= 0 && targetCursor <= editor.state.doc.content.size) {
+            console.log(`[TipTapEditor] Restoring Cursor on Focus+Timeout (Tab ${tabId}) to: ${targetCursor}`);
+            editor.commands.focus(targetCursor); // Use focus command
+          } else {
+            console.warn(`[TipTapEditor] Restore on Focus+Timeout (Tab ${tabId}): Invalid cursor position ${targetCursor} for doc size ${editor.state.doc.content.size}`);
           }
         }
-      } catch (error) {
-        console.warn('Error restoring cursor position:', error);
-      } finally {
-        isRestoringCursor.current = false;
-      }
-    }
-  }, [editor, cursorPosition]);
+      }, 0); // 0ms delay pushes execution to the next event loop tick
+
+      // Note: No need to return clearTimeout here unless the component could unmount
+      // between the focus event and the timeout callback, which is unlikely.
+    };
+
+    editor.on('focus', handleEditorFocus);
+
+    return () => {
+      editor.off('focus', handleEditorFocus);
+    };
+  }, [editor]); // Only depends on editor instance
 
   // Track cursor position changes
   useEffect(() => {
-    if (editor && onCursorChange && isEditorReady.current) {
-      const handleSelectionUpdate = () => {
-        if (isRestoringCursor.current) return;
-        const { from, to } = editor.state.selection;
-        const position = from === to ? from : { from, to };
-        lastKnownPosition.current = position;
-        onCursorChange(position);
-      };
-      editor.on('selectionUpdate', handleSelectionUpdate);
-      return () => editor.off('selectionUpdate', handleSelectionUpdate);
+    if (!editor) {
+      return;
     }
+
+    const handleSelectionUpdate = () => {
+      if (isRestoringCursor.current) return;
+      const { from, to } = editor.state.selection;
+      const position = from === to ? from : { from, to };
+      lastKnownPosition.current = position;
+      onCursorChange(position);
+    };
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    return () => editor.off('selectionUpdate', handleSelectionUpdate);
   }, [editor, onCursorChange]);
+
+  // Handle scroll events on the container
+  const handleScroll = useCallback((event) => {
+    if (onScrollUpdate && tabId) {
+      onScrollUpdate(tabId, event.target.scrollTop);
+    }
+  }, [onScrollUpdate, tabId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -981,24 +1010,16 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         }
       ];
 
-      //console.log("Sending request to Claude for processing...");
       const aiResponse = await sendAnthropicMessage(
         messages,
         'Sonnet-3.7',
         anthropicKey
       );
-      //console.log("Received response from Claude:", aiResponse);
 
-      // Extract the text content from the Claude response
       let aiContent = '';
       if (aiResponse && aiResponse.content) {
-        console.log("AI response content type:", typeof aiResponse.content);
         if (Array.isArray(aiResponse.content)) {
-          console.log("Content is array with length:", aiResponse.content.length);
-          // Handle array of content objects (Claude's format)
           for (const item of aiResponse.content) {
-            console.log("Content item:", item);
-            // Check for both 'text' and 'content' properties as Claude's API might vary
             if (item.type === 'text') {
               if (item.text) {
                 aiContent += item.text;
@@ -1008,38 +1029,28 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             }
           }
         } else {
-          // Handle string content
           aiContent = aiResponse.content;
         }
       }
-      //console.log("Extracted AI content:", aiContent.substring(0, 100) + "...");
 
       if (editor) {
-        // Get the current selection position
         const { from } = editor.state.selection;
         
-        // If we're at the start of a line, don't add an extra newline
         const needsNewline = from > 0 && editor.state.doc.textBetween(from - 1, from) !== '\n';
         
-        // Build the complete content to insert
         let content = needsNewline ? '\n' : '';
         
-        // Add original transcription with HTML formatting
         content += '<h2>Original Transcription</h1>\n';
         content += `<p>${data.transcript}</p>`;
         content += '\n\n';
         
-        // Add audio source with HTML link
         content += '<h3>Audio Source</h3>\n';
         content += `<a href="${uploadResult.url}" target="_blank">Listen to audio recording</a>`;
         content += '\n\n';
         
-        // Add the AI processed content with a clear header
-        //content += '<h1>AI Enhanced Content</h1>\n';
+        content += '<h1>AI Enhanced Content</h1>\n';
         
-        // If we have AI content, add it, otherwise add a placeholder
         if (aiContent && aiContent.trim().length > 0) {
-          // Convert markdown headers to HTML if they exist
           let processedContent = aiContent
             .replace(/^# (.*?)$/gm, '<h1>$1</h1>')
             .replace(/^## (.*?)$/gm, '<h2>$1</h2>')
@@ -1048,19 +1059,11 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
             .replace(/\n\n/g, '</p><p>')
             .replace(/\n/g, '<br>');
           
-          // Wrap in paragraph tags if not already wrapped
-          if (!processedContent.startsWith('<')) {
-            processedContent = `<p>${processedContent}</p>`;
-          }
-          
           content += processedContent;
         } else {
           content += '<p>AI processing did not return any content. Please try again.</p>';
         }
         
-        //console.log("Final content to insert (first 200 chars):", content.substring(0, 200) + "...");
-        
-        // Insert all content at once
         editor
           .chain()
           .focus()
@@ -1257,11 +1260,9 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
         const { selection } = state;
         const { $from } = selection;
         
-        // Check if we're inside a table
         const isInTable = $from.parent.type.name === 'table';
         
         if (isInTable) {
-          // Insert text below table
           const tablePos = $from.pos;
           let table = null;
           let tableEndPos = null;
@@ -1363,13 +1364,14 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
       }
       return '';
     },
-    getText: () => {
-      return editor?.getText() || '';
+    getText: () => editor?.state.doc.textContent,
+    clearContent: () => editor?.commands.clearContent(),
+    getScrollTop: () => {
+      const scrollTop = editorContainerRef.current?.scrollTop || 0;
+      return scrollTop;
     },
-    clearContent: () => {
-      editor?.chain().focus().clearContent().run();
-    }
-  }), [editor]);
+    getCursorPosition: () => lastKnownPosition.current,
+  }), [editor, editorContainerRef]);
 
   return (
     <Box sx={{ 
@@ -1427,7 +1429,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
 
       {/* Editor Container */}
       <Box
-        ref={editorRef}
+        ref={editorContainerRef}
         onContextMenu={handleContextMenu}
         sx={{
           flexGrow: 1,
@@ -1442,6 +1444,7 @@ const TipTapEditor = forwardRef(({ content, onChange, darkMode, cursorPosition, 
           bgcolor: darkMode ? '#1f1a24' : '#FFFCF0',
           scrollBehavior: 'smooth'
         }}
+        onScroll={handleScroll} // Attach scroll handler
       >
         <Box
           className="editor-content"

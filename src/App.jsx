@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline, Box, IconButton } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
@@ -64,10 +64,13 @@ function App() {
   const editorRef = useRef(null);
   const tipTapEditorRef = useRef(null); // Reference to the TipTap editor
   const sidebarTimeoutRef = useRef(null);
+  const scrollPositionsRef = useRef({}); // Store scroll positions { tabId: scrollTop }
+  const activeEditorRef = useRef(null); // Ref to store the currently active TipTap editor instance's ref
   const [showTabSwitcher, setShowTabSwitcher] = useState(false);
   const [settings, setSettings] = useState({ autoSync: true });
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
+  const editorInstanceRef = useRef(null); // Ref to get the active Editor instance's methods
 
   const location = useLocation();
 
@@ -464,6 +467,18 @@ function App() {
     return () => window.removeEventListener('open-note-in-new-tab', handleOpenNoteInNewTab);
   }, [tabs]);
 
+  useEffect(() => {
+    // Update the activeEditorRef when the activeTab changes
+    const currentTab = tabs.find(tab => tab.id === activeTab);
+    if (currentTab?.editorType === 'tiptap' && editorRef.current) {
+      // console.log('[App] useEffect[activeTab] - Storing editorRef for active tiptap tab:', activeTab);
+      activeEditorRef.current = editorRef.current;
+    } else {
+      // console.log('[App] useEffect[activeTab] - Clearing activeEditorRef (not tiptap or no ref)');
+      activeEditorRef.current = null; // Clear if not a tiptap tab or ref is missing
+    }
+  }, [activeTab, tabs, editorRef]); // Add editorRef dependency? Might cause loops, be careful.
+
   const handleNewTab = ({ type = 'codemirror', name = '', content = '' } = {}) => {
     const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
     let tabName = name;
@@ -570,15 +585,30 @@ function App() {
     }));
   };
 
-  const handleTabSelect = async (tabId) => {
-    // Load the latest data for this tab from IndexedDB
-    try {
-      const updatedTabs = await loadTabs();
-      setTabs(updatedTabs);
-      setActiveTab(tabId);
-    } catch (error) {
-      console.error('Error loading updated tabs:', error);
-      setActiveTab(tabId); // Still switch tabs even if update fails
+  const handleTabSelect = (tabId) => {
+    console.log('[App] handleTabSelect - Function ENTRY. Switching FROM tab:', activeTab, 'TO tab:', tabId);
+    const currentTab = tabs.find(t => t.id === activeTab);
+    const isCurrentTabTipTap = currentTab && (currentTab.type === 'tiptap' || (!currentTab.type && !currentTab.language));
+
+    // Explicitly save state from Editor component just before switching
+    if (isCurrentTabTipTap && editorInstanceRef.current?.getCurrentState) {
+      try {
+        const state = editorInstanceRef.current.getCurrentState();
+        if (state) {
+          // console.log(`[App] Saving state for tab ${activeTab} before switch:`, state);
+          scrollPositionsRef.current[activeTab] = state.scrollTop;
+          cursorPositionsRef.current[activeTab] = state.cursorPosition;
+        } else {
+          // console.log(`[App] getCurrentState returned null for tab ${activeTab}, not saving.`);
+        }
+      } catch (error) {
+        console.error(`[App] Error calling getCurrentState for tab ${activeTab}:`, error);
+      }
+    }
+
+    setActiveTab(tabId);
+    if (splitView) {
+      setRightTab(null);
     }
   };
 
@@ -1198,6 +1228,11 @@ function App() {
     onManualSync: handleManualSync
   });
 
+  const handleScrollUpdate = useCallback((tabId, scrollTop) => {
+    // console.log(`[App] handleScrollUpdate - Tab: ${tabId}, ScrollTop: ${scrollTop}`); // Optional: Debug log
+    scrollPositionsRef.current[tabId] = scrollTop;
+  }, []); // No dependencies needed as it only updates a ref
+
   const renderTab = (tab) => {
     // Check if tab is undefined or null
     if (!tab) {
@@ -1265,6 +1300,8 @@ function App() {
             setFocusMode(!focusMode);
             setShowSidebar(focusMode);
           }}
+          onScrollUpdate={handleScrollUpdate}
+          tabId={tab.id}
         />
       );
     }
@@ -1286,18 +1323,24 @@ function App() {
     }
 
     // Fallback to CodeMirror editor
+    const initialScrollTop = scrollPositionsRef.current[tab.id];
     return (
       <Editor
-        ref={editorRef}
+        ref={editorInstanceRef} // Pass the ref here
+        key={tab.id} // Key ensures re-mount on tab/type change
+        tabId={tab.id} // Pass active tab ID
         content={tab.content}
-        onChange={(newContent) => handleContentChange(tab.id, newContent)}
+        onChange={(newContent) => handleTabContentChange(tab.id, newContent)}
         wordWrap={wordWrap}
         darkMode={darkMode}
         showPreview={showPreview}
         focusMode={focusMode}
         cursorPosition={tab.cursorPosition}
         onCursorChange={(cursor) => handleCursorChange(tab.id, cursor)}
+        initialScrollTop={initialScrollTop} // Pass initial scroll
         filename={tab.name}
+        editorType={tab.editorType || tab.type || 'tiptap'} // Prioritize editorType, fallback to type, then default
+        onScrollUpdate={handleScrollUpdate}
       />
     );
   };
