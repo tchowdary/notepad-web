@@ -24,7 +24,7 @@ Return only the edited text. Do not wrap your response in quotes. Do not offer a
     // Use sendProxyMessage instead of sendAnthropicMessage to leverage encryption
     const response = await sendProxyMessage(
       messages,
-      'Haiku',
+      'Sonnet-3.7',
       null,
       null,
       null
