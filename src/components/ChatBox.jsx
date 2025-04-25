@@ -513,27 +513,41 @@ const ChatBox = ({
           };
 
           let sendMessagePromise;
+          let receivedResponse = null; // Variable to store the successful response
+          let processingError = null; // Variable to store any error
 
           try {
             if (providerName === "proxy") {
-              sendMessagePromise = sendProxyMessage(
+              // For non-streaming (like special Gemini), handleStream will be null/ignored by sendProxyMessage
+              // and the promise resolves with the response object or rejects with an error.
+              receivedResponse = await sendProxyMessage(
                 updatedMessages,
                 modelId,
                 apiKey,
                 selectedInstruction,
-                handleStream
+                handleStream // Pass the streaming handler (used only if sendProxyMessage decides to stream)
               );
             }
+            // Add other providers here if needed
 
-            await sendMessagePromise;
-          } catch (streamError) {
-            console.error("Error during streaming:", streamError);
-            throw streamError;
+          } catch (err) {
+            // Catch errors specifically from the sendProxyMessage call
+            console.error("Error sending/processing message:", err);
+            processingError = err; // Store the error
+            // Set the main error state for potential Alert display
+            setError(err.message || "An error occurred while processing the response");
           }
 
+          // Always ensure streaming state is reset after attempt
+          setIsStreaming(false);
+          setStreamingContent("");
+          setParsedStreamingContent("");
+
+          // Construct the final message based on success or error
           finalResponse = {
             role: "assistant",
             content: [
+              // Include thinking content only if it exists (relevant for streaming)
               ...(thinkingContentRef.current
                 ? [
                     {
@@ -542,22 +556,24 @@ const ChatBox = ({
                     },
                   ]
                 : []),
+              // Add text content based on whether an error occurred
               {
                 type: "text",
-                text:
-                  streamingContentRef.current ||
-                  "Sorry, there was an issue with the response.",
+                text: processingError
+                  ? `Error: ${processingError.message || 'Unknown error occurred'}` // Display specific error message
+                  : receivedResponse?.content // Use content from successful non-streaming response
+                    || streamingContentRef.current // Use content from successful streaming response
+                    || "Sorry, the response was empty.", // Fallback if somehow no content and no error
               },
             ],
             timestamp: new Date().toISOString(),
           };
 
-          setIsStreaming(false);
-          setStreamingContent("");
-          setParsedStreamingContent("");
+          // Update messages state with the final response (either success or error message)
           const finalUpdatedMessages = [...updatedMessages, finalResponse];
           setMessages(finalUpdatedMessages);
 
+          // Save session regardless of success or error, as user message was sent
           if (activeSessionId) {
             try {
               const existingSession = await chatStorage.getSession(
@@ -576,20 +592,9 @@ const ChatBox = ({
           }
         }
       } catch (err) {
-        console.error("Error sending message:", err);
-        setError(err.message || "An error occurred while sending the message");
-        // Save the user message even if the AI response fails
-        if (activeSessionId) {
-          try {
-            await chatStorage.saveSession({
-              id: activeSessionId,
-              messages: updatedMessages,
-              lastUpdated: new Date().toISOString(),
-            });
-          } catch (saveError) {
-            console.error("Error saving session after error:", saveError);
-          }
-        }
+        // This outer catch mainly handles setup errors before calling the AI service
+        console.error("Error preparing to send message:", err);
+        setError(err.message || "An unexpected error occurred");
       } finally {
         setIsLoading(false);
         setIsStreaming(false);

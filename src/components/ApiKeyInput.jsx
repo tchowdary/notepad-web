@@ -59,6 +59,7 @@ const ApiKeyInput = ({ open, onClose }) => {
   const [editingModel, setEditingModel] = useState(null);
   const [proxyConfig, setProxyConfig] = useState({
     url: localStorage.getItem('proxy_url') || '',
+    specialUrl: localStorage.getItem('special_proxy_url') || '',
     key: localStorage.getItem('proxy_key') || '',
     encryptionKey: localStorage.getItem('proxy_encryption_key') || '',
     encryptionEnabled: Boolean(localStorage.getItem('proxy_encryption_key'))
@@ -176,6 +177,7 @@ const ApiKeyInput = ({ open, onClose }) => {
 
     // Save proxy settings
     localStorage.setItem('proxy_url', proxyConfig.url);
+    localStorage.setItem('special_proxy_url', proxyConfig.specialUrl);
     localStorage.setItem('proxy_key', proxyConfig.key);
     
     // Save encryption key if enabled, otherwise remove it
@@ -491,6 +493,15 @@ const ApiKeyInput = ({ open, onClose }) => {
                 value={proxyConfig.url}
                 onChange={handleProxyConfigChange}
                 placeholder="https://your-proxy-url.com"
+              />
+              <TextField
+                fullWidth
+                margin="normal"
+                label="Special Proxy URL"
+                name="specialUrl"
+                value={proxyConfig.specialUrl}
+                onChange={handleProxyConfigChange}
+                placeholder="https://your-special-proxy-url.com"
               />
               <TextField
                 fullWidth

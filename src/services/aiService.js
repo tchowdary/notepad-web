@@ -3,12 +3,13 @@ import { prepareEncryptedPayload, decryptPayload, isEncryptionEnabled, getEncryp
 const getProxyConfig = () => {
   const proxyUrl = localStorage.getItem('proxy_url');
   const proxyKey = localStorage.getItem('proxy_key');
+  const specialUrl = localStorage.getItem('special_proxy_url');
   
   if (!proxyUrl || !proxyKey) {
     throw new Error('Proxy configuration not found. Please configure the proxy URL and API key.');
   }
   
-  return { proxyUrl, proxyKey };
+  return { proxyUrl, proxyKey, specialUrl };
 };
 
 // Helper function to get the endpoint URL
@@ -454,7 +455,8 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
     
     // Use the provided apiKey if available, otherwise get it from the proxy config
     const proxyKey = apiKey || getProxyConfig().proxyKey;
-    const requestEndpoint = getProxyEndpoint('/api/request');
+    let requestEndpoint = getProxyEndpoint('/api/request');
+    const specialUrl = getProxyConfig().specialUrl;
     
     //console.log('Request endpoint:', requestEndpoint);
     //console.log('Proxy Key exists:', !!proxyKey);
@@ -464,9 +466,19 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
       messagePayload.unshift({ role: 'system', content: customInstruction.content });
     }
 
+    const geminiModel = 'gemini-2.5-flash-preview-04-17';
+    // If model is 'Flash-Max', always use the Gemini model
+    let effectiveModel = model === 'Flash-Max' ? geminiModel : model;
+    
+    // Special endpoint for gemini-2.5-flash-preview-04-17
+    if (effectiveModel === geminiModel) {
+      requestEndpoint = specialUrl;
+      onStream = false;
+    }
+
     // Create a request body with the model name and messages
     const requestBody = {
-      model,
+      model: effectiveModel,
       messages: messagePayload.map(({ role, content }) => ({ role, content })),
       stream: Boolean(onStream),
     };
@@ -560,13 +572,55 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
     // Handle non-streaming responses
     const responseData = await response.json();
     
-    // Decrypt the response if it's encrypted
-    if (encryptionEnabled && encryptionKey && responseData.encrypted) {
-      const decryptedData = decryptPayload(responseData, encryptionKey);
-      return { role: 'assistant', content: decryptedData.content };
+    let finalDataToProcess = responseData; // Default to the original response data
+    
+    // Check if this response is from the special Gemini model that uses a non-standard, non-streaming response format
+    if (effectiveModel === geminiModel) { 
+      try {
+        // The actual content is inside the 'body' field, which is a JSON string
+        if (responseData.body && typeof responseData.body === 'string') {
+          finalDataToProcess = JSON.parse(responseData.body);
+        } else {
+          // Handle case where body might be missing or not a string
+          console.error('Special Gemini model response missing or invalid body:', responseData);
+          throw new Error('Invalid response format from special Gemini model.');
+        }
+      } catch (parseError) {
+        console.error('Error parsing body from special Gemini model response:', parseError);
+        throw new Error('Failed to parse response body from special Gemini model.');
+      }
+    }
+
+    // Decrypt the response if it's encrypted (using finalDataToProcess)
+    if (encryptionEnabled && encryptionKey && finalDataToProcess.encrypted) {
+      try {
+        const decryptedData = decryptPayload(finalDataToProcess, encryptionKey);
+        // Ensure decryptedData has content
+        if (decryptedData && typeof decryptedData.content === 'string') {
+            return { role: 'assistant', content: decryptedData.content };
+        } else {
+            console.error('Decryption succeeded but content is missing or invalid:', decryptedData);
+            throw new Error('Decrypted content is missing or invalid.');
+        }
+      } catch (decryptionError) {
+          console.error('Error decrypting payload:', decryptionError);
+          throw new Error('Failed to decrypt response.');
+      }
     }
     
-    return { role: 'assistant', content: responseData.content };
+    // Handle non-encrypted or non-special endpoint responses that weren't encrypted
+    // Check if finalDataToProcess has the expected 'content' field
+    if (finalDataToProcess && typeof finalDataToProcess.content === 'string') {
+        return { role: 'assistant', content: finalDataToProcess.content };
+    } else {
+        // If content is still missing, it indicates an unexpected format or issue
+        console.error('Response data missing expected content field:', finalDataToProcess);
+        const errorMessage = (effectiveModel === geminiModel)
+                           ? 'Processed response from special Gemini model lacks content.'
+                           : 'Response data lacks content field.';
+        throw new Error(errorMessage);
+    }
+
   } catch (error) {
     console.error('API error:', error);
     throw error;
