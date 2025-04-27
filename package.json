@@ -1,9 +1,9 @@
 {
-  "name": "notepad-react",
+  "name": "notepad-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://tanveer.github.io/notepad-react",
+  "homepage": "https://tanveer.github.io/notepad-web",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

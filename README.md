@@ -3,7 +3,7 @@
 # Notepad
 
 A modern, feature-rich text editor built with React and Material-UI. 
-Try it live at [https://tchowdary.github.io/notepad-react](https://tchowdary.github.io/notepad-react)
+Try it live at [https://tchowdary.github.io/notepad-web](https://tchowdary.github.io/notepad-web)
 
 # Features
 

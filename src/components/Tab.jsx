@@ -28,7 +28,7 @@ const Tab = ({ id, label, active, onClose, onSelect, onRename, setRightTab, spli
     // Ensure id is a number
     const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
     // Get base URL for GitHub Pages or local development
-    const baseUrl = window.location.hostname === 'tchowdary.github.io' ? '/notepad-react' : '';
+    const baseUrl = window.location.hostname === 'tchowdary.github.io' ? '/notepad-web' : '';
     
     if (!active) {
       onSelect(numericId);
