@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   AppBar,
   Toolbar as MuiToolbar,
@@ -32,10 +32,7 @@ import {
   ViewColumn as SplitViewIcon,
   CalendarViewWeek as WeeklyNotesIcon,
   Search as SearchIcon,
-  Timer as TimerIcon,
-  Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { Typography, Box } from '@mui/material';
 import GitHubSettingsModal from './GitHubSettingsModal';
 import ApiKeyInput from './ApiKeyInput';
 import githubService from '../services/githubService';
@@ -75,46 +72,6 @@ const Toolbar = ({
   const [showGitHubSettings, setShowGitHubSettings] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [convertAnchorEl, setConvertAnchorEl] = useState(null);
-  const [pomodoroDuration, setPomodoroDuration] = useState(25 * 60);
-  const [timeLeft, setTimeLeft] = useState(pomodoroDuration);
-  const [timerActive, setTimerActive] = useState(false);
-
-  useEffect(() => {
-    let timer;
-    if (timerActive) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setTimerActive(false);
-            alert("Pomodoro session completed!");
-            return pomodoroDuration;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [timerActive, pomodoroDuration]);
-
-  const toggleTimer = () => {
-    setTimerActive(prev => !prev);
-  };
-
-  const handleSetDuration = (event) => {
-    event.preventDefault();
-    const minutes = parseInt(prompt("Set Pomodoro duration (minutes):", String(pomodoroDuration / 60)), 10);
-    if (isNaN(minutes) || minutes <= 0) return;
-    const seconds = minutes * 60;
-    setPomodoroDuration(seconds);
-    setTimeLeft(seconds);
-    setTimerActive(false);
-  };
-
-  const resetTimer = () => {
-    setTimerActive(false);
-    setTimeLeft(pomodoroDuration);
-  };
 
   const handleGitHubSync = async () => {
     if (!githubService.isConfigured()) {
@@ -216,13 +173,12 @@ const Toolbar = ({
         variant="dense"
         sx={{
           display: 'flex',
-          justifyContent: 'flex-start',
+          justifyContent: 'center',
           gap: 0.5,
           minHeight: '48px !important',
           padding: '0 8px !important',
         }}
       >       
-        <Box sx={{ flexGrow: 1 }} />
         <Tooltip title="Quick Add Task">
           <IconButton onClick={onQuickAddClick} size="small">
             <QuickAddIcon />
@@ -387,25 +343,7 @@ const Toolbar = ({
             <SplitViewIcon />
           </IconButton>
         </Tooltip>
-
-        <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
-          <IconButton onClick={handleGitHubSync} size="small">
-            <GitHubIcon />
-          </IconButton>
-        </Tooltip>
-
-        <Box sx={{ flexGrow: 1 }} />
-
-        {/* Pomodoro Timer */}
-        <Tooltip title={timerActive ? "Pause Pomodoro" : "Start Pomodoro"}>
-          <IconButton onClick={toggleTimer} onDoubleClick={resetTimer} onContextMenu={handleSetDuration} size="small">
-            <TimerIcon sx={{ color: darkMode ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }} />
-          </IconButton>
-        </Tooltip>
-        <Typography variant="caption" sx={{ ml: 0.5, mr: 1, color: darkMode ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
-          {`${String(Math.floor(timeLeft / 60)).padStart(2, '0')}:${String(timeLeft % 60).padStart(2, '0')}`}
-        </Typography>
-
+        
         {/* <Tooltip title="New Tab (Ctrl+N)">
           <IconButton onClick={onNewTab} size="small">
             <AddIcon />
@@ -417,6 +355,12 @@ const Toolbar = ({
             <WeeklyNotesIcon />
           </IconButton>
         </Tooltip> */}
+
+        <Tooltip title={githubService.isConfigured() ? "Sync with GitHub" : "Configure GitHub"}>
+          <IconButton onClick={handleGitHubSync} size="small">
+            <GitHubIcon />
+          </IconButton>
+        </Tooltip>
 
         <GitHubSettingsModal
           open={showGitHubSettings}
