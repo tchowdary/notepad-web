@@ -466,7 +466,7 @@ const sendProxyMessage = async (messages, model, apiKey, customInstruction, onSt
       messagePayload.unshift({ role: 'system', content: customInstruction.content });
     }
 
-    const geminiModel = 'gemini-2.5-pro-exp-03-25';
+    const geminiModel = 'gemini-2.5-pro';
     // If model is 'Flash-Max', always use the Gemini model
     let effectiveModel = model === 'Flash-Max' ? geminiModel : model;
     
