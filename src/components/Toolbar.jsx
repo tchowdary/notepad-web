@@ -277,7 +277,7 @@ const Toolbar = ({
           </IconButton>
         </Tooltip> */}
 
-        {/* <Tooltip title="New Excalidraw">
+        <Tooltip title="New Drawing">
           <IconButton
             onClick={() => {
               onNewDrawing('excalidraw');
@@ -286,7 +286,7 @@ const Toolbar = ({
           >
             <DrawIcon />
           </IconButton>
-        </Tooltip> */}
+        </Tooltip>
 
         {/* <Tooltip title="Convert Text">
           <IconButton 

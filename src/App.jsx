@@ -500,6 +500,10 @@ function App() {
         tabName = `Drawing-${newId}.tldraw`;
         tabType = 'tldraw';
         editorType = 'tldraw';
+      } else if (type === 'excalidraw') {
+        tabName = `Drawing-${newId}.excalidraw`;
+        tabType = 'excalidraw';
+        editorType = 'excalidraw';
       }
     }
     
@@ -703,16 +707,7 @@ function App() {
   };
 
   const handleNewDrawing = (type = 'excalidraw') => {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const newId = Math.max(...tabs.map(tab => tab.id), 0) + 1;
-    setTabs([...tabs, { 
-      id: newId, 
-      name: `Drawing-${timestamp}.${type}`, 
-      content: '', 
-      type,
-      editorType: 'tiptap'
-    }]);
-    setActiveTab(newId);
+    handleNewTab({ type });
   };
 
   const handleNewTLDraw = () => {
@@ -1243,8 +1238,6 @@ function App() {
     if (tab.type === 'excalidraw') {
       return (
         <ExcalidrawEditor
-          open={true}
-          onClose={() => {}} // No-op since we're using tabs
           darkMode={darkMode}
           id={tab.id}
         />
